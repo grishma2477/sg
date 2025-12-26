@@ -1,0 +1,14 @@
+@BASE_URL = http://localhost:5000/users
+@TOKEN = 123
+
+# Register User
+POST {{BASE_URL}}/
+Content-Type: application/json
+
+{
+    "name":"ram",
+    "email":"ram@gmail.com",
+    "password":"ram"
+}
+
+###
