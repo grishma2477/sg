@@ -24,3 +24,12 @@ export const verifyuser = async (req, res, next)=>{
     req.user = user;
     next();
 }
+
+export const verifyDriver= async (req, res, next) => {
+        const user = req.user;
+        if(user.role ==  'driver' ) {
+            next();
+        }
+        return failure(401, "UnAuthorised")
+
+}

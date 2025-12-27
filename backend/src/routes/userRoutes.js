@@ -1,7 +1,6 @@
 import express from "express";
 import * as userController from "../controllers/userController.js"
 
-import { requireRating } from "../middleware/requireRating.js";
 
 const router = express.Router()
 
@@ -13,6 +12,5 @@ export default router
 router.post(
     "/request",
     authMiddleware,
-    requireRating,
     requestRide
 );

@@ -1,6 +1,6 @@
 import { asyncHandler } from "../middleware/asyncHandler.js"
 import User from "../models/user/User.js"
-import { failure, success } from './../utils/ApiResponse';
+import { failure, success } from './../utils/ApiResponse.js';
 
 
 // Get uSer Profiler

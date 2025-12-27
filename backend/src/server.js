@@ -1,8 +1,14 @@
 import app from "./app.js";
 import { connectDB } from './database/DBConnection.js';
 import { Constant } from "./utils/Constant.js";
+import { initSocket } from "./realtime/socketServer.js";
+
+//socket initialization 
+const server = http.createServer(app);
+initSocket(server);
 
 const PORT = Constant.PORT;
+
 try {
   await connectDB();
   app.listen(PORT, () => {

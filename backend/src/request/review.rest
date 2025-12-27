@@ -1,0 +1,48 @@
+# Rider submits review for Driver
+POST http://localhost:3000/api/reviews
+Content-Type: application/json
+Authorization: Bearer RIDER_TOKEN
+Idempotency-Key: rider-review-001
+
+{
+  "rideSummary": {
+    "rideId": "ride-uuid-123",
+    "riderId": "rider-uuid-1",
+    "driverId": "driver-uuid-9",
+    "status": "completed",
+    "isPaid": true
+  },
+  "userReviewState": {
+    "hasReviewed": false
+  },
+  "rating": { "stars": 5 },
+  "taps": [
+    { "key": "safe_driving", "category": "positive", "pointValue": 3 },
+    { "key": "polite", "category": "positive", "pointValue": 2 }
+  ]
+}
+
+###
+
+# Driver submits review for Rider
+POST http://localhost:3000/api/reviews
+Content-Type: application/json
+Authorization: Bearer DRIVER_TOKEN
+Idempotency-Key: driver-review-001
+
+{
+  "rideSummary": {
+    "rideId": "ride-uuid-123",
+    "riderId": "rider-uuid-1",
+    "driverId": "driver-uuid-9",
+    "status": "completed",
+    "isPaid": true
+  },
+  "userReviewState": {
+    "hasReviewed": false
+  },
+  "rating": { "stars": 4 },
+  "taps": [
+    { "key": "clear_pickup", "category": "positive", "pointValue": 1 }
+  ]
+}

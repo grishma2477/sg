@@ -1,39 +1,53 @@
 import { pool } from "../DBConnection.js";
-import * as crud from "./DBMethods.js"
-
+import * as crud from "./DBMethods.js";
 
 export const ModelManager = {
   createModel: (tableCreateQuery, tableName, customQueries = {}) => {
-    // Optionally create table on first load
+    // Auto-create table (Phase-1 behavior)
     pool.query(tableCreateQuery).catch(err => {
       console.error(`Error creating table "${tableName}":`, err);
     });
 
-    // Base CRUD methods
     const model = {
       // CREATE
-      create: (data) => crud.create(tableName, data),
+      create: (data, client) =>
+        crud.create(tableName, data, client),
 
       // READ
-      find: (filters = {}) => crud.find(tableName, filters),
-      findAll: () => crud.findAll(tableName),
-      findOne: (filters = {}) => crud.findOne(tableName, filters),
-      findById: (id) => crud.findById(tableName, id),
-      existsById: (id) => crud.existsById(tableName, id),
+      find: (filters = {}, client) =>
+        crud.find(tableName, filters, client),
+
+      findAll: (client) =>
+        crud.find(tableName, {}, client),
+
+      findOne: (filters = {}, client) =>
+        crud.findOne(tableName, filters, client),
+
+      findById: (id, client) =>
+        crud.findById(tableName, id, client),
+
+      existsById: (id, client) =>
+        crud.existsById(tableName, id, client),
 
       // UPDATE
-      updateOne: (filters, data) => crud.updateOne(tableName, filters, data),
-      findByIdAndUpdate: (id, data) => crud.findByIdAndUpdate(tableName, id, data),
+      updateOne: (filters, data, client) =>
+        crud.updateOne(tableName, filters, data, client),
+
+      findByIdAndUpdate: (id, data, client) =>
+        crud.findByIdAndUpdate(tableName, id, data, client),
 
       // DELETE
-      deleteOne: (filters) => crud.deleteOne(tableName, filters),
-      findByIdAndDelete: (id) => crud.findByIdAndDelete(tableName, id),
+      deleteOne: (filters, client) =>
+        crud.deleteOne(tableName, filters, client),
+
+      findByIdAndDelete: (id, client) =>
+        crud.findByIdAndDelete(tableName, id, client),
     };
 
-    // Add custom queries dynamically
+    // Custom queries
     Object.keys(customQueries).forEach(key => {
-      model[key] = async (...params) => {
-        const { rows } = await pool.query(customQueries[key], params);
+      model[key] = async (params = [], client = pool) => {
+        const { rows } = await client.query(customQueries[key], params);
         return rows;
       };
     });
