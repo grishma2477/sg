@@ -1,9 +1,10 @@
-import { ModelManager } from '../../database/utils/ModelManager.js';
-import { ReviewQueryManager } from './ReviewQueryManager.js';
-import { String } from '../../utils/Constant.js';
+import { ModelManager } from "../../database/utils/ModelManager.js";
+import { ReviewQueryManager } from "./ReviewQueryManager.js";
+import { String } from "../../utils/Constant.js";
 
-const Review = ModelManager.createModel(
+const Review = ModelManager.createModel([
   ReviewQueryManager.createReviewTableQuery,
+  ReviewQueryManager.createReviewTableQueryIndex],
   String.REVIEW_MODEL
 );
 

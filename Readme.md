@@ -27,3 +27,8 @@ git clone https://github.com/grishma2477/PERN.git
 3. And start the project:
   ```command 
    npm run dev
+
+
+Rating Review
+  compulsary
+  

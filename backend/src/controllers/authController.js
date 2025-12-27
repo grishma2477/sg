@@ -6,9 +6,9 @@ import jwt from "jsonwebtoken"
 import { Constant } from "../utils/Constant.js";
 
 export const registerUser = asyncHandler(async (req, res)=>{
-    const {firstName, lastName, email, password, userName } = req.body;
+    const {firstName, lastName, email, password, phone } = req.body;
     
-    if (!firstName || !lastName || !email || !password || !userName){
+    if (!firstName || !lastName || !email || !password || !phone){
         return failure(400, "Missing required fields.");
     }
 
@@ -20,15 +20,14 @@ export const registerUser = asyncHandler(async (req, res)=>{
     const name = `${firstName} ${lastName}`;
     
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({
-        firstName,
-        lastName,
+    const newUser = User.create({
+        full_name: name,
         email,
-        password:hashedPassword,
-        userName, 
-        profilePicUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
+        password_hash:hashedPassword,
+        phone
     })
-    await newUser.save({validateBeforeSave:true});
+    console.log("New User to be registered:", newUser);
+    // await newUser.save({validateBeforeSave:true});
     res.status(201).json(success("Registered User successfully.", newUser));
 })
 
@@ -40,13 +39,13 @@ export const logInUser = asyncHandler(async (req, res) => {
     }
 
     // MUST SELECT PASSWORD because select:false in schema
-    const user = await User.findOne({ email }).select("+password");
-
+    const user = await User.findOne({ email });
+    console.log("User found during login:", user);
     if (!user) {
         return failure(401, "Invalid email or password.");
     }
 
-    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    const isPasswordCorrect = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordCorrect) {
         return failure(401, "Invalid email or password.");
     }
@@ -56,7 +55,7 @@ export const logInUser = asyncHandler(async (req, res) => {
         role: user.role 
     };
     const resUser = await User.findOne({email});
-
+    
 const accessToken = jwt.sign(payload, Constant.AccessTokenSecretKey, {expiresIn:Constant.AccessTokenExpirationTime});
 const refreshToken = jwt.sign(payload, Constant.RefreshTokenSecretKey, {expiresIn:Constant.RefreshTokenExpirationTime});
 res.status(200).json({...success("Login Successful.", resUser), accessToken, refreshToken});

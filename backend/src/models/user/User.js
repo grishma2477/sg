@@ -3,6 +3,8 @@ import { UserQueryManager } from './UserQueryManager.js';
 import { String } from '../../utils/Constant.js';
 
 
-const User = ModelManager.createModel(UserQueryManager.createUserTableQuery, String.USER_MODEL);
-
+const User = ModelManager.createModel([
+    UserQueryManager.createUserTableQuery,
+    UserQueryManager.createUserTableQueryIndex
+], String.USER_MODEL);
 export default User;

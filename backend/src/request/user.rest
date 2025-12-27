@@ -1,14 +1,25 @@
 @BASE_URL = http://localhost:5000/users
-@TOKEN = 123
+@TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjpudWxsLCJpYXQiOjE3NjY3MzI5NzUsImV4cCI6MTc2NjczNDc3NX0.RLuQL8IujYWPyEpYxDDWE3kYB6eX5gcc4FrjPrn-XOw
 
-# Register User
-POST {{BASE_URL}}/
+
+#Get User Profile
+GET {{BASE_URL}}/profile
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+
+###
+
+#Update User Profile
+PUT {{BASE_URL}}/profile
+Authorization: Bearer {{TOKEN}}
 Content-Type: application/json
 
 {
-    "name":"ram",
-    "email":"ram@gmail.com",
-    "password":"ram"
+    "firstName":"raman",
+    "lastName":"sharma",
+    "phone": "0987654321"
 }
 
 ###
+
+#Get user id by email

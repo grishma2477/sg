@@ -1,17 +1,28 @@
 import { String } from "../../utils/Constant.js";
 
 export const UserQueryManager = {
-    createUserTableQuery: `
+  createUserTableQuery: `
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
       CREATE TABLE IF NOT EXISTS ${String.USER_MODEL} (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        full_name VARCHAR(100) NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
-        phone VARCHAR(20) UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        is_active BOOLEAN DEFAULT TRUE,
-        role VARCHAR(20) CHECK (role IN ('RIDER', 'DRIVER', 'ADMIN')),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+       id UUID PRIMARY KEY,
+
+       role VARCHAR(20) NOT NULL CHECK (role IN ('rider','driver','admin')),
+       status VARCHAR(20) DEFAULT 'active', -- active, suspended, banned
+
+       created_at TIMESTAMPTZ DEFAULT NOW(),
+       updated_at TIMESTAMPTZ DEFAULT NOW()
       );
+    `,
+
+  createUserTableQueryIndex: `
+    -- Fast role-based filtering (admin, driver, rider)
+    CREATE INDEX IF NOT EXISTS idx_users_role
+    ON users (role);
+
+    -- Fast status checks (active/suspended)
+    CREATE INDEX IF NOT EXISTS idx_users_status
+    ON users (status);
     `
-  };
+
+
+};
