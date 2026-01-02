@@ -7,50 +7,55 @@
 @driverId = 4ed524ef-c63f-4dfe-87e3-6f7633355545
 @rideId = 09de7eaf-4929-405b-bd17-4e7450ec87b1
 @reviewId = review-uuid
+###
 
-# RIDER REVIEWS DRIVER
-POST {{BASE_URL}}/api/reviews
+# ADMIN CREATE RIDE
+POST {{BASE_URL}}/api/admin/rides
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "rider_id": "{{riderId}}",
+  "driver_id": "{{driverId}}",
+  "status": "created"
+}
+
+
+###
+
+# USER START RIDE
+POST {{BASE_URL}}/api/rides/{{rideId}}/start
 Authorization: Bearer {{RIDER_TOKEN}}
-Content-Type: application/json
-
-{
-  "rideSummary": {
-    "rideId": "{{rideId}}",
-    "riderId": "{{riderId}}",
-    "driverId": "{{driverId}}",
-    "status": "completed",
-    "isPaid": true
-  },
-  "rating": { "stars": 5 },
-  "taps": [
-    { "key": "safe_driving", "category": "positive", "pointValue": 3 },
-    { "key": "polite", "category": "positive", "pointValue": 2 }
-  ]
-}
-
-
 
 ###
 
+# USER COMPLETE RIDE
+POST {{BASE_URL}}/api/rides/{{rideId}}/complete
+Authorization: Bearer {{RIDER_TOKEN}}
 
-# DRIVER REVIEWS RIDER
-POST {{BASE_URL}}/api/reviews
-Authorization: Bearer {{DRIVER_TOKEN}}
+###
+
+# ADMIN FORCE COMPLETE RIDE
+POST {{BASE_URL}}/api/admin/rides/{{rideId}}/force-complete
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+###
+
+# ADMIN UPDATE RIDE
+PUT {{BASE_URL}}/api/admin/rides/{{rideId}}
+Authorization: Bearer {{ADMIN_TOKEN}}
 Content-Type: application/json
 
 {
-  "rideSummary": {
-    "rideId": "{{rideId}}",
-    "riderId": "{{riderId}}",
-    "driverId": "{{driverId}}",
-    "status": "completed",
-    "isPaid": true
-  },
-  "rating": { "stars": 4 },
-  "taps": [
-    { "key": "clear_pickup", "category": "positive", "pointValue": 1 }
-  ]
+  "status": "completed",
+  "is_paid": true,
+  "note": "Manually corrected by admin"
 }
 
 ###
 
+# ADMIN DELETE RIDE
+DELETE {{BASE_URL}}/api/admin/rides/{{rideId}}
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+###

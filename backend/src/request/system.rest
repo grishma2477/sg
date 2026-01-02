@@ -1,0 +1,29 @@
+@BASE_URL = http://localhost:5000
+@ADMIN_TOKEN = YOUR_ADMIN_JWT
+
+# ADMIN CREATE RIDER
+POST {{BASE_URL}}/api/admin/users
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "name": "Test Rider",
+  "role": "rider",
+  "email": "rider@test.com"
+}
+
+
+###
+
+# ADMIN CREATE DRIVER
+POST {{BASE_URL}}/api/admin/drivers
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "name": "Test Driver",
+  "email": "driver@test.com",
+  "vehicle_type": "car"
+}
+
+

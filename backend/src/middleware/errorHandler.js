@@ -1,11 +1,32 @@
-export const errorHandler = (error, req, res, next) =>{
-    const statusCode = error.statusCode || 500;
-    const message = error.message || "Something went wrong.";
-    const data = error.data || {}
+// import { ApiResponse } from "../utils/ApiResponse.js";
 
-    res.status(statusCode).json({
-        success:false,
-        message,
-        data
-    });
+// export const errorHandler = (err, req, res, next) => {
+//   console.error(err.message);
+
+//   const statusCode = err.statusCode || 500;
+//   const message =
+//     err.isOperational
+//       ? err.message
+//       : "INTERNAL_SERVER_ERROR";
+
+//   res.status(statusCode).json(
+//     ApiResponse.error(message, statusCode)
+//   );
+// };
+
+
+
+import { ApiResponse } from "../utils/ApiResponse.js";
+
+export const errorHandler = (err, req, res, next) => {
+  console.error(err.message);
+
+  const statusCode = err.statusCode || 500;
+  const message = err.isOperational
+    ? err.message
+    : "INTERNAL_SERVER_ERROR";
+
+  res.status(statusCode).json(
+    ApiResponse.error(message, statusCode, err.data)
+  );
 };

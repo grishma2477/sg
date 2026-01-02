@@ -3,10 +3,15 @@ import * as crud from "./DBMethods.js";
 
 export const ModelManager = {
   createModel: (tableCreateQuery, tableName, customQueries = {}) => {
-    // Auto-create table (Phase-1 behavior)
-    pool.query(tableCreateQuery).catch(err => {
-      console.error(`Error creating table "${tableName}":`, err);
-    });
+
+
+
+ 
+    //This kind of logic only for table creation without the array of table and index creation  logic
+    // // Auto-create table (Phase-1 behavior)
+    // pool.query(tableCreateQuery).catch(err => {
+    //   console.error(`Error creating table "${tableName}":`, err);
+    // });
 
     const model = {
       // CREATE

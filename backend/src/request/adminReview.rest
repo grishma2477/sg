@@ -5,52 +5,58 @@
 @adminID= 390eca1f-679b-4c82-8905-220a58a4773a
 @riderId = d4684c5f-ce7a-4c06-96c9-8852c2f04201
 @driverId = 4ed524ef-c63f-4dfe-87e3-6f7633355545
-@rideId = 09de7eaf-4929-405b-bd17-4e7450ec87b1
+@rideId = ride-uuid
 @reviewId = review-uuid
-
-# RIDER REVIEWS DRIVER
-POST {{BASE_URL}}/api/reviews
-Authorization: Bearer {{RIDER_TOKEN}}
+# ADMIN CREATE REVIEW (EMERGENCY)
+POST {{BASE_URL}}/api/admin/reviews
+Authorization: Bearer {{ADMIN_TOKEN}}
 Content-Type: application/json
 
 {
-  "rideSummary": {
-    "rideId": "{{rideId}}",
-    "riderId": "{{riderId}}",
-    "driverId": "{{driverId}}",
-    "status": "completed",
-    "isPaid": true
-  },
+  "rideId": "{{rideId}}",
+  "reviewerId": "{{riderId}}",
+  "revieweeId": "{{driverId}}",
   "rating": { "stars": 5 },
   "taps": [
-    { "key": "safe_driving", "category": "positive", "pointValue": 3 },
-    { "key": "polite", "category": "positive", "pointValue": 2 }
-  ]
+    { "key": "safe_driving", "category": "positive", "pointValue": 3 }
+  ],
+  "reason": "User app crashed during submission"
 }
-
-
 
 ###
 
 
-# DRIVER REVIEWS RIDER
-POST {{BASE_URL}}/api/reviews
-Authorization: Bearer {{DRIVER_TOKEN}}
+### ADMIN GET REVIEW
+GET http://localhost:3000/api/admin/reviews/{{reviewId}}
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+
+###
+
+# ADMIN UPDATE REVIEW
+PUT {{BASE_URL}}/api/admin/reviews/{{reviewId}}
+Authorization: Bearer {{ADMIN_TOKEN}}
 Content-Type: application/json
 
 {
-  "rideSummary": {
-    "rideId": "{{rideId}}",
-    "riderId": "{{riderId}}",
-    "driverId": "{{driverId}}",
-    "status": "completed",
-    "isPaid": true
-  },
-  "rating": { "stars": 4 },
-  "taps": [
-    { "key": "clear_pickup", "category": "positive", "pointValue": 1 }
-  ]
+  "stars": 4
 }
 
 ###
 
+# ADMIN FLAG REVIEW
+POST {{BASE_URL}}/api/admin/reviews/{{reviewId}}/flag
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "reason": "Suspicious behavior"
+}
+
+###
+
+# ADMIN DELETE REVIEW
+DELETE {{BASE_URL}}/api/admin/reviews/{{reviewId}}
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+###

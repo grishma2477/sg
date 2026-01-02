@@ -1,62 +1,203 @@
-import { asyncHandler } from "../middleware/asyncHandler.js";
-import User from "../models/user/User.js";
+// import jwt from "jsonwebtoken";
+// import bcrypt from "bcryptjs";
+
+// import UserModel from "../models/user/User.js";
+// import { ApiResponse } from "../utils/ApiResponse.js";
+// import { Constant } from "../utils/Constant.js";
+// import AuthCredentialModel from "../models/user/auth_credentials/AuthCredential.js";
+
+
+// export const register = async (req, res, next) => {
+//   try {
+//     const { email, password, role = "rider" } = req.body;
+
+//     const existing = await AuthCredentialModel.findOne({ email });
+//     if (existing) {
+//       return res
+//         .status(400)
+//         .json(ApiResponse.success({}, "USER_ALREADY_EXISTS"));
+//     }
+
+//     const password_hash = await bcrypt.hash(password, 10);
+
+//     const user = await AuthCredentialModel.create({
+//       email,
+//       password_hash,
+//       role,
+//       status: "active"
+//     });
+
+//     res.status(201).json(
+//       ApiResponse.success(
+//         { id: user.id, email: user.email, role: user.role },
+//         "USER_REGISTERED"
+//       )
+//     );
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
+// export const login = async (req, res, next) => {
+//   try {
+//     const { email, password } = req.body;
+
+//     const user = await UserModel.findOne({ email });
+//     if (!user) {
+//       return res
+//         .status(401)
+//         .json(ApiResponse.success({}, "INVALID_CREDENTIALS"));
+//     }
+
+//     const valid = await bcrypt.compare(password, user.password_hash);
+//     if (!valid) {
+//       return res
+//         .status(401)
+//         .json(ApiResponse.success({}, "INVALID_CREDENTIALS"));
+//     }
+
+//     const token = jwt.sign(
+//       { id: user.id, role: user.role },
+//       Constant.AccessTokenSecretKey,
+//       { expiresIn: Constant.AccessTokenExpirationTime }
+//     );
+
+//     res.json(
+//       ApiResponse.success(
+//         {
+//           token,
+//           user: {
+//             id: user.id,
+//             email: user.email,
+//             role: user.role
+//           }
+//         },
+//         "LOGIN_SUCCESS"
+//       )
+//     );
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
+
+
+import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { failure, success } from "../utils/ApiResponse.js";
-import jwt from "jsonwebtoken"
+
+import UserModel from "../models/user/User.js";
+import AuthCredentialModel from "../models/user/auth_credentials/AuthCredential.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
 import { Constant } from "../utils/Constant.js";
 
-export const registerUser = asyncHandler(async (req, res)=>{
-    const {firstName, lastName, email, password, phone } = req.body;
-    
-    if (!firstName || !lastName || !email || !password || !phone){
-        return failure(400, "Missing required fields.");
+/**
+ * REGISTER
+ * Everyone registers as a USER first
+ * Drivers are just users with role="driver"
+ */
+export const register = async (req, res, next) => {
+    console.log("working till here ...")
+
+  try {
+    const { email, password, role } = req.body;
+
+    // 1️⃣ Check email uniqueness
+    const existing = await AuthCredentialModel.findOne({ email });
+    if (existing) {
+      return res
+        .status(400)
+        .json(ApiResponse.error("EMAIL_ALREADY_EXISTS"));
     }
+    // 2️⃣ Create user identity
+    const user = await UserModel.create({
+      role,
+      status: "active"
+    });
 
-    const userAlreadyExists = await User.findOne({email:email});
-    if(userAlreadyExists){
-        return failure(409, "An user with this email already exists.");
-    }
+    // 3️⃣ Create credentials
+    const password_hash = await bcrypt.hash(password, 10);
 
-    const name = `${firstName} ${lastName}`;
-    
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = User.create({
-        full_name: name,
-        email,
-        password_hash:hashedPassword,
-        phone
-    })
-    console.log("New User to be registered:", newUser);
-    // await newUser.save({validateBeforeSave:true});
-    res.status(201).json(success("Registered User successfully.", newUser));
-})
+    await AuthCredentialModel.create({
+      user_id: user.id,
+      email,
+      password_hash
+    });
 
-export const logInUser = asyncHandler(async (req, res) => {
+    res.status(201).json(
+      ApiResponse.success(
+        {
+          id: user.id,
+          email,
+          role: user.role
+        },
+        "USER_REGISTERED"
+      )
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * LOGIN
+ * Returns access + refresh token
+ */
+export const login = async (req, res, next) => {
+  try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-        return failure(400, "Email and password are required.");
+    // 1️⃣ Find credentials
+    const creds = await AuthCredentialModel.findOne({ email });
+    if (!creds) {
+      return res
+        .status(401)
+        .json(ApiResponse.error("INVALID_CREDENTIALS"));
     }
 
-    // MUST SELECT PASSWORD because select:false in schema
-    const user = await User.findOne({ email });
-    console.log("User found during login:", user);
-    if (!user) {
-        return failure(401, "Invalid email or password.");
+    // 2️⃣ Verify password
+    const valid = await bcrypt.compare(password, creds.password_hash);
+    if (!valid) {
+      return res
+        .status(401)
+        .json(ApiResponse.error("INVALID_CREDENTIALS"));
     }
 
-    const isPasswordCorrect = await bcrypt.compare(password, user.password_hash);
-    if (!isPasswordCorrect) {
-        return failure(401, "Invalid email or password.");
-    }
+    // 3️⃣ Fetch user identity
+    const user = await UserModel.findById(creds.user_id);
 
-    const payload = { 
-        _id: user._id, 
-        role: user.role 
-    };
-    const resUser = await User.findOne({email});
-    
-const accessToken = jwt.sign(payload, Constant.AccessTokenSecretKey, {expiresIn:Constant.AccessTokenExpirationTime});
-const refreshToken = jwt.sign(payload, Constant.RefreshTokenSecretKey, {expiresIn:Constant.RefreshTokenExpirationTime});
-res.status(200).json({...success("Login Successful.", resUser), accessToken, refreshToken});
-})
+    // 4️⃣ Generate tokens
+    const accessToken = jwt.sign(
+      { id: user.id, role: user.role },
+      Constant.AccessTokenSecretKey,
+      { expiresIn: Constant.AccessTokenExpirationTime }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: user.id },
+      Constant.RefreshTokenSecretKey,
+      { expiresIn: Constant.RefreshTokenExpirationTime }
+    );
+
+    // (optional but recommended)
+    await AuthCredentialModel.updateOne(
+      { user_id: user.id },
+      { last_login_at: new Date() }
+    );
+
+    res.json(
+      ApiResponse.success(
+        {
+          accessToken,
+          refreshToken,
+          user: {
+            id: user.id,
+            role: user.role
+          }
+        },
+        "LOGIN_SUCCESS"
+      )
+    );
+  } catch (err) {
+    next(err);
+  }
+};

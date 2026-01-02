@@ -1,7 +1,7 @@
 import { asyncHandler } from "../middleware/asyncHandler.js"
 import User from "../models/user/User.js"
 import { failure, success } from './../utils/ApiResponse.js';
-
+import AuthCredentialModel from "../models/auth/AuthCredential.js";
 
 // Get uSer Profiler
 export const getUserProfile = asyncHandler(async (req, res, next) => {

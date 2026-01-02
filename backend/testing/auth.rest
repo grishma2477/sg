@@ -1,0 +1,43 @@
+@BASE_URL = http://localhost:5000/auth
+@TOKEN = eeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjpudWxsLCJpYXQiOjE3NjY3MzI5NzUsImV4cCI6MTc2NjczNDc3NX0.RLuQL8IujYWPyEpYxDDWE3kYB6eX5gcc4FrjPrn-XOw
+
+@REFRESH_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjpudWxsLCJpYXQiOjE3NjY3MzI5NzUsImV4cCI6MTc2OTMyNDk3NX0.XsLcenyP8PK0Yo5Gp4ReBzb1dbd7uUzTQaPDQRROTsk
+
+# Register User
+POST {{BASE_URL}}/register
+Content-Type: application/json
+
+{
+    "firstName":"ram",
+    "lastName":"sharma",
+    "email":"ram@gmail.com",
+    "password":"ram",
+    "phone": "1234567890"
+
+}
+
+###
+
+# Login User
+POST {{BASE_URL}}/login
+Content-Type: application/json
+
+{
+    "email":"ram@gmail.com",
+    "password":"ram"
+}
+
+###
+
+#Refresh Token
+POST {{BASE_URL}}/refresh-token
+Content-Type: application/json
+
+{
+    "refresh_token":"{{REFRESH_TOKEN}}"
+}
+
+###
+
+
+

@@ -1,32 +1,37 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import fileUpload from "express-fileupload";
+
 import { errorHandler } from "./middleware/errorHandler.js";
-import fileUpload from "express-fileupload"
 
-
-dotenv.config()
-const app = express(); 
-app.use(cors());
-app.use(express.json())
-//  to create and store temporary folder for user uploaded images
-app.use(fileUpload({useTempFiles:true}))
-
-
-//routes import here
+// ROUTES
 import authRoutes from "./routes/authRoutes.js";
-import userRoutes from "./routes/userRoutes.js";
+import rideRoutes from "./routes/rideRoutes.js";
+import reviewRoutes from "./routes/reviewRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+
+dotenv.config();
+
+const app = express();
+
+// ---------- GLOBAL MIDDLEWARE ---------- 
+app.use(cors());
+app.use(express.json());
+app.use(fileUpload({ useTempFiles: true }));
+
+// ---------- HEALTH CHECK ---------- 
+app.get("/", (req, res) => {
+  res.status(200).send("Welcome to PERN API");
+});
+
+//  ---------- API ROUTES ---------- 
+app.use("/api/auth", authRoutes);
+app.use("/api/rides", rideRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/admin", adminRoutes);
 
 
-app.get("/",(req,res)=>{
-    res.status(200).send("Welcome to PERN API")
-})
-
-// routes use here.
-app.use("/auth",authRoutes);
-app.use("/user", userRoutes);
-
-//custom middleware
 app.use(errorHandler);
 
-export default app
+export default app;

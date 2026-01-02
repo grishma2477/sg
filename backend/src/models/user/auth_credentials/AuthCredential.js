@@ -1,5 +1,5 @@
 import { ModelManager } from '../../../database/utils/ModelManager.js';
-import { AuthCredentialQueryManager } from '../AuthCredentialQueryManager.js';
+import { AuthCredentialQueryManager } from './AuthCredentialQueryManager.js';
 import { String } from '../../../utils/Constant.js';
 
 const AuthCredential = ModelManager.createModel([

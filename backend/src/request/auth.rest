@@ -1,43 +1,46 @@
-@BASE_URL = http://localhost:5000/auth
-@TOKEN = eeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjpudWxsLCJpYXQiOjE3NjY3MzI5NzUsImV4cCI6MTc2NjczNDc3NX0.RLuQL8IujYWPyEpYxDDWE3kYB6eX5gcc4FrjPrn-XOw
-
-@REFRESH_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjpudWxsLCJpYXQiOjE3NjY3MzI5NzUsImV4cCI6MTc2OTMyNDk3NX0.XsLcenyP8PK0Yo5Gp4ReBzb1dbd7uUzTQaPDQRROTsk
-
-# Register User
-POST {{BASE_URL}}/register
+### REGISTER
+POST http://localhost:5000/api/auth/register
 Content-Type: application/json
 
 {
-    "firstName":"ram",
-    "lastName":"sharma",
-    "email":"ram@gmail.com",
-    "password":"ram",
-    "phone": "1234567890"
-
+  "email": "rider@sg.com",
+  "password": "rider123",
+  "role": "rider"
 }
 
 ###
 
-# Login User
-POST {{BASE_URL}}/login
+# LOGIN Rider
+POST http://localhost:5000/api/auth/login
 Content-Type: application/json
 
 {
-    "email":"ram@gmail.com",
-    "password":"ram"
+  "email": "rider@sg.com",
+  "password": "rider123"
+}
+
+
+###
+
+# LOGIN Driver
+POST http://localhost:5000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "driver@sg.com",
+  "password": "driver123"
 }
 
 ###
 
-#Refresh Token
-POST {{BASE_URL}}/refresh-token
+# LOGIN Admin
+POST http://localhost:5000/api/auth/login
 Content-Type: application/json
 
 {
-    "refresh_token":"{{REFRESH_TOKEN}}"
+  "email": "admin@sg.com",
+  "password": "driver123"
 }
 
+
 ###
-
-
-
