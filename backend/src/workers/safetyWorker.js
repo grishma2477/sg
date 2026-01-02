@@ -19,7 +19,7 @@ console.log("🚦 Safety worker started - listening for jobs...");
  * 
  * Processes review submissions and updates driver safety points.
  */
-safetyQueue.process(async (job) => {
+safetyQueue.process('process-safety-review', async (job) => {
   const { review, reviewerRole } = job.data;
   
   console.log("⚙️ Processing safety job:", job.id);

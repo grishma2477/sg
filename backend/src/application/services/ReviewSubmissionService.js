@@ -128,6 +128,8 @@
 //     return review;
 //   }
 // }
+
+
 import { ReviewEligibilityValidator } from "../validators/ReviewEligibilityValidator.js";
 import { RatingTapValidator } from "../validators/RatingTapValidator.js";
 import { ReviewFactory } from "../factories/ReviewFactory.js";
@@ -229,7 +231,7 @@ export class ReviewSubmissionService {
     const review = ReviewFactory.create({
       rideId: rideSummary.rideId,
       reviewerId,
-      driverId: targetUserId,  // Store user_id for worker lookup
+      driverId: targetDriverId,  // Store user_id for worker lookup
       rating,
       taps
     });
@@ -276,13 +278,13 @@ export class ReviewSubmissionService {
     console.log("📤 Adding safety job to queue...");
 
     await safetyQueue.add(
-      `safety-${review.id}`,
+      "process-safety-review",
       {
         review: {
           id: review.id,
           rideId: review.rideId,
           reviewerId: review.reviewerId,
-          driverId: review.driverId,  // user_id of target
+          driverEntityId: targetDriverId, // ✅ drivers.id ONLY
           rating: review.rating,
           taps: review.taps
         },
