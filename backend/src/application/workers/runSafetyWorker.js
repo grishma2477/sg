@@ -1,184 +1,179 @@
 
-
-
-// import DriverModel from "../../models/driver/Driver.js";
 // import DriverSafetyStats from "../../models/driver/driver_safety_stats/DriverSafetyStats.js";
 // import SafetyAuditLog from "../../models/safety/SafetyAuditLog.js";
 // import { SafetyCalculationService } from "../services/SafetyCalculationService.js";
-
+// import Review from "../../models/review/Review.js";
 // /**
 //  * Safety Worker
-//  * 
-//  * Processes reviews and updates driver safety points.
-//  * Only rider → driver reviews affect driver safety scores.
-//  * 
-//  * @param {Object} params
-//  * @param {Object} params.review - The review domain object
-//  * @param {string} params.reviewerRole - "rider" or "driver"
+//  * review.driverEntityId === drivers.id
 //  */
+// // export async function runSafetyWorker({ review, reviewerRole }) {
+// //   console.log("🔄 Safety worker started for review:", review.id);
+
+// //   // 1️⃣ Only rider → driver affects safety
+// //   if (reviewerRole !== "rider") {
+// //     console.log("ℹ️ Skipping safety impact");
+// //     return { skipped: true };
+// //   }
+
+// //   const driverId = review.driverEntityId; // ✅ drivers.id
+
+// //   // 2️⃣ Calculate impact
+// //   const safetyService = new SafetyCalculationService();
+// //   const impact = safetyService.calculate(review);
+
+// //   console.log("🧮 Calculated impact:", impact);
+
+// //   // 3️⃣ Fetch or create safety stats
+// //   let stats = await DriverSafetyStats.findOne({ driver_id: driverId });
+
+// //   if (!stats) {
+// //     stats = await DriverSafetyStats.create({
+// //       driver_id: driverId,
+// //       current_points: 1000,
+// //       average_rating: 0,
+// //       completed_rides: 0,
+// //       total_safety_concerns: 0,
+// //       verified_safe_badge: false
+// //     });
+// //   }
+
+// //   const beforePoints = stats.current_points;
+// //   const afterPoints = beforePoints + impact.totalImpact;
+
+// //   // 4️⃣ Update stats
+// //   await DriverSafetyStats.updateOne(
+// //     { driver_id: driverId },
+// //     {
+// //       current_points: afterPoints,
+// //       completed_rides: stats.completed_rides + 1,
+// //       updated_at: new Date()
+// //     }
+// //   );
+
+// //   // 5️⃣ Audit log
+// //   await SafetyAuditLog.create({
+// //     driver_id: driverId,
+// //     event_type: "REVIEW_IMPACT",
+// //     points_before: beforePoints,
+// //     points_after: afterPoints,
+// //     points_delta: impact.totalImpact,
+// //     triggered_by_review_id: review.id
+// //   });
+
+// //   console.log("✅ Safety updated:", beforePoints, "→", afterPoints);
+
+// //   await Review.updateOne(
+// //   { id: review.id },
+// //   {
+// //     calculated_impact: impact.totalImpact,
+// //     is_processed: true
+// //   }
+// // );
+
+// // console.log("🧾 Review marked as processed:", {
+// //   reviewId: review.id,
+// //   impact: impact.totalImpact
+// // });
+// //   return {
+// //     driverId,
+// //     beforePoints,
+// //     afterPoints,
+// //     impact
+// //   };
+// // }
 
 
 // export async function runSafetyWorker({ review, reviewerRole }) {
 //   console.log("🔄 Safety worker started for review:", review.id);
-//   console.log("👤 Reviewer role:", reviewerRole);
-//   console.log("DEBUG review.rating:", review.rating);
-// console.log("DEBUG typeof stars:", typeof review.rating?.stars);
 
+//   let impact = null;
 
-//   // ═══════════════════════════════════════════════════
-//   // 1️⃣ ONLY RIDER → DRIVER REVIEWS AFFECT SAFETY
-//   // ═══════════════════════════════════════════════════
-//   if (reviewerRole !== "rider") {
-//     console.log("ℹ️ Skipping: Driver reviews don't affect safety scores");
-//     return { skipped: true, reason: "DRIVER_REVIEW_NO_IMPACT" };
-//   }
+//   if (reviewerRole === "rider") {
+//     const safetyService = new SafetyCalculationService();
+//     impact = safetyService.calculate(review);
 
-//   // ═══════════════════════════════════════════════════
-//   // 2️⃣ FIND THE DRIVER RECORD
-//   // ═══════════════════════════════════════════════════
-//   // The review.driverId is actually the user_id of the driver
-//   // We need to find the driver record to get the driver.id
-//   const driver = await DriverModel.findOne({user_id: review.driverId});
-  
-//   if (!driver) {
-//     console.error("❌ Driver not found for user_id:", review.driverId);
-//     throw new Error(`Driver not found for user_id: ${review.driverId}`);
-//   }
+//     let stats = await DriverSafetyStats.findOne({
+//       driver_id: review.driverEntityId
+//     });
 
-//   console.log("🚗 Found driver record:", driver.id);
+//     if (!stats) {
+//       stats = await DriverSafetyStats.create({
+//         driver_id: review.driverEntityId,
+//         current_points: 1000,
+//         completed_rides: 0
+//       });
+//     }
 
-//   // // ═══════════════════════════════════════════════════
-//   // // 3️⃣ CALCULATE SAFETY IMPACT
-//   // // ═══════════════════════════════════════════════════
-//   // const safetyService = new SafetyCalculationService();
-//   // const impact = safetyService.calculate(review);
-  
-//   // console.log("🧮 Calculated impact:", impact);
+//     await DriverSafetyStats.updateOne(
+//       { driver_id: review.driverEntityId },
+//       {
+//         current_points: stats.current_points + impact.totalImpact,
+//         completed_rides: stats.completed_rides + 1
+//       }
+//     );
 
-//   // ═══════════════════════════════════════════════════
-// // 3️⃣ CALCULATE SAFETY IMPACT (DEFINE FIRST)
-// // ═══════════════════════════════════════════════════
-// const safetyService = new SafetyCalculationService();
-// const impact = safetyService.calculate(review);
-
-// // DEBUG AFTER initialization
-// console.log("🧮 Calculated impact:", impact);
-// console.log("DEBUG impact types:", {
-//   starImpact: typeof impact.starImpact,
-//   positiveImpact: typeof impact.positiveImpact,
-//   negativeImpact: typeof impact.negativeImpact,
-//   totalImpact: typeof impact.totalImpact
-// });
-
-
-//   // ═══════════════════════════════════════════════════
-//   // 4️⃣ GET CURRENT SAFETY STATS
-//   // ═══════════════════════════════════════════════════
-//   let stats = await DriverSafetyStats.findOne({ driver_id: driver.id });
-  
-//   // If no stats exist yet, create them with default 1000 points
-//   if (!stats) {
-//     console.log("📊 Creating initial safety stats for driver:", driver.id);
-//     stats = await DriverSafetyStats.create({
-//       driver_id: driver.id,
-//       current_points: 1000,
-//       average_rating: 0,
-//       completed_rides: 0,
-//       total_safety_concerns: 0,
-//       verified_safe_badge: false
+//     await SafetyAuditLog.create({
+//       driver_id: review.driverEntityId,
+//       event_type: "REVIEW_IMPACT",
+//       points_before: stats.current_points,
+//       points_after: stats.current_points + impact.totalImpact,
+//       points_delta: impact.totalImpact,
+//       triggered_by_review_id: review.id
 //     });
 //   }
 
-//   const beforePoints = stats.current_points;
-//   const afterPoints = beforePoints + impact.totalImpact;
-
-//   console.log("📈 Points change:", beforePoints, "→", afterPoints, `(${impact.totalImpact >= 0 ? '+' : ''}${impact.totalImpact})`);
-
-//   // ═══════════════════════════════════════════════════
-//   // 5️⃣ UPDATE DRIVER SAFETY STATS
-//   // ═══════════════════════════════════════════════════
-//   const newCompletedRides = (stats.completed_rides || 0) + 1;
-//   const newSafetyConcerns = impact.negativeImpact < 0 
-//     ? (stats.total_safety_concerns || 0) + 1 
-//     : stats.total_safety_concerns;
-
-//   // Calculate new average rating
-//   const currentTotal = (stats.average_rating || 0) * (stats.completed_rides || 0);
-//   const newAverage = newCompletedRides > 0 
-//     ? (currentTotal + review.rating.stars) / newCompletedRides 
-//     : review.rating.stars;
-
-//   // Check for verified safe badge (e.g., 50+ rides with 1100+ points)
-//   const earnsBadge = newCompletedRides >= 50 && afterPoints >= 1100;
-
-//   await DriverSafetyStats.updateOne(
-//     { driver_id: driver.id },
+//   // ✅ ALWAYS mark review as processed
+//   await Review.updateOne(
+//     { id: review.id },
 //     {
-//       current_points: afterPoints,
-//       average_rating: Math.round(newAverage * 100) / 100, // 2 decimal places
-//       completed_rides: newCompletedRides,
-//       total_safety_concerns: newSafetyConcerns,
-//       verified_safe_badge: earnsBadge || stats.verified_safe_badge,
-//       updated_at: new Date()
+//       calculated_impact: impact?.totalImpact ?? 0,
+//       is_processed: true
 //     }
 //   );
 
-//   console.log("✅ Updated safety stats:", {
-//     points: afterPoints,
-//     rides: newCompletedRides,
-//     avgRating: newAverage.toFixed(2)
-//   });
+//   console.log("🧾 Review processed:", review.id);
 
-//   // ═══════════════════════════════════════════════════
-//   // 6️⃣ CREATE AUDIT LOG
-//   // ═══════════════════════════════════════════════════
-//   await SafetyAuditLog.create({
-//     driver_id: driver.id,
-//     event_type: "REVIEW_IMPACT",
-//     points_before: beforePoints,
-//     points_after: afterPoints,
-//     points_delta: impact.totalImpact,
-//     triggered_by_review_id: review.id,
-//     reason: `Review from rider: ${review.rating.stars}★, impact: ${impact.totalImpact >= 0 ? '+' : ''}${impact.totalImpact}`
-//   });
-
-//   console.log("📝 Audit log created");
-
-//   return {
-//     driverId: driver.id,
-//     beforePoints,
-//     afterPoints,
-//     impact,
-//     completedRides: newCompletedRides
-//   };
+//   return { processed: true };
 // }
+
+
 
 import DriverSafetyStats from "../../models/driver/driver_safety_stats/DriverSafetyStats.js";
 import SafetyAuditLog from "../../models/safety/SafetyAuditLog.js";
+import ReviewModel from "../../models/review/Review.js";
 import { SafetyCalculationService } from "../services/SafetyCalculationService.js";
 
 /**
  * Safety Worker
+ *
+ * Runs ONLY for rider → driver reviews
  * review.driverEntityId === drivers.id
  */
 export async function runSafetyWorker({ review, reviewerRole }) {
   console.log("🔄 Safety worker started for review:", review.id);
 
-  // 1️⃣ Only rider → driver affects safety
+  /* ─────────────────────────────────────────────
+     1️⃣ Guard: Only rider reviews affect safety
+  ───────────────────────────────────────────── */
   if (reviewerRole !== "rider") {
-    console.log("ℹ️ Skipping safety impact");
+    console.log("ℹ️ Skipping safety (non-rider review)");
     return { skipped: true };
   }
 
-  const driverId = review.driverEntityId; // ✅ drivers.id
+  const driverId = review.driverEntityId; // ✅ drivers.id ONLY
 
-  // 2️⃣ Calculate impact
+  /* ─────────────────────────────────────────────
+     2️⃣ Calculate safety impact
+  ───────────────────────────────────────────── */
   const safetyService = new SafetyCalculationService();
   const impact = safetyService.calculate(review);
 
-  console.log("🧮 Calculated impact:", impact);
+  console.log("🧮 Safety impact:", impact);
 
-  // 3️⃣ Fetch or create safety stats
+  /* ─────────────────────────────────────────────
+     3️⃣ Fetch or initialize safety stats
+  ───────────────────────────────────────────── */
   let stats = await DriverSafetyStats.findOne({ driver_id: driverId });
 
   if (!stats) {
@@ -195,27 +190,49 @@ export async function runSafetyWorker({ review, reviewerRole }) {
   const beforePoints = stats.current_points;
   const afterPoints = beforePoints + impact.totalImpact;
 
-  // 4️⃣ Update stats
+  /* ─────────────────────────────────────────────
+     4️⃣ Update safety stats
+  ───────────────────────────────────────────── */
   await DriverSafetyStats.updateOne(
     { driver_id: driverId },
     {
       current_points: afterPoints,
       completed_rides: stats.completed_rides + 1,
+      total_safety_concerns:
+        impact.negativeImpact < 0
+          ? stats.total_safety_concerns + 1
+          : stats.total_safety_concerns,
       updated_at: new Date()
     }
   );
 
-  // 5️⃣ Audit log
+  /* ─────────────────────────────────────────────
+     5️⃣ Persist audit log
+  ───────────────────────────────────────────── */
   await SafetyAuditLog.create({
     driver_id: driverId,
     event_type: "REVIEW_IMPACT",
     points_before: beforePoints,
     points_after: afterPoints,
     points_delta: impact.totalImpact,
-    triggered_by_review_id: review.id
+    triggered_by_review_id: review.id,
+    reason: `Rider review (${impact.totalImpact >= 0 ? "+" : ""}${impact.totalImpact})`
   });
 
-  console.log("✅ Safety updated:", beforePoints, "→", afterPoints);
+  /* ─────────────────────────────────────────────
+     6️⃣ Mark review as processed
+  ───────────────────────────────────────────── */
+  await ReviewModel.updateOne(
+    { id: review.id },
+    {
+      calculated_impact: impact.totalImpact,
+      is_processed: true
+    }
+  );
+
+  console.log(
+    `✅ Safety updated for driver ${driverId}: ${beforePoints} → ${afterPoints}`
+  );
 
   return {
     driverId,
