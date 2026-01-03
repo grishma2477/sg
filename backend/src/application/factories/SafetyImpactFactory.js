@@ -104,8 +104,8 @@ export const SafetyImpactFactory = {
       5: 2,
       4: 1,
       3: 0,
-      2: 0,
-      1: 0
+      2: -10,
+      1: -20
     };
 
     const stars = Number(rating?.stars ?? 0);

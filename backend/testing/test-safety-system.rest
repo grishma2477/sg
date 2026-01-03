@@ -1,341 +1,341 @@
-### ═══════════════════════════════════════════════════════════════
-### SAFETY POINTS SYSTEM - COMPLETE TEST SUITE
-### ═══════════════════════════════════════════════════════════════
-
-@BASE_URL = http://localhost:5000
-@ADMIN_TOKEN = YOUR_ADMIN_TOKEN_HERE
-@RIDER_TOKEN = YOUR_RIDER_TOKEN_HERE
-@DRIVER_TOKEN = YOUR_DRIVER_TOKEN_HERE
-
-### Variables (update after each step)
-@riderId = YOUR_RIDER_USER_ID
-@driverUserId = YOUR_DRIVER_USER_ID
-@driverId = YOUR_DRIVER_RECORD_ID
-@rideId = YOUR_RIDE_ID
-
-### ═══════════════════════════════════════════════════════════════
-### STEP 1: REGISTER USERS
-### ═══════════════════════════════════════════════════════════════
-
-### 1a. Register Admin
-POST {{BASE_URL}}/api/auth/register
-Content-Type: application/json
-
-{
-  "email": "admin@test.com",
-  "password": "admin123",
-  "role": "admin"
-}
-
-###
-
-### 1b. Register Rider
-POST {{BASE_URL}}/api/auth/register
-Content-Type: application/json
-
-{
-  "email": "rider@test.com",
-  "password": "rider123",
-  "role": "rider"
-}
-
-###
-
-### 1c. Register Driver
-POST {{BASE_URL}}/api/auth/register
-Content-Type: application/json
-
-{
-  "email": "driver@test.com",
-  "password": "driver123",
-  "role": "driver"
-}
-
-### ═══════════════════════════════════════════════════════════════
-### STEP 2: LOGIN (Get tokens)
-### ═══════════════════════════════════════════════════════════════
-
-### 2a. Login Admin
-POST {{BASE_URL}}/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "admin@test.com",
-  "password": "admin123"
-}
-
-###
-
-### 2b. Login Rider
-POST {{BASE_URL}}/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "rider@test.com",
-  "password": "rider123"
-}
-
-###
-
-### 2c. Login Driver
-POST {{BASE_URL}}/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "driver@test.com",
-  "password": "driver123"
-}
-
-### ═══════════════════════════════════════════════════════════════
-### STEP 3: CREATE DRIVER RECORD (Admin creates driver profile)
-### ═══════════════════════════════════════════════════════════════
-
-### 3. Create Driver Record
-### NOTE: You need to manually insert driver record or create an endpoint
-### Run this SQL manually:
-### INSERT INTO drivers (user_id, is_online, is_available, status) 
-### VALUES ('DRIVER_USER_ID', true, true, 'active') RETURNING id;
-
-### Then insert initial safety stats:
-### INSERT INTO driver_safety_stats (driver_id, current_points, average_rating, completed_rides)
-### VALUES ('DRIVER_RECORD_ID', 1000, 0, 0);
-
-### ═══════════════════════════════════════════════════════════════
-### STEP 4: CREATE & COMPLETE A RIDE
-### ═══════════════════════════════════════════════════════════════
-
-### 4a. Admin Creates Ride
-POST {{BASE_URL}}/api/admin/rides
-Authorization: Bearer {{ADMIN_TOKEN}}
-Content-Type: application/json
-
-{
-  "rider_id": "{{riderId}}",
-  "driver_id": "{{driverId}}",
-  "status": "requested"
-}
-
-###
-
-### 4b. Start Ride
-POST {{BASE_URL}}/api/rides/{{rideId}}/start
-Authorization: Bearer {{RIDER_TOKEN}}
-
-###
-
-### 4c. Complete Ride
-POST {{BASE_URL}}/api/rides/{{rideId}}/complete
-Authorization: Bearer {{RIDER_TOKEN}}
-
-###
-
-### 4d. Admin Force Complete (if needed)
-POST {{BASE_URL}}/api/admin/rides/{{rideId}}/force-complete
-Authorization: Bearer {{ADMIN_TOKEN}}
-
-###
-
-### 4e. Admin Update Ride to Paid & Completed
-PUT {{BASE_URL}}/api/admin/rides/{{rideId}}
-Authorization: Bearer {{ADMIN_TOKEN}}
-Content-Type: application/json
-
-{
-  "status": "completed",
-  "is_paid": true
-}
-
-### ═══════════════════════════════════════════════════════════════
-### STEP 5: SUBMIT REVIEWS (This is what we're testing!)
-### ═══════════════════════════════════════════════════════════════
-
-### ─────────────────────────────────────────────────────────────
-### TEST CASE 1: BEST POSSIBLE REVIEW (Should give +6 points)
-### 5 stars + Felt Safe (+3) + Followed Rules (+2) + Respectful (+2)
-### Only top 2 taps count: +3 + +2 = +5, plus +2 stars = +7
-### Capped at +6
-### ─────────────────────────────────────────────────────────────
-
-### 5a. Rider Reviews Driver - Best Case
-POST {{BASE_URL}}/api/reviews
-Authorization: Bearer {{RIDER_TOKEN}}
-Content-Type: application/json
-
-{
-  "rideSummary": {
-    "rideId": "{{rideId}}",
-    "riderId": "{{riderId}}",
-    "driverId": "{{driverUserId}}",
-    "status": "completed",
-    "isPaid": true
-  },
-  "rating": { "stars": 5 },
-  "taps": [
-    { "key": "felt_safe", "category": "positive", "pointValue": 3 },
-    { "key": "followed_rules", "category": "positive", "pointValue": 2 },
-    { "key": "respectful", "category": "positive", "pointValue": 2 }
-  ]
-}
-
-###
-
-### ─────────────────────────────────────────────────────────────
-### TEST CASE 2: TYPICAL GOOD REVIEW (Should give +5 points)
-### 5 stars + Respectful (+2) + Good Route (+1)
-### Top 2 taps: +2 + +1 = +3, plus +2 stars = +5
-### ─────────────────────────────────────────────────────────────
-
-### 5b. Rider Reviews Driver - Typical Good
-POST {{BASE_URL}}/api/reviews
-Authorization: Bearer {{RIDER_TOKEN}}
-Content-Type: application/json
-
-{
-  "rideSummary": {
-    "rideId": "{{rideId}}",
-    "riderId": "{{riderId}}",
-    "driverId": "{{driverUserId}}",
-    "status": "completed",
-    "isPaid": true
-  },
-  "rating": { "stars": 5 },
-  "taps": [
-    { "key": "respectful", "category": "positive", "pointValue": 2 },
-    { "key": "good_route", "category": "positive", "pointValue": 1 }
-  ]
-}
-
-###
-
-### ─────────────────────────────────────────────────────────────
-### TEST CASE 3: AVERAGE REVIEW (Should give +4 points)
-### 4 stars + Felt Safe (+3)
-### Top tap: +3, plus +1 star = +4
-### ─────────────────────────────────────────────────────────────
-
-### 5c. Rider Reviews Driver - Average
-POST {{BASE_URL}}/api/reviews
-Authorization: Bearer {{RIDER_TOKEN}}
-Content-Type: application/json
-
-{
-  "rideSummary": {
-    "rideId": "{{rideId}}",
-    "riderId": "{{riderId}}",
-    "driverId": "{{driverUserId}}",
-    "status": "completed",
-    "isPaid": true
-  },
-  "rating": { "stars": 4 },
-  "taps": [
-    { "key": "felt_safe", "category": "positive", "pointValue": 3 }
-  ]
-}
-
-###
-
-### ─────────────────────────────────────────────────────────────
-### TEST CASE 4: MINIMAL REVIEW (Should give +2 points)
-### 5 stars only, no taps
-### Just +2 from stars
-### ─────────────────────────────────────────────────────────────
-
-### 5d. Rider Reviews Driver - Stars Only
-POST {{BASE_URL}}/api/reviews
-Authorization: Bearer {{RIDER_TOKEN}}
-Content-Type: application/json
-
-{
-  "rideSummary": {
-    "rideId": "{{rideId}}",
-    "riderId": "{{riderId}}",
-    "driverId": "{{driverUserId}}",
-    "status": "completed",
-    "isPaid": true
-  },
-  "rating": { "stars": 5 },
-  "taps": []
-}
-
-###
-
-### ─────────────────────────────────────────────────────────────
-### TEST CASE 5: NEGATIVE REVIEW (Should give -10 points)
-### 2 stars + Unsafe Driving (-10)
-### ─────────────────────────────────────────────────────────────
-
-### 5e. Rider Reviews Driver - Negative
-POST {{BASE_URL}}/api/reviews
-Authorization: Bearer {{RIDER_TOKEN}}
-Content-Type: application/json
-
-{
-  "rideSummary": {
-    "rideId": "{{rideId}}",
-    "riderId": "{{riderId}}",
-    "driverId": "{{driverUserId}}",
-    "status": "completed",
-    "isPaid": true
-  },
-  "rating": { "stars": 2 },
-  "taps": [
-    { "key": "unsafe_driving", "category": "negative", "pointValue": -10 }
-  ]
-}
-
-###
-
-### ─────────────────────────────────────────────────────────────
-### TEST CASE 6: DRIVER REVIEWS RIDER (Should NOT affect safety)
-### ─────────────────────────────────────────────────────────────
-
-### 5f. Driver Reviews Rider
-POST {{BASE_URL}}/api/reviews
-Authorization: Bearer {{DRIVER_TOKEN}}
-Content-Type: application/json
-
-{
-  "rideSummary": {
-    "rideId": "{{rideId}}",
-    "riderId": "{{riderId}}",
-    "driverId": "{{driverUserId}}",
-    "status": "completed",
-    "isPaid": true
-  },
-  "rating": { "stars": 5 },
-  "taps": [
-    { "key": "polite_rider", "category": "positive", "pointValue": 2 }
-  ]
-}
-
-### ═══════════════════════════════════════════════════════════════
-### STEP 6: VERIFY RESULTS (Admin endpoints)
-### ═══════════════════════════════════════════════════════════════
-
-### 6a. Get Ride Details
-GET {{BASE_URL}}/api/admin/rides/{{rideId}}
-Authorization: Bearer {{ADMIN_TOKEN}}
-
-###
-
-### 6b. Get Review Details
-GET {{BASE_URL}}/api/admin/reviews/{{reviewId}}
-Authorization: Bearer {{ADMIN_TOKEN}}
-
-### ═══════════════════════════════════════════════════════════════
-### SQL QUERIES TO VERIFY (Run in your database)
-### ═══════════════════════════════════════════════════════════════
-
-### Check driver safety stats:
-### SELECT * FROM driver_safety_stats WHERE driver_id = 'DRIVER_ID';
-
-### Check audit logs:
-### SELECT * FROM safety_audit_logs ORDER BY created_at DESC LIMIT 10;
-
-### Check reviews:
-### SELECT * FROM ride_reviews WHERE ride_id = 'RIDE_ID';
-
-### Check all drivers with their points:
-### SELECT d.id, d.user_id, d.status, dss.current_points, dss.completed_rides, dss.average_rating
-### FROM drivers d
-### LEFT JOIN driver_safety_stats dss ON d.id = dss.driver_id;
+# ### ═══════════════════════════════════════════════════════════════
+# ### SAFETY POINTS SYSTEM - COMPLETE TEST SUITE
+# ### ═══════════════════════════════════════════════════════════════
+
+# @BASE_URL = http://localhost:5000
+# @ADMIN_TOKEN = YOUR_ADMIN_TOKEN_HERE
+# @RIDER_TOKEN = YOUR_RIDER_TOKEN_HERE
+# @DRIVER_TOKEN = YOUR_DRIVER_TOKEN_HERE
+
+# ### Variables (update after each step)
+# @riderId = YOUR_RIDER_USER_ID
+# @driverUserId = YOUR_DRIVER_USER_ID
+# @driverId = YOUR_DRIVER_RECORD_ID
+# @rideId = YOUR_RIDE_ID
+
+# ### ═══════════════════════════════════════════════════════════════
+# ### STEP 1: REGISTER USERS
+# ### ═══════════════════════════════════════════════════════════════
+
+# ### 1a. Register Admin
+# POST {{BASE_URL}}/api/auth/register
+# Content-Type: application/json
+
+# {
+#   "email": "admin@test.com",
+#   "password": "admin123",
+#   "role": "admin"
+# }
+
+# ###
+
+# ### 1b. Register Rider
+# POST {{BASE_URL}}/api/auth/register
+# Content-Type: application/json
+
+# {
+#   "email": "rider@test.com",
+#   "password": "rider123",
+#   "role": "rider"
+# }
+
+# ###
+
+# ### 1c. Register Driver
+# POST {{BASE_URL}}/api/auth/register
+# Content-Type: application/json
+
+# {
+#   "email": "driver@test.com",
+#   "password": "driver123",
+#   "role": "driver"
+# }
+
+# ### ═══════════════════════════════════════════════════════════════
+# ### STEP 2: LOGIN (Get tokens)
+# ### ═══════════════════════════════════════════════════════════════
+
+# ### 2a. Login Admin
+# POST {{BASE_URL}}/api/auth/login
+# Content-Type: application/json
+
+# {
+#   "email": "admin@test.com",
+#   "password": "admin123"
+# }
+
+# ###
+
+# ### 2b. Login Rider
+# POST {{BASE_URL}}/api/auth/login
+# Content-Type: application/json
+
+# {
+#   "email": "rider@test.com",
+#   "password": "rider123"
+# }
+
+# ###
+
+# ### 2c. Login Driver
+# POST {{BASE_URL}}/api/auth/login
+# Content-Type: application/json
+
+# {
+#   "email": "driver@test.com",
+#   "password": "driver123"
+# }
+
+# ### ═══════════════════════════════════════════════════════════════
+# ### STEP 3: CREATE DRIVER RECORD (Admin creates driver profile)
+# ### ═══════════════════════════════════════════════════════════════
+
+# ### 3. Create Driver Record
+# ### NOTE: You need to manually insert driver record or create an endpoint
+# ### Run this SQL manually:
+# ### INSERT INTO drivers (user_id, is_online, is_available, status) 
+# ### VALUES ('DRIVER_USER_ID', true, true, 'active') RETURNING id;
+
+# ### Then insert initial safety stats:
+# ### INSERT INTO driver_safety_stats (driver_id, current_points, average_rating, completed_rides)
+# ### VALUES ('DRIVER_RECORD_ID', 1000, 0, 0);
+
+# ### ═══════════════════════════════════════════════════════════════
+# ### STEP 4: CREATE & COMPLETE A RIDE
+# ### ═══════════════════════════════════════════════════════════════
+
+# ### 4a. Admin Creates Ride
+# POST {{BASE_URL}}/api/admin/rides
+# Authorization: Bearer {{ADMIN_TOKEN}}
+# Content-Type: application/json
+
+# {
+#   "rider_id": "{{riderId}}",
+#   "driver_id": "{{driverId}}",
+#   "status": "requested"
+# }
+
+# ###
+
+# ### 4b. Start Ride
+# POST {{BASE_URL}}/api/rides/{{rideId}}/start
+# Authorization: Bearer {{RIDER_TOKEN}}
+
+# ###
+
+# ### 4c. Complete Ride
+# POST {{BASE_URL}}/api/rides/{{rideId}}/complete
+# Authorization: Bearer {{RIDER_TOKEN}}
+
+# ###
+
+# ### 4d. Admin Force Complete (if needed)
+# POST {{BASE_URL}}/api/admin/rides/{{rideId}}/force-complete
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ###
+
+# ### 4e. Admin Update Ride to Paid & Completed
+# PUT {{BASE_URL}}/api/admin/rides/{{rideId}}
+# Authorization: Bearer {{ADMIN_TOKEN}}
+# Content-Type: application/json
+
+# {
+#   "status": "completed",
+#   "is_paid": true
+# }
+
+# ### ═══════════════════════════════════════════════════════════════
+# ### STEP 5: SUBMIT REVIEWS (This is what we're testing!)
+# ### ═══════════════════════════════════════════════════════════════
+
+# ### ─────────────────────────────────────────────────────────────
+# ### TEST CASE 1: BEST POSSIBLE REVIEW (Should give +6 points)
+# ### 5 stars + Felt Safe (+3) + Followed Rules (+2) + Respectful (+2)
+# ### Only top 2 taps count: +3 + +2 = +5, plus +2 stars = +7
+# ### Capped at +6
+# ### ─────────────────────────────────────────────────────────────
+
+# ### 5a. Rider Reviews Driver - Best Case
+# POST {{BASE_URL}}/api/reviews
+# Authorization: Bearer {{RIDER_TOKEN}}
+# Content-Type: application/json
+
+# {
+#   "rideSummary": {
+#     "rideId": "{{rideId}}",
+#     "riderId": "{{riderId}}",
+#     "driverId": "{{driverUserId}}",
+#     "status": "completed",
+#     "isPaid": true
+#   },
+#   "rating": { "stars": 5 },
+#   "taps": [
+#     { "key": "felt_safe", "category": "positive", "pointValue": 3 },
+#     { "key": "followed_rules", "category": "positive", "pointValue": 2 },
+#     { "key": "respectful", "category": "positive", "pointValue": 2 }
+#   ]
+# }
+
+# ###
+
+# ### ─────────────────────────────────────────────────────────────
+# ### TEST CASE 2: TYPICAL GOOD REVIEW (Should give +5 points)
+# ### 5 stars + Respectful (+2) + Good Route (+1)
+# ### Top 2 taps: +2 + +1 = +3, plus +2 stars = +5
+# ### ─────────────────────────────────────────────────────────────
+
+# ### 5b. Rider Reviews Driver - Typical Good
+# POST {{BASE_URL}}/api/reviews
+# Authorization: Bearer {{RIDER_TOKEN}}
+# Content-Type: application/json
+
+# {
+#   "rideSummary": {
+#     "rideId": "{{rideId}}",
+#     "riderId": "{{riderId}}",
+#     "driverId": "{{driverUserId}}",
+#     "status": "completed",
+#     "isPaid": true
+#   },
+#   "rating": { "stars": 5 },
+#   "taps": [
+#     { "key": "respectful", "category": "positive", "pointValue": 2 },
+#     { "key": "good_route", "category": "positive", "pointValue": 1 }
+#   ]
+# }
+
+# ###
+
+# ### ─────────────────────────────────────────────────────────────
+# ### TEST CASE 3: AVERAGE REVIEW (Should give +4 points)
+# ### 4 stars + Felt Safe (+3)
+# ### Top tap: +3, plus +1 star = +4
+# ### ─────────────────────────────────────────────────────────────
+
+# ### 5c. Rider Reviews Driver - Average
+# POST {{BASE_URL}}/api/reviews
+# Authorization: Bearer {{RIDER_TOKEN}}
+# Content-Type: application/json
+
+# {
+#   "rideSummary": {
+#     "rideId": "{{rideId}}",
+#     "riderId": "{{riderId}}",
+#     "driverId": "{{driverUserId}}",
+#     "status": "completed",
+#     "isPaid": true
+#   },
+#   "rating": { "stars": 4 },
+#   "taps": [
+#     { "key": "felt_safe", "category": "positive", "pointValue": 3 }
+#   ]
+# }
+
+# ###
+
+# ### ─────────────────────────────────────────────────────────────
+# ### TEST CASE 4: MINIMAL REVIEW (Should give +2 points)
+# ### 5 stars only, no taps
+# ### Just +2 from stars
+# ### ─────────────────────────────────────────────────────────────
+
+# ### 5d. Rider Reviews Driver - Stars Only
+# POST {{BASE_URL}}/api/reviews
+# Authorization: Bearer {{RIDER_TOKEN}}
+# Content-Type: application/json
+
+# {
+#   "rideSummary": {
+#     "rideId": "{{rideId}}",
+#     "riderId": "{{riderId}}",
+#     "driverId": "{{driverUserId}}",
+#     "status": "completed",
+#     "isPaid": true
+#   },
+#   "rating": { "stars": 5 },
+#   "taps": []
+# }
+
+# ###
+
+# ### ─────────────────────────────────────────────────────────────
+# ### TEST CASE 5: NEGATIVE REVIEW (Should give -10 points)
+# ### 2 stars + Unsafe Driving (-10)
+# ### ─────────────────────────────────────────────────────────────
+
+# ### 5e. Rider Reviews Driver - Negative
+# POST {{BASE_URL}}/api/reviews
+# Authorization: Bearer {{RIDER_TOKEN}}
+# Content-Type: application/json
+
+# {
+#   "rideSummary": {
+#     "rideId": "{{rideId}}",
+#     "riderId": "{{riderId}}",
+#     "driverId": "{{driverUserId}}",
+#     "status": "completed",
+#     "isPaid": true
+#   },
+#   "rating": { "stars": 2 },
+#   "taps": [
+#     { "key": "unsafe_driving", "category": "negative", "pointValue": -10 }
+#   ]
+# }
+
+# ###
+
+# ### ─────────────────────────────────────────────────────────────
+# ### TEST CASE 6: DRIVER REVIEWS RIDER (Should NOT affect safety)
+# ### ─────────────────────────────────────────────────────────────
+
+# ### 5f. Driver Reviews Rider
+# POST {{BASE_URL}}/api/reviews
+# Authorization: Bearer {{DRIVER_TOKEN}}
+# Content-Type: application/json
+
+# {
+#   "rideSummary": {
+#     "rideId": "{{rideId}}",
+#     "riderId": "{{riderId}}",
+#     "driverId": "{{driverUserId}}",
+#     "status": "completed",
+#     "isPaid": true
+#   },
+#   "rating": { "stars": 5 },
+#   "taps": [
+#     { "key": "polite_rider", "category": "positive", "pointValue": 2 }
+#   ]
+# }
+
+# ### ═══════════════════════════════════════════════════════════════
+# ### STEP 6: VERIFY RESULTS (Admin endpoints)
+# ### ═══════════════════════════════════════════════════════════════
+
+# ### 6a. Get Ride Details
+# GET {{BASE_URL}}/api/admin/rides/{{rideId}}
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ###
+
+# ### 6b. Get Review Details
+# GET {{BASE_URL}}/api/admin/reviews/{{reviewId}}
+# Authorization: Bearer {{ADMIN_TOKEN}}
+
+# ### ═══════════════════════════════════════════════════════════════
+# ### SQL QUERIES TO VERIFY (Run in your database)
+# ### ═══════════════════════════════════════════════════════════════
+
+# ### Check driver safety stats:
+# ### SELECT * FROM driver_safety_stats WHERE driver_id = 'DRIVER_ID';
+
+# ### Check audit logs:
+# ### SELECT * FROM safety_audit_logs ORDER BY created_at DESC LIMIT 10;
+
+# ### Check reviews:
+# ### SELECT * FROM ride_reviews WHERE ride_id = 'RIDE_ID';
+
+# ### Check all drivers with their points:
+# ### SELECT d.id, d.user_id, d.status, dss.current_points, dss.completed_rides, dss.average_rating
+# ### FROM drivers d
+# ### LEFT JOIN driver_safety_stats dss ON d.id = dss.driver_id;

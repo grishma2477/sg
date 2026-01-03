@@ -8,7 +8,7 @@ import { AdminAuditService } from "../application/services/AdminAuditService.js"
 export const createRide = async (req, res, next) => {
   try {
     const ride = await RideModel.create(req.body);
-
+    console.log("Working till here", ride)
     await AdminAuditService.log({
       adminId: req.user.id,
       action: "CREATE_RIDE",
@@ -17,7 +17,7 @@ export const createRide = async (req, res, next) => {
 
     res.status(201).json(ApiResponse.success(ride, "RIDE_CREATED"));
   } catch (err) {
-    next(err);
+    return(err);
   }
 };
 

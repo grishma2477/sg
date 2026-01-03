@@ -19,7 +19,7 @@ export const verifyuser = async (req, res, next)=>{
     const userId = payload.id;
     const user = await User.findOne({id:userId})
     if (!user) {
-        return failure(401, "You are not authorized.")
+        return ApiResponse.failure(401, "You are not authorized.")
     }
     req.user = user;
     next();

@@ -11,7 +11,7 @@ Content-Type: application/json
     "firstName":"ram",
     "lastName":"sharma",
     "email":"ram@gmail.com",
-    "password":"ram",
+    "password":"ram@123",
     "phone": "1234567890"
 
 }
@@ -26,7 +26,7 @@ Content-Type: application/json
     "email":"ram@gmail.com",
     "password":"ram"
 }
-
+~
 ###
 
 #Refresh Token

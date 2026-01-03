@@ -6,6 +6,14 @@ export class ApiResponse {
       data
     };
   }
+  static failure(message = "Failure", code = 400, data = {}) {
+    return {
+      success: false,
+      message,
+      code,
+      data
+    };
+  }
 
   static error(message = "ERROR", code = 400, data = {}) {
     return {
