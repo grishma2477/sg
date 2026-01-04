@@ -99,7 +99,7 @@ export const register = async (req, res, next) => {
     console.log("working till here ...")
 
   try {
-    const { email, password, role } = req.body;
+    const { first_name, last_name, email, password, role } = req.body;
 
     // 1️⃣ Check email uniqueness
     const existing = await AuthCredentialModel.findOne({ email });
@@ -120,7 +120,9 @@ export const register = async (req, res, next) => {
     await AuthCredentialModel.create({
       user_id: user.id,
       email,
-      password_hash
+      password_hash,
+      first_name,
+      last_name
     });
 
     res.status(201).json(
