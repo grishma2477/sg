@@ -66,7 +66,7 @@ export default function LoginPage() {
         saveToCookie("refreshToken", d.refreshToken);
         saveToCookie("role", d.user.role);
 
-        navigate("/dashboard"); // you can change this later
+        navigate(`/${d.user.role}/dashboard`); // you can change this later
       }
     } catch (err) {
       console.error(err);
