@@ -59,6 +59,12 @@ export const Constant = {
  * These map to the PostgreSQL table names.
  */
 export const String = {
+
+  // ===================================================
+  // Globals Constant 
+  // ===================================================
+  MINIMUM_RIDE:10,
+  INITIAL_POINTS:1000,
   // ═══════════════════════════════════════════════════
   // USER & AUTH TABLES
   // ═══════════════════════════════════════════════════
