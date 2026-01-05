@@ -27,7 +27,7 @@ Content-Type: application/json
 
 
 ### ADMIN GET REVIEW
-GET http://localhost:3000/api/admin/reviews/{{reviewId}}
+GET http://localhost:5000/api/admin/reviews/{{reviewId}}
 Authorization: Bearer {{ADMIN_TOKEN}}
 
 

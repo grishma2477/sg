@@ -10,7 +10,8 @@ import authRoutes from "./routes/authRoutes.js";
 import rideRoutes from "./routes/rideRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
-
+import rideRequestRoutes from "./routes/rideRequestRoutes.js"
+import biddingRoutes from "./routes/biddingRoutes.js"
 dotenv.config();
 
 const app = express();
@@ -30,6 +31,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/rides", rideRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/ride-requests", rideRequestRoutes);
+app.use('/api/bidding', biddingRoutes);
 
 
 app.use(errorHandler);

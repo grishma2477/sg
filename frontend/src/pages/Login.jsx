@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export default function LoginPage() {
+export default function LoginScreen() {
   const navigate = useNavigate();
   const BASE_URL = "http://localhost:5000";
 

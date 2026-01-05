@@ -1,0 +1,582 @@
+{
+  "info": {
+    "name": "Ride-Sharing Platform - Complete API",
+    "description": "Complete API collection for ride-sharing platform with bidding, multi-stop rides, and real-time features",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "rider_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "driver_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "request_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bid_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "ride_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "review_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Register Rider",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('rider_token', jsonData.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"rider@test.com\",\n  \"password\": \"password123\",\n  \"phone\": \"+1234567890\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Rider\",\n  \"role\": \"rider\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/register"
+          }
+        },
+        {
+          "name": "Register Driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('driver_token', jsonData.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"driver@test.com\",\n  \"password\": \"password123\",\n  \"phone\": \"+9876543210\",\n  \"firstName\": \"Mike\",\n  \"lastName\": \"Driver\",\n  \"role\": \"driver\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/register"
+          }
+        },
+        {
+          "name": "Login Rider",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('rider_token', jsonData.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"rider@test.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Login Driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('driver_token', jsonData.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"driver@test.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Ride Requests",
+      "item": [
+        {
+          "name": "Create Ride Request (Fixed Price)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('request_id', jsonData.data.requestId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{rider_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 27.7172,\n    \"lng\": 85.3240,\n    \"address\": \"Thamel, Kathmandu\"\n  },\n  \"dropoff\": {\n    \"lat\": 27.6915,\n    \"lng\": 85.3206,\n    \"address\": \"Patan Durbar Square\"\n  },\n  \"pricingMode\": \"fixed\",\n  \"vehiclePreference\": \"sedan\",\n  \"passengerCount\": 2\n}"
+            },
+            "url": "{{base_url}}/api/ride-requests"
+          }
+        },
+        {
+          "name": "Create Ride Request (Bidding with Stops)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('request_id', jsonData.data.requestId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{rider_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lat\": 27.7172,\n    \"lng\": 85.3240,\n    \"address\": \"Thamel, Kathmandu\"\n  },\n  \"dropoff\": {\n    \"lat\": 27.6915,\n    \"lng\": 85.3206,\n    \"address\": \"Patan Durbar Square\"\n  },\n  \"stops\": [\n    {\n      \"lat\": 27.7050,\n      \"lng\": 85.3200,\n      \"address\": \"Durbar Marg\",\n      \"contactName\": \"Shop Owner\",\n      \"contactPhone\": \"+9771234567\",\n      \"notes\": \"Pick up package\",\n      \"maxWaitSeconds\": 180\n    }\n  ],\n  \"pricingMode\": \"bidding\",\n  \"vehiclePreference\": \"sedan\",\n  \"passengerCount\": 1,\n  \"requiresWheelchairAccessible\": false,\n  \"requiresPetFriendly\": false,\n  \"specialInstructions\": \"Please call upon arrival\"\n}"
+            },
+            "url": "{{base_url}}/api/ride-requests"
+          }
+        },
+        {
+          "name": "Get My Ride Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{rider_token}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ride-requests?status=pending",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ride-requests"],
+              "query": [{"key": "status", "value": "pending"}]
+            }
+          }
+        },
+        {
+          "name": "Get Ride Request Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{rider_token}}"}
+            ],
+            "url": "{{base_url}}/api/ride-requests/{{request_id}}"
+          }
+        },
+        {
+          "name": "Cancel Ride Request",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{rider_token}}"}
+            ],
+            "url": "{{base_url}}/api/ride-requests/{{request_id}}/cancel"
+          }
+        },
+        {
+          "name": "Get Nearby Requests (Driver)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{driver_token}}"}
+            ],
+            "url": "{{base_url}}/api/ride-requests/nearby"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Driver Location",
+      "item": [
+        {
+          "name": "Update Driver Location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{driver_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": 27.7100,\n  \"lng\": 85.3250\n}"
+            },
+            "url": "{{base_url}}/api/drivers/location"
+          }
+        },
+        {
+          "name": "Get Driver Location",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{rider_token}}"}
+            ],
+            "url": "{{base_url}}/api/drivers/location/DRIVER_ID"
+          }
+        },
+        {
+          "name": "Get Nearby Drivers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{rider_token}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/drivers/nearby?lat=27.7172&lng=85.3240&radius=5",
+              "host": ["{{base_url}}"],
+              "path": ["api", "drivers", "nearby"],
+              "query": [
+                {"key": "lat", "value": "27.7172"},
+                {"key": "lng", "value": "85.3240"},
+                {"key": "radius", "value": "5"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Bidding",
+      "item": [
+        {
+          "name": "Submit Bid",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('bid_id', jsonData.data.bidId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{driver_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bidAmount\": 280.00,\n  \"estimatedArrivalMinutes\": 7,\n  \"message\": \"I'm nearby and can pick you up quickly!\"\n}"
+            },
+            "url": "{{base_url}}/api/bidding/requests/{{request_id}}/bids"
+          }
+        },
+        {
+          "name": "Get Bids for Request (Rider)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{rider_token}}"}
+            ],
+            "url": "{{base_url}}/api/bidding/requests/{{request_id}}/bids"
+          }
+        },
+        {
+          "name": "Accept Bid",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{rider_token}}"}
+            ],
+            "url": "{{base_url}}/api/bidding/bids/{{bid_id}}/accept"
+          }
+        },
+        {
+          "name": "Withdraw Bid (Driver)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{driver_token}}"}
+            ],
+            "url": "{{base_url}}/api/bidding/bids/{{bid_id}}"
+          }
+        },
+        {
+          "name": "Get My Bids (Driver)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{driver_token}}"}
+            ],
+            "url": "{{base_url}}/api/bidding/my-bids"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Safety Comments",
+      "item": [
+        {
+          "name": "Add Safety Comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{rider_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"commentText\": \"Driver was driving aggressively and made me feel unsafe\",\n  \"safetyCategory\": \"aggressive_driving\"\n}"
+            },
+            "url": "{{base_url}}/api/safety/reviews/{{review_id}}/comments"
+          }
+        },
+        {
+          "name": "Add Safety Comment with Evidence",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{rider_token}}"}
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "commentText", "value": "Vehicle condition was poor", "type": "text"},
+                {"key": "safetyCategory", "value": "vehicle_condition", "type": "text"},
+                {"key": "evidenceFiles", "type": "file", "src": "/path/to/image.jpg"}
+              ]
+            },
+            "url": "{{base_url}}/api/safety/reviews/{{review_id}}/comments"
+          }
+        },
+        {
+          "name": "Get Review Comments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{rider_token}}"}
+            ],
+            "url": "{{base_url}}/api/safety/reviews/{{review_id}}/comments"
+          }
+        },
+        {
+          "name": "Admin Review Comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{admin_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actionTaken\": \"warning_issued\",\n  \"notes\": \"Driver warned about aggressive driving. One more incident will result in suspension.\",\n  \"newSeverity\": \"high\"\n}"
+            },
+            "url": "{{base_url}}/api/safety/comments/COMMENT_ID/review"
+          }
+        },
+        {
+          "name": "Get Pending Admin Reviews",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{admin_token}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/safety/pending?severity=high&flaggedOnly=true",
+              "host": ["{{base_url}}"],
+              "path": ["api", "safety", "pending"],
+              "query": [
+                {"key": "severity", "value": "high"},
+                {"key": "flaggedOnly", "value": "true"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Safety Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{admin_token}}"}
+            ],
+            "url": "{{base_url}}/api/safety/statistics"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Complete Flow Test",
+      "item": [
+        {
+          "name": "Step 1: Rider Creates Bidding Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Request created', function() {",
+                  "    pm.response.to.have.status(201);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('request_id', jsonData.data.requestId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{rider_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\"lat\": 27.7172, \"lng\": 85.3240, \"address\": \"Thamel\"},\n  \"dropoff\": {\"lat\": 27.6915, \"lng\": 85.3206, \"address\": \"Patan\"},\n  \"pricingMode\": \"bidding\"\n}"
+            },
+            "url": "{{base_url}}/api/ride-requests"
+          }
+        },
+        {
+          "name": "Step 2: Driver Updates Location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{driver_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": 27.7150,\n  \"lng\": 85.3230\n}"
+            },
+            "url": "{{base_url}}/api/drivers/location"
+          }
+        },
+        {
+          "name": "Step 3: Driver Views Nearby Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{driver_token}}"}
+            ],
+            "url": "{{base_url}}/api/ride-requests/nearby"
+          }
+        },
+        {
+          "name": "Step 4: Driver Submits Bid",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('bid_id', jsonData.data.bidId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{driver_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bidAmount\": 250.00,\n  \"estimatedArrivalMinutes\": 5,\n  \"message\": \"5-star rated driver, clean car!\"\n}"
+            },
+            "url": "{{base_url}}/api/bidding/requests/{{request_id}}/bids"
+          }
+        },
+        {
+          "name": "Step 5: Rider Views Bids",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{rider_token}}"}
+            ],
+            "url": "{{base_url}}/api/bidding/requests/{{request_id}}/bids"
+          }
+        },
+        {
+          "name": "Step 6: Rider Accepts Bid",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{rider_token}}"}
+            ],
+            "url": "{{base_url}}/api/bidding/bids/{{bid_id}}/accept"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
-import { ModelManager } from "../../database/utils/ModelManager.js";
+import { ModelManager } from "../../../database/utils/ModelManager.js";
 import { DriverLocationQueryManager } from "./DriverLocationQueryManager.js";
-import { String } from "../../utils/Constant.js";
+import { String } from "../../../utils/Constant.js";
 
 const DriverLocation = ModelManager.createModel(
   DriverLocationQueryManager.createDriverLocationTableQuery,

@@ -89,14 +89,14 @@ import UserModel from "../models/user/User.js";
 import AuthCredentialModel from "../models/user/auth_credentials/AuthCredential.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Constant } from "../utils/Constant.js";
-
+import UserProfile from "../models/user/user_profile/UserProfile.js"
 /**
  * REGISTER
  * Everyone registers as a USER first
  * Drivers are just users with role="driver"
  */
 export const register = async (req, res, next) => {
-    console.log("working till here ...")
+  console.log("working till here ...")
 
   try {
     const { first_name, last_name, email, password, role } = req.body;
@@ -120,7 +120,11 @@ export const register = async (req, res, next) => {
     await AuthCredentialModel.create({
       user_id: user.id,
       email,
-      password_hash,
+      password_hash
+    });
+
+    await UserProfile.create({
+      user_id: user.id,
       first_name,
       last_name
     });

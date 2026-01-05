@@ -1,4 +1,4 @@
-import { String } from "../../utils/Constant.js";
+import { String } from "../../../utils/Constant.js";
 
 export const DriverLocationQueryManager = {
   createDriverLocationTableQuery: `

@@ -11,6 +11,7 @@ const STAR_IMPACT = {
   1: -20,
 };
 
+
 export const RideRatingPage = () => {
   const [rating, setRating] = useState(0);
   const [selectedTags, setSelectedTags] = useState([]);

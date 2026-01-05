@@ -5,7 +5,9 @@ Content-Type: application/json
 {
   "email": "rider@sg.com",
   "password": "rider123",
-  "role": "rider"
+  "role": "rider",
+  "first_name": "Sangit",
+  "last_name": "Pokhrel"
 }
 
 ###
