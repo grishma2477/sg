@@ -1,19 +1,67 @@
-import express from "express";
-import { verifyuser } from "../middleware/auth.js";
 
+
+// import express from 'express';
+// import { verifyuser } from '../middleware/auth.js';
+// import {
+//   acceptRideRequest,
+//   getRideDetails,
+//   startRide,
+//   completeRide,
+//   cancelRide
+// } from '../controllers/rideController.js';
+
+// const router = express.Router();
+
+// // Get ride details
+// router.get('/:rideId', verifyuser, getRideDetails);
+
+// // Accept a ride request (fixed price)
+// router.post('/accept/:requestId', verifyuser, acceptRideRequest);
+
+// // Start ride
+// router.post('/:rideId/start', verifyuser, startRide);
+
+// // Complete ride
+// router.post('/:rideId/complete', verifyuser, completeRide);
+
+// // Cancel ride
+// router.post('/:rideId/cancel', verifyuser, cancelRide);
+
+// export default router;
+
+
+
+import express from 'express';
+import { verifyuser } from '../middleware/auth.js';
 import {
-  createRide,
+  acceptRideRequest,
+  getRideDetails,
   startRide,
-  completeRide
-} from "../controllers/rideController.js";
+  arriveAtStop,
+  departFromStop,
+  completeRide,
+  cancelRide
+} from '../controllers/rideController.js';
 
 const router = express.Router();
 
-// user creates ride
-router.post("/", verifyuser, createRide);
+// Get ride details
+router.get('/:rideId', verifyuser, getRideDetails);
 
-// ride lifecycle
-router.post("/:id/start", verifyuser, startRide);
-router.post("/:id/complete", verifyuser, completeRide);
+// Accept a ride request (fixed price)
+router.post('/accept/:requestId', verifyuser, acceptRideRequest);
+
+// Start ride
+router.post('/:rideId/start', verifyuser, startRide);
+
+// Stop management
+router.post('/:rideId/stops/:stopId/arrive', verifyuser, arriveAtStop);
+router.post('/:rideId/stops/:stopId/depart', verifyuser, departFromStop);
+
+// Complete ride
+router.post('/:rideId/complete', verifyuser, completeRide);
+
+// Cancel ride
+router.post('/:rideId/cancel', verifyuser, cancelRide);
 
 export default router;

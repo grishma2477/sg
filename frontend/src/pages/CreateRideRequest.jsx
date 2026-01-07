@@ -986,7 +986,7 @@ const CreateRideRequest = ({ auth }) => {
     <div className="p-4" style={{paddingBottom: '5rem'}}>
       <div className="header">
         <h1 className="header-title">New Ride</h1>
-        <p className="text-dim mt-1">Plan your journey</p>
+        <p className="text-dim mt-1">Plan your journey with us</p>
       </div>
 
       <form onSubmit={handleSubmit} className="p-4">
