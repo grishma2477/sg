@@ -70,7 +70,8 @@ export const getAuthFromCookies = () => {
 
 // Save auth data to cookies
 export const saveAuthToCookies = (authData) => {
-  const { token, refreshToken, userId, role, driverId } = authData;
+  const { token, refreshToken, userId, userRole, driverId } = authData;
+  const role = userRole;
   
   console.log('💾 Saving to cookies:', { role, userId: userId?.substring(0, 8) });
   
