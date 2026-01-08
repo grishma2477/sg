@@ -271,15 +271,21 @@
 // };
 
 // export default DriverDashboard;
-import React, { useState, useEffect } from 'react';
+
+
+
+
+
+
+
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, DollarSign, TrendingUp, Clock } from 'lucide-react';
 import { io } from 'socket.io-client';
 
-let socket = null;
-
 const DriverDashboard = ({ auth, onLogout }) => {
   const navigate = useNavigate();
+  const socketRef = useRef(null); // Use ref to prevent recreating socket
   const [stats, setStats] = useState({
     totalEarnings: 1821.55,
     totalTrips: 18,
@@ -288,8 +294,8 @@ const DriverDashboard = ({ auth, onLogout }) => {
   });
   const [isOnline, setIsOnline] = useState(false);
   const [socketStatus, setSocketStatus] = useState('Disconnected');
-  const [lastEvent, setLastEvent] = useState('None');
 
+  // Fetch driver status
   useEffect(() => {
     fetchDriverStatus();
   }, []);
@@ -305,82 +311,87 @@ const DriverDashboard = ({ auth, onLogout }) => {
       const data = await response.json();
       if (response.ok) {
         setIsOnline(data.data.isOnline);
-        console.log('✅ Driver status fetched:', data.data.isOnline ? 'ONLINE' : 'OFFLINE');
       }
     } catch (error) {
-      console.error('❌ Error fetching driver status:', error);
+      console.error('Error fetching status:', error);
     }
   };
 
+  // Socket connection - ONLY CREATE ONCE
   useEffect(() => {
-    if (!auth || !auth.userId) {
-      console.log('⚠️ No auth data');
-      return;
+    if (!auth || !auth.userId || socketRef.current) {
+      return; // Don't create if already exists
     }
 
-    console.log('=== SOCKET INITIALIZATION ===');
-    console.log('Auth userId:', auth.userId);
-    console.log('Auth driverId:', auth.driverId);
-    console.log('Auth role:', auth.userRole);
+    console.log('🔌 Creating socket connection...');
+    console.log('Auth:', {
+      userId: auth.userId,
+      role: auth.userRole,
+      driverId: auth.driverId
+    });
 
-    if (!socket) {
-      socket = io('http://localhost:5000', {
-        transports: ['websocket'],
-        reconnection: true
+    const socket = io('http://localhost:5000', {
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 10
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('✅ Socket connected:', socket.id);
+      setSocketStatus('Connected: ' + socket.id);
+      
+      socket.emit('authenticate', {
+        userId: auth.userId,
+        role: auth.userRole || 'driver',
+        driverId: auth.driverId
       });
+      
+      console.log('📤 Auth sent to backend');
+    });
 
-      socket.on('connect', () => {
-        console.log('✅ SOCKET CONNECTED:', socket.id);
-        setSocketStatus('Connected: ' + socket.id);
-        
-        socket.emit('authenticate', {
-          userId: auth.userId,
-          role: auth.userRole || 'driver',
-          driverId: auth.driverId
-        });
-        
-        console.log('📤 Auth sent');
-      });
+    socket.on('disconnect', () => {
+      console.log('❌ Socket disconnected');
+      setSocketStatus('Disconnected');
+    });
 
-      socket.on('disconnect', () => {
-        console.log('❌ SOCKET DISCONNECTED');
-        setSocketStatus('Disconnected');
-      });
+    socket.on('connect_error', (error) => {
+      console.error('❌ Socket error:', error);
+      setSocketStatus('Error');
+    });
 
-      socket.on('connect_error', (error) => {
-        console.error('❌ SOCKET ERROR:', error);
-        setSocketStatus('Error: ' + error.message);
-      });
+    // Listen for bid acceptance
+    socket.on('ride:bid:accepted', (data) => {
+      console.log('');
+      console.log('═══════════════════════════════════════════');
+      console.log('🎉🎉🎉 BID ACCEPTED EVENT RECEIVED! 🎉🎉🎉');
+      console.log('═══════════════════════════════════════════');
+      console.log('Data:', data);
+      console.log('Ride ID:', data.rideId);
+      console.log('═══════════════════════════════════════════');
+      console.log('');
+      
+      alert(`🎉 YOUR BID WAS ACCEPTED!\n\nFare: ₹${data.fare_amount}\n\nRedirecting to ride page...`);
+      
+      navigate(`/driver/active-ride/${data.rideId}`);
+    });
 
-      // Listen for ALL events
-      socket.onAny((eventName, ...args) => {
-        console.log('');
-        console.log('═══════════════════════════════════');
-        console.log('📨 EVENT RECEIVED:', eventName);
-        console.log('📦 Data:', args);
-        console.log('═══════════════════════════════════');
-        console.log('');
-        setLastEvent(eventName + ' at ' + new Date().toLocaleTimeString());
-      });
+    // Listen for all events (debug)
+    socket.onAny((eventName, ...args) => {
+      console.log('📨 Socket event:', eventName, args);
+    });
 
-      socket.on('ride:bid:accepted', (data) => {
-        console.log('');
-        console.log('🎉🎉🎉 BID ACCEPTED! 🎉🎉🎉');
-        console.log('Data:', data);
-        console.log('');
-        
-        alert(`BID ACCEPTED!\nRide ID: ${data.rideId}\nFare: ₹${data.fare_amount}`);
-        navigate(`/driver/active-ride/${data.rideId}`);
-      });
-    }
-
+    // Cleanup on unmount ONLY
     return () => {
-      if (socket) {
-        socket.offAny();
-        socket.off('ride:bid:accepted');
+      console.log('🧹 Cleaning up socket...');
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
       }
     };
-  }, [auth, navigate]);
+  }, []); // Empty dependency array - only run once!
 
   const toggleOnlineStatus = async () => {
     try {
@@ -399,24 +410,12 @@ const DriverDashboard = ({ auth, onLogout }) => {
 
       if (response.ok) {
         setIsOnline(newStatus);
-        console.log('✅ Status updated:', newStatus ? 'ONLINE' : 'OFFLINE');
       } else {
         alert('Failed to update status');
       }
     } catch (error) {
-      console.error('Error toggling status:', error);
+      console.error('Error:', error);
       alert('Error updating status');
-    }
-  };
-
-  // TEST SOCKET FUNCTION
-  const testSocket = () => {
-    if (socket && socket.connected) {
-      console.log('📤 Sending test event...');
-      socket.emit('test-from-driver', { message: 'Hello from driver!', timestamp: Date.now() });
-      alert('Test event sent! Check backend console.');
-    } else {
-      alert('Socket not connected!');
     }
   };
 
@@ -439,22 +438,14 @@ const DriverDashboard = ({ auth, onLogout }) => {
       </div>
 
       <div className="p-4">
-        {/* SOCKET TEST SECTION */}
-        <div className="card mb-4" style={{background: '#fff3cd', border: '2px solid #ffc107'}}>
-          <h3 className="font-bold mb-2" style={{color: '#856404'}}>🔧 Socket Debug</h3>
-          <div style={{fontSize: '0.875rem', marginBottom: '0.5rem'}}>
-            <strong>Status:</strong> {socketStatus}
+        {/* Debug Info */}
+        <div className="card mb-4" style={{background: '#fff3cd', border: '2px solid #ffc107', padding: '1rem'}}>
+          <div className="font-bold mb-2" style={{color: '#856404'}}>🔧 Socket Status</div>
+          <div style={{fontSize: '0.75rem', fontFamily: 'monospace', color: '#856404'}}>
+            <div>Status: {socketStatus}</div>
+            <div>Driver ID: {auth?.driverId || '⚠️ MISSING'}</div>
+            <div>Listening for: ride:bid:accepted</div>
           </div>
-          <div style={{fontSize: '0.875rem', marginBottom: '1rem'}}>
-            <strong>Last Event:</strong> {lastEvent}
-          </div>
-          <button 
-            className="btn btn-warning w-full"
-            onClick={testSocket}
-            style={{padding: '0.75rem'}}
-          >
-            🧪 Test Socket Connection
-          </button>
         </div>
 
         {/* Stats Grid */}
@@ -500,6 +491,7 @@ const DriverDashboard = ({ auth, onLogout }) => {
           </div>
         </div>
 
+        {/* Quick Action */}
         <button 
           className="btn btn-primary w-full mb-4"
           style={{padding: '1.5rem', fontSize: '1.125rem'}}
@@ -509,6 +501,7 @@ const DriverDashboard = ({ auth, onLogout }) => {
           View Nearby Requests
         </button>
 
+        {/* Active Bids */}
         <div>
           <h3 className="font-bold mb-3" style={{fontSize: '1.25rem'}}>Active Bids</h3>
           
@@ -519,16 +512,6 @@ const DriverDashboard = ({ auth, onLogout }) => {
               Submit bids on nearby requests to start earning
             </p>
           </div>
-        </div>
-
-        {/* Debug Info */}
-        <div className="card mt-4 p-3" style={{background: '#f8f9fa', fontSize: '0.75rem'}}>
-          <div className="font-bold mb-2">Debug Info:</div>
-          <div>User ID: {auth?.userId || 'Not set'}</div>
-          <div>Driver ID: {auth?.driverId || 'Not set'}</div>
-          <div>Role: {auth?.userRole || 'Not set'}</div>
-          <div>Socket: {socket?.connected ? '✅ Connected' : '❌ Disconnected'}</div>
-          <div>Socket ID: {socket?.id || 'None'}</div>
         </div>
       </div>
     </div>

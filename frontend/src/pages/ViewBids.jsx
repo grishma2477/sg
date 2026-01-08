@@ -356,7 +356,7 @@ const ViewBids = ({ auth }) => {
 
       if (response.ok) {
         alert('✅ Bid accepted! Your driver is on the way!');
-        
+        console.log("bidding data" , data.data)
         // NAVIGATE TO ACTIVE RIDE PAGE
         navigate(`/rider/active-ride/${data.data.ride_id}`);
       } else {

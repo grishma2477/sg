@@ -90,6 +90,8 @@ import AuthCredentialModel from "../models/user/auth_credentials/AuthCredential.
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Constant } from "../utils/Constant.js";
 import UserProfile from "../models/user/user_profile/UserProfile.js"
+
+import { pool } from '../database/DBConnection.js';
 /**
  * REGISTER
  * Everyone registers as a USER first
@@ -148,62 +150,145 @@ export const register = async (req, res, next) => {
  * LOGIN
  * Returns access + refresh token
  */
-export const login = async (req, res, next) => {
+// export const login = async (req, res, next) => {
+//   try {
+//     const { email, password } = req.body;
+
+//     // 1️⃣ Find credentials
+//     const creds = await AuthCredentialModel.findOne({ email });
+//     if (!creds) {
+//       return res
+//         .status(401)
+//         .json(ApiResponse.error("INVALID_CREDENTIALS"));
+//     }
+
+//     // 2️⃣ Verify password
+//     const valid = await bcrypt.compare(password, creds.password_hash);
+//     if (!valid) {
+//       return res
+//         .status(401)
+//         .json(ApiResponse.error("INVALID_CREDENTIALS"));
+//     }
+
+//     // 3️⃣ Fetch user identity
+//     const user = await UserModel.findById(creds.user_id);
+
+//     // 4️⃣ Generate tokens
+//     const accessToken = jwt.sign(
+//       { id: user.id, role: user.role },
+//       Constant.AccessTokenSecretKey,
+//       { expiresIn: Constant.AccessTokenExpirationTime }
+//     );
+
+//     const refreshToken = jwt.sign(
+//       { id: user.id },
+//       Constant.RefreshTokenSecretKey,
+//       { expiresIn: Constant.RefreshTokenExpirationTime }
+//     );
+
+//     // (optional but recommended)
+//     await AuthCredentialModel.updateOne(
+//       { user_id: user.id },
+//       { last_login_at: new Date() }
+//     );
+
+//     res.json(
+//       ApiResponse.success(
+//         {
+//           accessToken,
+//           refreshToken,
+//           user: {
+//             id: user.id,
+//             role: user.role
+//           }
+//         },
+//         "LOGIN_SUCCESS"
+//       )
+//     );
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
+
+// In your authController.js or loginController.js
+// Update the login function to return driver_id for drivers
+// In your authController.js or loginController.js
+// Update the login function to return driver_id for drivers
+
+export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1️⃣ Find credentials
-    const creds = await AuthCredentialModel.findOne({ email });
-    if (!creds) {
-      return res
-        .status(401)
-        .json(ApiResponse.error("INVALID_CREDENTIALS"));
+    // Get user with credentials
+    const userQuery = `
+      SELECT u.*, ac.password_hash, ac.email
+      FROM users u
+      JOIN auth_credentials ac ON u.id = ac.user_id
+      WHERE ac.email = $1
+    `;
+    
+    const userResult = await pool.query(userQuery, [email]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
     }
 
-    // 2️⃣ Verify password
-    const valid = await bcrypt.compare(password, creds.password_hash);
-    if (!valid) {
-      return res
-        .status(401)
-        .json(ApiResponse.error("INVALID_CREDENTIALS"));
+    const user = userResult.rows[0];
+
+    // Verify password
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    
+    if (!isValidPassword) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
     }
 
-    // 3️⃣ Fetch user identity
-    const user = await UserModel.findById(creds.user_id);
-
-    // 4️⃣ Generate tokens
-    const accessToken = jwt.sign(
+    // Generate token
+    const token = jwt.sign(
       { id: user.id, role: user.role },
-      Constant.AccessTokenSecretKey,
-      { expiresIn: Constant.AccessTokenExpirationTime }
+      process.env.ACCESS_TOKEN_SECRET_KEY,
+      { expiresIn: '24h' }
     );
 
-    const refreshToken = jwt.sign(
-      { id: user.id },
-      Constant.RefreshTokenSecretKey,
-      { expiresIn: Constant.RefreshTokenExpirationTime }
-    );
+    // If driver, get driver database ID
+    let driverId = null;
+    if (user.role === 'driver') {
+      const driverQuery = `SELECT id FROM drivers WHERE user_id = $1`;
+      const driverResult = await pool.query(driverQuery, [user.id]);
+      
+      if (driverResult.rows.length > 0) {
+        driverId = driverResult.rows[0].id;
+        console.log('✅ Driver ID found:', driverId);
+      } else {
+        console.log('⚠️ No driver record found for user:', user.id);
+      }
+    }
 
-    // (optional but recommended)
-    await AuthCredentialModel.updateOne(
-      { user_id: user.id },
-      { last_login_at: new Date() }
-    );
+    console.log('✅ Login successful');
+    console.log('User ID:', user.id);
+    console.log('Role:', user.role);
+    console.log('Driver ID:', driverId);
 
-    res.json(
-      ApiResponse.success(
-        {
-          accessToken,
-          refreshToken,
-          user: {
-            id: user.id,
-            role: user.role
-          }
-        },
-        "LOGIN_SUCCESS"
-      )
-    );
-  } catch (err) {
-    next(err);
+    res.status(200).json({
+      success: true,
+      message: 'LOGIN_SUCCESS',
+      token: token,
+      userId: user.id,
+      role: user.role,
+      driverId: driverId  // THIS IS CRITICAL!
+    });
+
+  } catch (error) {
+    console.error('❌ Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'INTERNAL_SERVER_ERROR'
+    });
   }
 };

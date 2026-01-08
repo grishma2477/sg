@@ -437,26 +437,45 @@
 // };
 
 // export default RiderActiveRide;
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MapPin, Phone, Star, ArrowLeft } from 'lucide-react';
+import { io } from 'socket.io-client';
 
 const RiderActiveRide = ({ auth }) => {
   const navigate = useNavigate();
   const { rideId } = useParams();
   const [ride, setRide] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showReview, setShowReview] = useState(false);
-  const [rating, setRating] = useState(5);
-  const [review, setReview] = useState('');
 
   useEffect(() => {
-    console.log('🔍 Fetching ride details for ID:', rideId);
     fetchRideDetails();
     const interval = setInterval(fetchRideDetails, 3000);
     return () => clearInterval(interval);
   }, [rideId]);
+
+  // Listen for ride completion via socket
+  useEffect(() => {
+    // Socket should already be connected from App.jsx
+    // But we need to listen for ride completion event
+    const handleRideCompleted = (data) => {
+      console.log('🏁 Ride completed event received:', data);
+      
+      if (data.rideId === rideId) {
+        alert('🎉 Ride Completed!\n\nPlease rate your driver.');
+        navigate(`/rating/${rideId}`);
+      }
+    };
+
+    // Try to get socket from window (if connected in App.jsx)
+    if (window.socket) {
+      window.socket.on('ride:completed', handleRideCompleted);
+      
+      return () => {
+        window.socket.off('ride:completed', handleRideCompleted);
+      };
+    }
+  }, [rideId, navigate]);
 
   const fetchRideDetails = async () => {
     try {
@@ -467,54 +486,50 @@ const RiderActiveRide = ({ auth }) => {
       });
 
       const data = await response.json();
-      console.log('📦 Ride data received:', data);
-
-      if (response.ok) {
+      if (response.ok && data.success) {
         setRide(data.data);
         
-        if (data.data.status === 'completed' && !showReview) {
-          setTimeout(() => setShowReview(true), 1000);
+        // If ride is completed, redirect to rating
+        if (data.data.status === 'completed' && !sessionStorage.getItem(`rated_${rideId}`)) {
+          alert('🎉 Ride Completed!\n\nPlease rate your driver.');
+          navigate(`/rating/${rideId}`);
         }
-      } else {
-        console.error('❌ Failed to fetch ride:', data);
       }
     } catch (error) {
-      console.error('❌ Error fetching ride details:', error);
+      console.error('Error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const submitReview = async () => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/rides/${rideId}/review`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${auth.token}`
-        },
-        body: JSON.stringify({ rating, review })
-      });
-
-      if (response.ok) {
-        alert('✅ Thank you for your review!');
-        setShowReview(false);
-        navigate('/rider/dashboard');
+  const getStatusInfo = (status) => {
+    const statuses = {
+      'accepted': { 
+        color: '#F59E0B', 
+        text: 'Driver Accepted', 
+        message: '🚗 Your driver is on the way',
+        icon: '🚗'
+      },
+      'started': { 
+        color: '#8B5CF6', 
+        text: 'Ride in Progress', 
+        message: '💨 Enjoy your ride!',
+        icon: '🚗💨'
+      },
+      'completed': { 
+        color: '#10B981', 
+        text: 'Completed', 
+        message: '✅ Thanks for riding!',
+        icon: '✅'
+      },
+      'cancelled': { 
+        color: '#EF4444', 
+        text: 'Cancelled', 
+        message: '❌ Ride was cancelled',
+        icon: '❌'
       }
-    } catch (error) {
-      console.error('Error submitting review:', error);
-      alert('Failed to submit review');
-    }
-  };
-
-  const getStatusBadge = (status) => {
-    const badges = {
-      'accepted': { class: 'badge-warning', text: 'Driver Accepted' },
-      'started': { class: 'badge-primary', text: 'Ride in Progress' },
-      'completed': { class: 'badge-success', text: 'Completed' },
-      'cancelled': { class: 'badge-danger', text: 'Cancelled' }
     };
-    return badges[status] || { class: 'badge-secondary', text: status };
+    return statuses[status] || statuses['accepted'];
   };
 
   if (loading) {
@@ -532,7 +547,7 @@ const RiderActiveRide = ({ auth }) => {
     return (
       <div className="p-4">
         <div className="card text-center p-4">
-          <p className="text-dim">Ride not found</p>
+          <p className="text-dim">Unable to load ride details</p>
           <button className="btn btn-primary mt-3" onClick={() => navigate('/rider/dashboard')}>
             Back to Dashboard
           </button>
@@ -541,12 +556,12 @@ const RiderActiveRide = ({ auth }) => {
     );
   }
 
-  const statusBadge = getStatusBadge(ride.status);
+  const statusInfo = getStatusInfo(ride.status);
 
   return (
     <div className="p-4" style={{paddingBottom: '5rem'}}>
       <div className="header">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mb-3">
           <button 
             onClick={() => navigate('/rider/dashboard')}
             className="btn btn-secondary"
@@ -554,20 +569,51 @@ const RiderActiveRide = ({ auth }) => {
           >
             <ArrowLeft size={20} />
           </button>
-          <div>
+          <div className="flex-1">
             <h1 className="header-title">Your Ride</h1>
-            <div className={`badge ${statusBadge.class} mt-2`}>
-              {statusBadge.text}
+            <div className="badge mt-2" style={{background: statusInfo.color, color: 'white', padding: '0.5rem 1rem'}}>
+              {statusInfo.text}
             </div>
           </div>
         </div>
       </div>
 
       <div className="p-4">
+        {/* Status Message */}
+        <div className="card mb-4" style={{
+          background: `linear-gradient(135deg, ${statusInfo.color}33, ${statusInfo.color}11)`,
+          textAlign: 'center',
+          padding: '1.5rem',
+          border: `2px solid ${statusInfo.color}`
+        }}>
+          <div style={{fontSize: '2.5rem', marginBottom: '0.5rem'}}>
+            {statusInfo.icon}
+          </div>
+          <div className="font-bold" style={{fontSize: '1.25rem', marginBottom: '0.5rem'}}>
+            {statusInfo.text}
+          </div>
+          <div className="text-dim">
+            {statusInfo.message}
+          </div>
+        </div>
+
+        {/* If completed, show button to rate */}
+        {ride.status === 'completed' && (
+          <button
+            onClick={() => navigate(`/rating/${rideId}`)}
+            className="btn btn-success w-full mb-4"
+            style={{padding: '1.25rem', fontSize: '1.125rem', fontWeight: 'bold'}}
+          >
+            ⭐ Rate Your Driver
+          </button>
+        )}
+
         {/* Driver Info */}
         <div className="card mb-4" style={{
           background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.05))'
         }}>
+          <h3 className="font-bold mb-3">Your Driver</h3>
+          
           <div className="flex items-center gap-3 mb-3">
             <div style={{
               width: '60px',
@@ -581,19 +627,21 @@ const RiderActiveRide = ({ auth }) => {
               fontWeight: 'bold',
               color: 'white'
             }}>
-              D
+              {ride.driver_name?.[0] || 'D'}
             </div>
             <div className="flex-1">
-              <div className="font-bold" style={{fontSize: '1.25rem'}}>Your Driver</div>
+              <div className="font-bold" style={{fontSize: '1.125rem'}}>
+                {ride.driver_name || 'Your Driver'}
+              </div>
               <div className="flex items-center gap-2 mt-1">
                 <Star size={16} color="#F59E0B" fill="#F59E0B" />
                 <span className="font-bold" style={{color: '#F59E0B'}}>4.8</span>
                 <span className="text-dim" style={{fontSize: '0.875rem'}}>(127 rides)</span>
               </div>
             </div>
-            {ride.status !== 'completed' && ride.status !== 'cancelled' && (
+            {ride.status !== 'completed' && ride.status !== 'cancelled' && ride.driver_phone && (
               <a 
-                href="tel:1234567890"
+                href={`tel:${ride.driver_phone}`}
                 className="btn btn-primary"
                 style={{padding: '0.75rem', borderRadius: '50%'}}
               >
@@ -602,48 +650,34 @@ const RiderActiveRide = ({ auth }) => {
             )}
           </div>
 
-          {ride.fare_amount && (
-            <div className="flex items-center justify-between" style={{
+          {(ride.vehicle_make || ride.vehicle_model) && (
+            <div style={{
               paddingTop: '1rem',
               borderTop: '1px solid rgba(148, 163, 184, 0.2)',
-              marginTop: '1rem'
+              marginBottom: '1rem'
             }}>
-              <div className="text-dim">Total Fare</div>
-              <div className="font-bold" style={{fontSize: '1.5rem', color: '#10B981'}}>
-                ₹{ride.fare_amount}
+              <div className="text-dim" style={{fontSize: '0.75rem'}}>VEHICLE</div>
+              <div className="font-bold">
+                {ride.vehicle_make} {ride.vehicle_model} {ride.vehicle_color}
               </div>
+              {ride.license_plate && (
+                <div className="text-dim" style={{fontSize: '0.875rem'}}>
+                  Plate: {ride.license_plate}
+                </div>
+              )}
             </div>
           )}
+
+          <div className="flex items-center justify-between" style={{
+            paddingTop: '1rem',
+            borderTop: '1px solid rgba(148, 163, 184, 0.2)'
+          }}>
+            <div className="text-dim">Total Fare</div>
+            <div className="font-bold" style={{fontSize: '1.5rem', color: '#10B981'}}>
+              ₹{ride.fare_amount}
+            </div>
+          </div>
         </div>
-
-        {/* Status Message */}
-        {ride.status === 'accepted' && (
-          <div className="card mb-4" style={{
-            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.05))',
-            textAlign: 'center',
-            padding: '1.5rem'
-          }}>
-            <div style={{fontSize: '2rem', marginBottom: '0.5rem'}}>🚗</div>
-            <div className="font-bold" style={{fontSize: '1.125rem'}}>Driver Accepted</div>
-            <div className="text-dim" style={{fontSize: '0.875rem', marginTop: '0.25rem'}}>
-              Your driver is on the way
-            </div>
-          </div>
-        )}
-
-        {ride.status === 'started' && (
-          <div className="card mb-4" style={{
-            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(139, 92, 246, 0.05))',
-            textAlign: 'center',
-            padding: '1.5rem'
-          }}>
-            <div className="animate-pulse" style={{fontSize: '2rem', marginBottom: '0.5rem'}}>🚗💨</div>
-            <div className="font-bold" style={{fontSize: '1.125rem'}}>Ride in Progress</div>
-            <div className="text-dim" style={{fontSize: '0.875rem', marginTop: '0.25rem'}}>
-              Sit back and enjoy your ride
-            </div>
-          </div>
-        )}
 
         {/* Route */}
         <div className="card mb-4">
@@ -651,154 +685,107 @@ const RiderActiveRide = ({ auth }) => {
 
           <div className="flex items-start gap-2 mb-2">
             <div style={{
-              width: '8px',
-              height: '8px',
+              width: '10px',
+              height: '10px',
               borderRadius: '50%',
               background: '#10B981',
               marginTop: '0.5rem',
               flexShrink: 0
             }}></div>
-            <div>
+            <div className="flex-1">
               <div className="text-dim" style={{fontSize: '0.75rem'}}>PICKUP</div>
-              <div className="font-bold">{ride.pickup_address || 'Pickup location'}</div>
+              <div className="font-bold">{ride.pickup_address}</div>
             </div>
           </div>
 
+          {ride.stops && ride.stops.length > 0 && ride.stops.map((stop, idx) => (
+            <React.Fragment key={stop.id}>
+              <div style={{
+                width: '2px',
+                height: '20px',
+                background: 'rgba(148, 163, 184, 0.3)',
+                marginLeft: '4px',
+                marginBottom: '0.5rem'
+              }}></div>
+
+              <div className="mb-2" style={{
+                background: 'rgba(245, 158, 11, 0.1)',
+                border: '2px solid #F59E0B',
+                borderRadius: '12px',
+                padding: '1rem'
+              }}>
+                <div className="flex items-start gap-2">
+                  <div style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    background: '#F59E0B',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold',
+                    color: 'white',
+                    flexShrink: 0
+                  }}>
+                    {idx + 1}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-dim" style={{fontSize: '0.75rem'}}>STOP {stop.stop_order}</div>
+                    <div className="font-bold">{stop.address}</div>
+                  </div>
+                </div>
+              </div>
+            </React.Fragment>
+          ))}
+
           <div style={{
-            width: '1px',
+            width: '2px',
             height: '20px',
             background: 'rgba(148, 163, 184, 0.3)',
-            marginLeft: '3px',
+            marginLeft: '4px',
             marginBottom: '0.5rem'
           }}></div>
 
           <div className="flex items-start gap-2">
             <div style={{
-              width: '8px',
-              height: '8px',
+              width: '10px',
+              height: '10px',
               borderRadius: '50%',
               background: '#EF4444',
               marginTop: '0.5rem',
               flexShrink: 0
             }}></div>
-            <div>
+            <div className="flex-1">
               <div className="text-dim" style={{fontSize: '0.75rem'}}>DROPOFF</div>
-              <div className="font-bold">{ride.dropoff_address || 'Dropoff location'}</div>
+              <div className="font-bold">{ride.dropoff_address}</div>
             </div>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        {ride.status === 'completed' && (
-          <button
-            className="btn btn-primary w-full"
-            onClick={() => setShowReview(true)}
-            style={{padding: '1rem'}}
-          >
-            <Star size={20} />
-            Rate Your Ride
-          </button>
-        )}
-
-        {(ride.status === 'completed' || ride.status === 'cancelled') && !showReview && (
-          <button
-            className="btn btn-secondary w-full mt-3"
-            onClick={() => navigate('/rider/dashboard')}
-            style={{padding: '1rem'}}
-          >
-            Back to Dashboard
-          </button>
-        )}
+        {/* Trip Details */}
+        <div className="card">
+          <h3 className="font-bold mb-3">Trip Details</h3>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-dim">Distance</span>
+              <span className="font-bold">{ride.estimated_distance_km} km</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-dim">Duration</span>
+              <span className="font-bold">{ride.estimated_duration_minutes} min</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-dim">Passengers</span>
+              <span className="font-bold">{ride.passenger_count || 1}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-dim">Vehicle Type</span>
+              <span className="font-bold">{ride.vehicle_preference || 'Any'}</span>
+            </div>
+          </div>
+        </div>
       </div>
-
-      {/* Review Modal */}
-      {showReview && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '1rem'
-        }}>
-          <div className="card" style={{
-            maxWidth: '500px',
-            width: '100%',
-            maxHeight: '90vh',
-            overflow: 'auto'
-          }}>
-            <h2 className="font-bold mb-3" style={{fontSize: '1.5rem'}}>Rate Your Ride</h2>
-            
-            <div className="mb-4">
-              <div className="text-dim mb-2">How was your experience?</div>
-              <div className="flex justify-center gap-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    onClick={() => setRating(star)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: '0.5rem'
-                    }}
-                  >
-                    <Star
-                      size={40}
-                      color="#F59E0B"
-                      fill={star <= rating ? '#F59E0B' : 'none'}
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <label className="text-dim mb-2" style={{display: 'block'}}>
-                Share your feedback (optional)
-              </label>
-              <textarea
-                className="w-full p-3"
-                rows="4"
-                placeholder="Tell us about your experience..."
-                value={review}
-                onChange={(e) => setReview(e.target.value)}
-                style={{
-                  background: 'rgba(148, 163, 184, 0.1)',
-                  border: '1px solid rgba(148, 163, 184, 0.3)',
-                  borderRadius: '8px',
-                  resize: 'none'
-                }}
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                className="btn btn-secondary flex-1"
-                onClick={() => {
-                  setShowReview(false);
-                  navigate('/rider/dashboard');
-                }}
-                style={{padding: '1rem'}}
-              >
-                Skip
-              </button>
-              <button
-                className="btn btn-primary flex-1"
-                onClick={submitReview}
-                style={{padding: '1rem'}}
-              >
-                Submit Review
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

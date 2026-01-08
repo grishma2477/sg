@@ -276,7 +276,7 @@ const RiderDashboard = ({ auth, onLogout }) => {
   return (
     <div className="p-4" style={{ paddingBottom: "5rem" }}>
       <div className="header">
-        <h1 className="header-title">Dashboard</h1>
+        <h1 className="header-title">Dashboard Goes Here</h1>
         <p className="text-dim mt-1">Your ride activity</p>
       </div>
 
@@ -300,7 +300,7 @@ const RiderDashboard = ({ auth, onLogout }) => {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-dim" style={{ fontSize: "0.75rem" }}>
-                  Total Rides
+                  Total Rides Here
                 </div>
                 <div
                   className="font-bold"
