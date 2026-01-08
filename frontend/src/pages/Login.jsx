@@ -60,6 +60,10 @@ export default function LoginScreen() {
         alert(data.message || "Login failed");
       } else {
         const d = data.data;
+        console.log("My D--> ",d);
+        console.log("My D--> ",d.user);
+        console.log("My D--> ",d.user.role);
+        
 
         // save tokens and role to cookies
         saveToCookie("accessToken", d.accessToken);

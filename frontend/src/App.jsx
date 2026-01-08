@@ -11,7 +11,7 @@ import CreateRideRequest from './pages/CreateRideRequest';
 import ViewBids from './pages/ViewBids';
 import DriverRequests from './pages/DriverRequests';
 import SubmitBid from './pages/SubmitBid';
-import {RideRatingPage} from './pages/RideRatingPage';
+import { RideRatingPage } from './pages/RideRatingPage';
 import ProfilePage from './pages/ProfilePage';
 import DriverDashboard from "./pages/DriverDashboard";
 import ActiveRide from './pages/ActiveRideDriver';
@@ -22,7 +22,7 @@ import BottomNav from './components/BottomNav';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Utils
-import { getAuthFromCookies, saveAuthToCookies, clearAuthData } from './utils/CookieUtils';
+import { getAuthFromCookies, saveAuthToCookies, clearAuthData } from './utils/CookieUtils.js';
 
 // Styles
 import './App.css';
@@ -128,7 +128,7 @@ function App() {
 
   const handleLogin = (data) => {
     console.log('handleLogin called with:', data);
-    
+
     const authData = {
       token: data.token || data.accessToken,
       refreshToken: data.refreshToken,
@@ -136,7 +136,7 @@ function App() {
       userRole: data.role,
       driverId: data.driverId
     };
-    
+
     saveAuthToCookies(authData);
     setAuth(authData);
     
@@ -145,15 +145,14 @@ function App() {
 
   const handleLogout = () => {
     console.log('Logging out...');
-    
-    // Disconnect socket
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
+
+    if (socket) {
+      socket.disconnect();
+      socket = null;
     }
 
     clearAuthData();
-    
+
     setAuth({
       token: null,
       refreshToken: null,
@@ -169,128 +168,128 @@ function App() {
     <div className="app-container">
       <Routes>
         <Route path="/" element={<HomePage />} />
-        
-        <Route 
-          path="/login" 
+
+        <Route
+          path="/login"
           element={
             auth.token ? (
               <Navigate to={auth.userRole === 'rider' ? '/rider/dashboard' : '/driver/dashboard'} replace />
             ) : (
               <LoginPage onLogin={handleLogin} />
             )
-          } 
+          }
         />
-        
-        <Route 
-          path="/register" 
+
+        <Route
+          path="/register"
           element={
             auth.token ? (
               <Navigate to={auth.userRole === 'rider' ? '/rider/dashboard' : '/driver/dashboard'} replace />
             ) : (
               <RegisterPage onRegister={handleLogin} />
             )
-          } 
+          }
         />
 
         {/* Rider Routes */}
-        <Route 
-          path="/rider/dashboard" 
+        <Route
+          path="/rider/dashboard"
           element={
             <ProtectedRoute auth={auth} requiredRole="rider">
               <RiderDashboard auth={auth} onLogout={handleLogout} />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/rider/create-ride" 
+
+        <Route
+          path="/rider/create-ride"
           element={
             <ProtectedRoute auth={auth} requiredRole="rider">
               <CreateRideRequest auth={auth} />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/rider/view-bids/:requestId" 
+
+        <Route
+          path="/rider/view-bids/:requestId"
           element={
             <ProtectedRoute auth={auth} requiredRole="rider">
               <ViewBids auth={auth} />
             </ProtectedRoute>
-          } 
+          }
         />
 
-        <Route 
-          path="/rider/active-ride/:rideId" 
+        <Route
+          path="/rider/active-ride/:rideId"
           element={
             <ProtectedRoute auth={auth} requiredRole="rider">
               <RiderActiveRide auth={auth} />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/rider/profile" 
+
+        <Route
+          path="/rider/profile"
           element={
             <ProtectedRoute auth={auth} requiredRole="rider">
               <ProfilePage auth={auth} onLogout={handleLogout} />
             </ProtectedRoute>
-          } 
+          }
         />
 
         {/* Driver Routes */}
-        <Route 
-          path="/driver/dashboard" 
+        <Route
+          path="/driver/dashboard"
           element={
             <ProtectedRoute auth={auth} requiredRole="driver">
               <DriverDashboard auth={auth} onLogout={handleLogout} />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/driver/requests" 
+
+        <Route
+          path="/driver/requests"
           element={
             <ProtectedRoute auth={auth} requiredRole="driver">
               <DriverRequests auth={auth} />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/driver/submit-bid/:requestId" 
+
+        <Route
+          path="/driver/submit-bid/:requestId"
           element={
             <ProtectedRoute auth={auth} requiredRole="driver">
               <SubmitBid auth={auth} />
             </ProtectedRoute>
-          } 
+          }
         />
 
-        <Route 
-          path="/driver/active-ride/:rideId" 
+        <Route
+          path="/driver/active-ride/:rideId"
           element={
             <ProtectedRoute auth={auth} requiredRole="driver">
               <ActiveRide auth={auth} />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/driver/profile" 
+
+        <Route
+          path="/driver/profile"
           element={
             <ProtectedRoute auth={auth} requiredRole="driver">
               <ProfilePage auth={auth} onLogout={handleLogout} />
             </ProtectedRoute>
-          } 
+          }
         />
 
-        <Route 
-          path="/rating/:rideId" 
+        <Route
+          path="/rating/:rideId"
           element={
             <ProtectedRoute auth={auth}>
               <RideRatingPage auth={auth} />
             </ProtectedRoute>
-          } 
+          }
         />
 
         <Route path="*" element={<Navigate to="/" replace />} />

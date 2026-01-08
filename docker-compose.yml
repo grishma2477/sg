@@ -36,6 +36,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - ./backend:/app              
+      - /app/node_modules 
     command: npm run dev
 
   frontend:
@@ -46,14 +49,12 @@ services:
     restart: always
     ports:
       - "3000:3000"
-    volumes:
-    - ./frontend:/app            
-    - /app/node_modules
     depends_on:
       - backend
+    volumes:
+      - ./frontend:/app             # 👈 LIVE CODE
+      - /app/node_modules
     command: npm run dev -- --host 0.0.0.0 --port 3000
 
 volumes:
   pgdata:
-
-

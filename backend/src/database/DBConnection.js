@@ -5,6 +5,16 @@ import postgres from 'pg';
 dotenv.config();
 const { Pool } = postgres;
 
+// 🔍 DEBUG: log DB config (safe version)
+console.log("🔍 DB CONFIG USED BY BACKEND:");
+console.log({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASSWORD ? "****" : undefined
+});
+
 const pool = new Pool({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
@@ -15,13 +25,14 @@ const pool = new Pool({
 
 const connectDB = async () => {
   try {
-    // Try a simple query to check connection
     await pool.query('SELECT NOW()');
     console.log('✅ PostgreSQL connected successfully');
     return pool;
   } catch (err) {
-    throw err;
+    console.error('❌ PostgreSQL connection error:', err);
+    throw err instanceof Error ? err : new Error(JSON.stringify(err));
   }
 };
+
 
 export { pool, connectDB };
