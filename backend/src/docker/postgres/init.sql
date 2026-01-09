@@ -9,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "postgis";
 
 -- Users table (core entity)
 CREATE TABLE IF NOT EXISTS users (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
   
   role VARCHAR(20) NOT NULL CHECK (role IN ('rider','driver','admin')),
   status VARCHAR(20) DEFAULT 'active',
@@ -202,7 +202,7 @@ CREATE INDEX IF NOT EXISTS idx_vehicle_driver ON vehicles (driver_id);
 
 -- Ride requests
 CREATE TABLE IF NOT EXISTS ride_requests (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
   
   rider_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   
@@ -232,10 +232,10 @@ CREATE TABLE IF NOT EXISTS ride_requests (
   driver_id UUID REFERENCES users(id) ON DELETE SET NULL,
   accepted_bid_id UUID,
   
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  completed_at TIMESTAMP,
-  cancelled_at TIMESTAMP,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  cancelled_at TIMESTAMPTZ,
   matched_driver_id UUID REFERENCES drivers(id),
   
   CONSTRAINT ride_requests_passenger_count_check CHECK (passenger_count > 0),
@@ -324,7 +324,7 @@ CREATE INDEX IF NOT EXISTS idx_ride_stops_location ON ride_stops USING GIST(loca
 
 -- Ride bids
 CREATE TABLE IF NOT EXISTS ride_bids (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
   
   ride_request_id UUID NOT NULL REFERENCES ride_requests(id) ON DELETE CASCADE,
   driver_id UUID NOT NULL REFERENCES drivers(id),
@@ -454,7 +454,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_created_at ON safety_audit_logs (created_at
 
 -- Safety comments
 CREATE TABLE IF NOT EXISTS safety_comments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), 
   
   review_id UUID NOT NULL REFERENCES ride_reviews(id) ON DELETE CASCADE,
   
