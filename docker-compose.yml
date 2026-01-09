@@ -4,7 +4,7 @@ services:
     container_name: sajilogaadi_db
     restart: always
     environment:
-      POSTGRES_DB: SG
+      POSTGRES_DB: sg_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 1234
     ports:

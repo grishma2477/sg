@@ -33,6 +33,8 @@
 
 import express from 'express';
 import { verifyuser } from '../middleware/auth.js';
+import { ensureDriverProfile, requireDriverProfile } from '../middleware/ensureDriverProfile.js';
+
 import {
   acceptRideRequest,
   getRideDetails,
@@ -49,18 +51,32 @@ const router = express.Router();
 router.get('/:rideId', verifyuser, getRideDetails);
 
 // Accept a ride request (fixed price)
-router.post('/accept/:requestId', verifyuser, acceptRideRequest);
+router.post('/accept/:requestId', 
+  verifyuser,           // 1. Verify JWT token
+  ensureDriverProfile, 
+  acceptRideRequest     // 3. Handle the request
+);
 
 // Start ride
-router.post('/:rideId/start', verifyuser, startRide);
+router.post('/:rideId/start', 
+  verifyuser, 
+  ensureDriverProfile, 
+  startRide
+);
+
+
+
 
 // Stop management
 router.post('/:rideId/stops/:stopId/arrive', verifyuser, arriveAtStop);
 router.post('/:rideId/stops/:stopId/depart', verifyuser, departFromStop);
 
 // Complete ride
-router.post('/:rideId/complete', verifyuser, completeRide);
-
+router.post('/:rideId/complete', 
+  verifyuser, 
+  ensureDriverProfile, 
+  completeRide
+);
 // Cancel ride
 router.post('/:rideId/cancel', verifyuser, cancelRide);
 
