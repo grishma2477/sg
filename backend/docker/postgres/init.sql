@@ -173,7 +173,7 @@ CREATE INDEX idx_ride_dropoff_geo
   ON ride_locations USING gist(dropoff_location);
 
 CREATE TABLE ride_stops (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   ride_id UUID NOT NULL REFERENCES rides(id) ON DELETE CASCADE,
   stop_type VARCHAR(10) NOT NULL,
   stop_order INTEGER NOT NULL,
@@ -295,7 +295,7 @@ CREATE TABLE tap_definitions (
 );
 
 CREATE TABLE admin_audits (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   admin_id UUID NOT NULL REFERENCES users(id),
   action VARCHAR(100) NOT NULL,
   entity_id UUID,

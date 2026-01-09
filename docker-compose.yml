@@ -1,60 +1,175 @@
+# services:
+#   postgres:
+#     image: postgis/postgis:16-3.4
+#     container_name: sajilogaadi_db
+#     restart: always
+#     environment:
+#       POSTGRES_DB: sg_db
+#       POSTGRES_USER: postgres
+#       POSTGRES_PASSWORD: 1234
+#     ports:
+#       - "5432:5432"
+#     volumes:
+#       - pgdata:/var/lib/postgresql/data
+#       - ./backend/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U postgres"]
+#       interval: 5s
+#       timeout: 5s
+#       retries: 5
+
+#   redis:
+#     image: redis:7
+#     container_name: sajilogaadi_redis
+#     restart: always
+#     ports:
+#       - "6379:6379"
+
+#   backend:
+#     build:
+#       context: ./backend
+#       dockerfile: Dockerfile
+#     container_name: sajilogaadi_backend
+#     restart: always
+#     ports:
+#       - "5000:5000"
+#     depends_on:
+#       postgres:
+#         condition: service_healthy
+#     volumes:
+#       - ./backend:/app              
+#       - /app/node_modules 
+#     command: npm run dev
+
+#   frontend:
+#     build:
+#       context: ./frontend
+#       dockerfile: Dockerfile
+#     container_name: sajilogaadi_frontend
+#     restart: always
+#     ports:
+#       - "3000:3000"
+#     depends_on:
+#       - backend
+#     volumes:
+#       - ./frontend:/app             # 👈 LIVE CODE
+#       - /app/node_modules
+#     command: npm run dev -- --host 0.0.0.0 --port 3000
+
+# volumes:
+#   pgdata:
+
+
+
+
+version: '3.8'
+
 services:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # PostgreSQL with PostGIS
+  # ═══════════════════════════════════════════════════════════════════════════
   postgres:
     image: postgis/postgis:16-3.4
     container_name: sajilogaadi_db
     restart: always
     environment:
+      # Database credentials
       POSTGRES_DB: sg_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 1234
+      # This ensures init scripts run
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     ports:
       - "5432:5432"
     volumes:
+      # Persist data
       - pgdata:/var/lib/postgresql/data
-      - ./backend/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      # Init script - runs ONLY on first startup
+      - ./backend/docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sg_db"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
 
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Redis
+  # ═══════════════════════════════════════════════════════════════════════════
   redis:
-    image: redis:7
+    image: redis:7-alpine
     container_name: sajilogaadi_redis
     restart: always
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Backend API
+  # ═══════════════════════════════════════════════════════════════════════════
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: sajilogaadi_backend
     restart: always
+    environment:
+      # Database connection
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: sg_db
+      DB_USER: postgres
+      DB_PASSWORD: 1234
+      
+      # Redis connection
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      
+      # Server
+      NODE_ENV: development
+      PORT: 5000
+      
+      # JWT
+      JWT_SECRET: your_super_secret_jwt_key_change_in_production
+      
+      # Other
+      CORS_ORIGIN: http://localhost:3000
     ports:
       - "5000:5000"
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
-      - ./backend:/app              
-      - /app/node_modules 
+      - ./backend:/app
+      - /app/node_modules
     command: npm run dev
 
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Frontend
+  # ═══════════════════════════════════════════════════════════════════════════
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: sajilogaadi_frontend
     restart: always
+    environment:
+      VITE_API_URL: http://localhost:5000
     ports:
       - "3000:3000"
     depends_on:
       - backend
     volumes:
-      - ./frontend:/app             # 👈 LIVE CODE
+      - ./frontend:/app
       - /app/node_modules
     command: npm run dev -- --host 0.0.0.0 --port 3000
 
 volumes:
   pgdata:
+    driver: local
