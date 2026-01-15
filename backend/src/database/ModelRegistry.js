@@ -11,6 +11,16 @@ import DriverLocation from "../models/driver/driver_location/DriverLocation.js";
 import DriverRestriction from "../models/driver/driver_restrictions/DriverRestriction.js";
 import DriverSafetyStats from "../models/driver/driver_safety_stats/DriverSafetyStats.js";
 import DriverVisibility from "../models/driver/driver_visibility/DriverVisibility.js";
+import SafetyAuditLog from "../models/safety/SafetyAuditLog.js";
+import SafetyComment from "../models/safety/SafetyComment.js";
+import RideStop from "../models/ride_stop/RideStop.js";
+import RideLocation from "../models/ride/ride_location/RideLocation.js";
+import Review from "../models/review/Review.js";
+import TapDefinition from "../models/reference/TapDefinition.js";
+import Pricing from "../models/finance/pricing/Pricing.js";
+import Transaction from "../models/finance/transaction/Transaction.js";
+import Wallet from "../models/finance/transaction/wallet/Wallet.js";
+import AdminAuditModel from "../models/admin/AdminAudit.js";
 
 // Add every model here once.
 export const MODELS = [
@@ -21,12 +31,24 @@ export const MODELS = [
     Vehicle,
     Driver,
     Ride,
+    RideLocation,
+    RideStop,
     RideRequest,
     RideBid,
     DriverLocation,
     DriverRestriction,
     DriverSafetyStats,
     DriverVisibility,
+    Review,
+    TapDefinition,
+    Pricing,
+    Wallet,
+    Transaction,
+    SafetyAuditLog,
+    SafetyComment,
+    AdminAuditModel
+
+
 
 
 ];

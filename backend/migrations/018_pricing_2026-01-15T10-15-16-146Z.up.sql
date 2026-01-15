@@ -1,10 +1,6 @@
-import { String } from "../../../utils/Constant.js";
-
-export const PricingQueryManager = {
-schema: [`
-    CREATE TABLE IF NOT EXISTS ${String.PRICING_MODEL} (
+CREATE TABLE IF NOT EXISTS pricing (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-      ride_id UUID UNIQUE NOT NULL REFERENCES ${String.RIDE_MODEL}(id) ON DELETE CASCADE,
+      ride_id UUID UNIQUE NOT NULL REFERENCES rides(id) ON DELETE CASCADE,
 
       base_fare NUMERIC(10,2) NOT NULL,
       distance_fare NUMERIC(10,2) NOT NULL,
@@ -17,11 +13,7 @@ schema: [`
 
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
-  `,
- `
-  
-  -- One pricing per ride (already UNIQUE)
+
+-- One pricing per ride (already UNIQUE)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pricing_ride
 ON pricing (ride_id);
-`]
-};

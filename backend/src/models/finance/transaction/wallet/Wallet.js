@@ -1,4 +1,4 @@
-import { ModelManager } from "../../database/utils/ModelManager.js";
+import { ModelManager } from "../../../../database/utils/ModelManager.js";
 import { WalletQueryManager } from "./WalletQueryManager.js";
 import { String } from "../../../../utils/Constant.js";
 

@@ -60,6 +60,7 @@ export const String = {
   // ═══════════════════════════════════════════════════
   REVIEW_MODEL: "ride_reviews",
   SAFETY_AUDIT_MODEL: "safety_audit_logs",
+  SAFETY_COMMENT_MODEL: "safety_comments",
 
   // ═══════════════════════════════════════════════════
   // FINANCE TABLES
