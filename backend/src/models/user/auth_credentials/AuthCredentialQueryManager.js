@@ -1,7 +1,7 @@
 import { String } from "../../../utils/Constant.js";
 
 export const AuthCredentialQueryManager = {
-  createAuthCredentialTableQuery: `
+  schema: [`
     CREATE TABLE IF NOT EXISTS ${String.AUTH_CREDENTIAL_MODEL} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
       user_id UUID UNIQUE NOT NULL REFERENCES ${String.USER_MODEL}(id) ON DELETE CASCADE,
@@ -19,8 +19,7 @@ export const AuthCredentialQueryManager = {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
   `,
-
-  createAuthCredentialTableQueryIndex:`
+    `
   -- Login speed
 CREATE UNIQUE INDEX IF NOT EXISTS idx_auth_email
 ON auth_credentials (email)
@@ -36,10 +35,5 @@ ON auth_credentials (user_id);
 
   
   `
-
-
-
-
-
-
+  ]
 };

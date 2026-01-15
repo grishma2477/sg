@@ -2,10 +2,7 @@ import { ModelManager } from '../../../database/utils/ModelManager.js';
 import { AuthCredentialQueryManager } from './AuthCredentialQueryManager.js';
 import { String } from '../../../utils/Constant.js';
 
-const AuthCredential = ModelManager.createModel([
-  AuthCredentialQueryManager.createAuthCredentialTableQuery,
-  AuthCredentialQueryManager.createAuthCredentialTableQueryIndex
-],
+const AuthCredential = ModelManager.createModel(AuthCredentialQueryManager.schema,
   String.AUTH_CREDENTIAL_MODEL
 );
 

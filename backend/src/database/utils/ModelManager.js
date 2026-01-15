@@ -2,18 +2,14 @@ import { pool } from "../DBConnection.js";
 import * as crud from "./DBMethods.js";
 
 export const ModelManager = {
-  createModel: (tableCreateQuery, tableName, customQueries = {}) => {
+  createModel: (schemaQueries = [], tableName) => {
 
-
-
- 
     //This kind of logic only for table creation without the array of table and index creation  logic
-    // // Auto-create table (Phase-1 behavior)
-    // pool.query(tableCreateQuery).catch(err => {
-    //   console.error(`Error creating table "${tableName}":`, err);
-    // });
+    // // Auto-create table
 
-    const model = {
+    return {
+      tableName,
+      getSchemaQueries: () => schemaQueries,
       // CREATE
       create: (data, client) =>
         crud.create(tableName, data, client),
@@ -48,15 +44,5 @@ export const ModelManager = {
       findByIdAndDelete: (id, client) =>
         crud.findByIdAndDelete(tableName, id, client),
     };
-
-    // Custom queries
-    Object.keys(customQueries).forEach(key => {
-      model[key] = async (params = [], client = pool) => {
-        const { rows } = await client.query(customQueries[key], params);
-        return rows;
-      };
-    });
-
-    return model;
   }
 };
