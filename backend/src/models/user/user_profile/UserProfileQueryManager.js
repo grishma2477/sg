@@ -1,7 +1,7 @@
 import { String } from "../../../utils/Constant.js";
 
 export const UserProfileQueryManager = {
-  createUserProfileTableQuery: `
+  schema:[ `
     CREATE TABLE IF NOT EXISTS ${String.USER_PROFILE_MODEL} (
       user_id UUID PRIMARY KEY REFERENCES ${String.USER_MODEL}(id) ON DELETE CASCADE,
 
@@ -16,4 +16,5 @@ export const UserProfileQueryManager = {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
   `
+  ]
 };

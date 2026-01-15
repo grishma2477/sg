@@ -2,7 +2,7 @@
 import dotenv from 'dotenv';
 import postgres from 'pg';
 
-dotenv.config();
+dotenv.config({ path: "./src/.env" });
 const { Pool } = postgres;
 
 // 🔍 DEBUG: log DB config (safe version)
