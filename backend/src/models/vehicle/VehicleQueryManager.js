@@ -1,7 +1,7 @@
 import { String } from "../../utils/Constant.js";
 
 export const VehicleQueryManager = {
-  createVehicleTableQuery: `
+  schema: [`
     CREATE TABLE IF NOT EXISTS ${String.VEHICLE_MODEL} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
       driver_id UUID NOT NULL REFERENCES ${String.DRIVER_MODEL}(id) ON DELETE CASCADE,
@@ -25,8 +25,8 @@ export const VehicleQueryManager = {
     );
   `,
 
-  createVehicleTableQueryIndex:`
+  `
   -- Join with drivers
 CREATE INDEX IF NOT EXISTS idx_vehicle_driver
-ON vehicles (driver_id);`
+ON vehicles (driver_id);` ]
 };

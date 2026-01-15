@@ -44,7 +44,7 @@
 import { String } from "../../utils/Constant.js";
 
 export const RideQueryManager = {
-  createRideTableQuery: `
+  schema: [`
     CREATE TABLE IF NOT EXISTS ${String.RIDE_MODEL} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
@@ -74,7 +74,7 @@ export const RideQueryManager = {
     );
   `,
 
-  createRideTableQueryIndex: `
+ `
     -- Rider history
     CREATE INDEX IF NOT EXISTS idx_rides_rider
     ON rides (rider_id);
@@ -96,5 +96,5 @@ export const RideQueryManager = {
     CREATE INDEX IF NOT EXISTS idx_rides_active
     ON rides (id)
     WHERE deleted = FALSE;
-  `
+  `]
 };

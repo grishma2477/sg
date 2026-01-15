@@ -1,7 +1,7 @@
-import { String } from "../../utils/Constant.js";
+import { String } from "../../../utils/Constant.js";
 
 export const DriverRestrictionQueryManager = {
-  createDriverRestrictionTableQuery: `
+ schema: [`
     CREATE TABLE IF NOT EXISTS ${String.DRIVER_RESTRICTION_MODEL} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
       driver_id UUID NOT NULL REFERENCES ${String.DRIVER_MODEL}(id) ON DELETE CASCADE,
@@ -15,10 +15,10 @@ export const DriverRestrictionQueryManager = {
     );
   `,
 
-  createDriverRestrictionTableQueryIndex:`
+`
   -- Active restriction lookup
 CREATE INDEX IF NOT EXISTS idx_driver_restrictions_active
 ON driver_restrictions (driver_id)
 WHERE is_active = TRUE;
-`
+`]
 };

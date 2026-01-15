@@ -1,7 +1,7 @@
 import { String } from "../../utils/Constant.js";
 
 export const TransactionQueryManager = {
-  createTransactionTableQuery: `
+schema: [`
     CREATE TABLE IF NOT EXISTS ${String.TRANSACTION_MODEL} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
@@ -20,7 +20,7 @@ export const TransactionQueryManager = {
     );
   `,
 
-  createTransactionTableQueryIndex: `
+`
   -- Wallet ledger queries
 CREATE INDEX IF NOT EXISTS idx_transactions_wallet
 ON transactions (wallet_id);
@@ -33,5 +33,5 @@ ON transactions (ride_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_created
 ON transactions (created_at);
 
-  `
+  ` ]
 };

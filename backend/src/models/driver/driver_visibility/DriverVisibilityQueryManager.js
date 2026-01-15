@@ -1,3 +1,4 @@
+
 import { String } from "../../../utils/Constant.js";
 
 /**
@@ -9,7 +10,7 @@ import { String } from "../../../utils/Constant.js";
  * - Admin restrictions
  */
 export const DriverVisibilityQueryManager = {
-  createDriverVisibilityTableQuery: `
+  schema: [`
     CREATE TABLE IF NOT EXISTS ${String.DRIVER_VISIBILITY_MODEL} (
       driver_id UUID PRIMARY KEY REFERENCES ${String.DRIVER_MODEL}(id) ON DELETE CASCADE,
       
@@ -60,7 +61,7 @@ export const DriverVisibilityQueryManager = {
     );
   `,
 
-  createDriverVisibilityIndexes: `
+   `
     -- Active drivers by multiplier
     CREATE INDEX IF NOT EXISTS idx_driver_visibility_multiplier 
     ON ${String.DRIVER_VISIBILITY_MODEL}(visibility_multiplier DESC)
@@ -79,7 +80,7 @@ export const DriverVisibilityQueryManager = {
     CREATE INDEX IF NOT EXISTS idx_driver_visibility_auto_calc 
     ON ${String.DRIVER_VISIBILITY_MODEL}(last_calculated_at)
     WHERE auto_calculated = TRUE;
-  `
+  `]
 };
 
 /**

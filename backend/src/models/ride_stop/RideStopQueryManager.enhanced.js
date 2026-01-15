@@ -6,7 +6,7 @@ import { String } from "../../utils/Constant.js";
  * Supports multiple intermediate stops between pickup and dropoff
  */
 export const RideStopQueryManager = {
-  createRideStopTableQuery: `
+  schema: [`
     CREATE TABLE IF NOT EXISTS ${String.RIDE_STOP_MODEL} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
       
@@ -46,7 +46,7 @@ export const RideStopQueryManager = {
     );
   `,
 
-  createRideStopIndexes: `
+`
     -- Request stops lookup
     CREATE INDEX IF NOT EXISTS idx_ride_stops_request 
     ON ${String.RIDE_STOP_MODEL}(ride_request_id, stop_order);
@@ -62,5 +62,5 @@ export const RideStopQueryManager = {
     -- Status tracking
     CREATE INDEX IF NOT EXISTS idx_ride_stops_status 
     ON ${String.RIDE_STOP_MODEL}(status, stop_order);
-  `
+  `]
 };

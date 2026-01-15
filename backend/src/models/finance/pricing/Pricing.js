@@ -1,11 +1,8 @@
 import { ModelManager } from "../../database/utils/ModelManager.js";
 import { PricingQueryManager } from "./PricingQueryManager.js";
-import { String } from "../../utils/Constant.js";
+import { String } from "../../../utils/Constant.js";
 
-const Pricing = ModelManager.createModel([
-  PricingQueryManager.createPricingTableQuery,
-  PricingQueryManager.createPricingTableQueryIndex],
-  String.PRICING_MODEL
-);
+const Pricing = ModelManager.createModel(PricingQueryManager.schema, String.PRICING_MODEL);
+
 
 export default Pricing;

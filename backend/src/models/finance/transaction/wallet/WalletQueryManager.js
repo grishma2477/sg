@@ -1,7 +1,7 @@
 import { String } from "../../utils/Constant.js";
 
 export const WalletQueryManager = {
-  createWalletTableQuery: `
+schema: [`
     CREATE TABLE IF NOT EXISTS ${String.WALLET_MODEL} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
       user_id UUID UNIQUE NOT NULL REFERENCES ${String.USER_MODEL}(id) ON DELETE CASCADE,
@@ -14,9 +14,9 @@ export const WalletQueryManager = {
     );
   `,
 
-  createWalletTableQueryIndex:`
+`
   -- One wallet per user
 CREATE UNIQUE INDEX IF NOT EXISTS idx_wallet_user
 ON wallets (user_id);
-`
+` ]
 };

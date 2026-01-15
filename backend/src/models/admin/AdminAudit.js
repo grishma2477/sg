@@ -3,7 +3,7 @@ import { AdminAuditQueryManager } from "./AdminAuditQueryManager.js";
 import { String } from "../../utils/Constant.js";
 
 const AdminAuditModel = ModelManager.createModel(
-  AdminAuditQueryManager.createAdminAuditTableQuery,
+  AdminAuditQueryManager.schema,
   String.ADMIN_AUDIT_MODEL
 );
 

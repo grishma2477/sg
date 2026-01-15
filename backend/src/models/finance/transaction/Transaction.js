@@ -1,10 +1,8 @@
 import { ModelManager } from "../../database/utils/ModelManager.js";
 import { TransactionQueryManager } from "./TransactionQueryManager.js";
-import { String } from "../../utils/Constant.js";
+import { String } from "../../../utils/Constant.js";
 
-const Transaction = ModelManager.createModel([
-  TransactionQueryManager.createTransactionTableQuery,
-  TransactionQueryManager.createTransactionTableQueryIndex],
+const Transaction = ModelManager.createModel(TransactionQueryManager.schema,
   String.TRANSACTION_MODEL
 );
 

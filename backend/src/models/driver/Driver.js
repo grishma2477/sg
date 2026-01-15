@@ -2,9 +2,7 @@ import { ModelManager } from "../../database/utils/ModelManager.js";
 import { DriverQueryManager } from "./DriverQueryManager.js";
 import { String } from "../../utils/Constant.js";
 
-const Driver = ModelManager.createModel([
-  DriverQueryManager.createDriverTableQuery,
-  DriverQueryManager.createDriverTableQueryIndex],
+const Driver = ModelManager.createModel(DriverQueryManager.schema,
   String.DRIVER_MODEL
 );
 

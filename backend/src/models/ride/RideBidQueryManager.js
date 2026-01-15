@@ -6,7 +6,7 @@ import { String } from "../../utils/Constant.js";
  * Handles driver bidding on ride requests
  */
 export const RideBidQueryManager = {
-  createRideBidTableQuery: `
+  schema: [`
     CREATE TABLE IF NOT EXISTS ${String.RIDE_BID_MODEL} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
       
@@ -54,7 +54,7 @@ export const RideBidQueryManager = {
     );
   `,
 
-  createRideBidIndexes: `
+  `
     -- Request bids lookup (sorted by amount)
     CREATE INDEX IF NOT EXISTS idx_ride_bids_request 
     ON ${String.RIDE_BID_MODEL}(ride_request_id, bid_amount ASC, created_at DESC);
@@ -71,5 +71,5 @@ export const RideBidQueryManager = {
     -- Status tracking
     CREATE INDEX IF NOT EXISTS idx_ride_bids_status 
     ON ${String.RIDE_BID_MODEL}(status, created_at DESC);
-  `
+  `]
 };

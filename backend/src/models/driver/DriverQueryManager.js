@@ -1,7 +1,7 @@
 import { String } from "../../utils/Constant.js";
 
 export const DriverQueryManager = {
-  createDriverTableQuery: `
+  schema: [`
     CREATE TABLE IF NOT EXISTS ${String.DRIVER_MODEL} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
       user_id UUID UNIQUE NOT NULL REFERENCES ${String.USER_MODEL}(id) ON DELETE CASCADE,
@@ -14,7 +14,7 @@ export const DriverQueryManager = {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
   `,
-  createDriverTableQueryIndex: `
+ `
   
   -- Join performance
 CREATE UNIQUE INDEX IF NOT EXISTS idx_drivers_user
@@ -27,5 +27,5 @@ ON drivers (status);
 CREATE INDEX IF NOT EXISTS idx_drivers_online
 ON drivers (is_online)
 WHERE is_online = TRUE;
-`
+`]
 };

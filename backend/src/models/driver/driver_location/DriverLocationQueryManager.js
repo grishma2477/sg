@@ -1,7 +1,8 @@
+
 import { String } from "../../../utils/Constant.js";
 
 export const DriverLocationQueryManager = {
-  createDriverLocationTableQuery: `
+ schema: [`
     CREATE TABLE IF NOT EXISTS ${String.DRIVER_LOCATION_MODEL} (
       driver_id UUID PRIMARY KEY
         REFERENCES ${String.DRIVER_MODEL}(id)
@@ -13,7 +14,7 @@ export const DriverLocationQueryManager = {
     );
   `,
 
-  createDriverLocationIndexQuery: `
+`
 
     CREATE INDEX IF NOT EXISTS idx_driver_location_gist
     ON ${String.DRIVER_LOCATION_MODEL}
@@ -23,5 +24,5 @@ export const DriverLocationQueryManager = {
 CREATE INDEX IF NOT EXISTS idx_driver_location_geo
 ON driver_locations
 USING GIST (location);
-  `
+  `]
 };

@@ -1,7 +1,7 @@
 import { String } from "../../utils/Constant.js";
 
 export const SafetyAuditLogQueryManager = {
-  createSafetyAuditLogTableQuery: `
+schema: [`
     CREATE TABLE IF NOT EXISTS ${String.SAFETY_AUDIT_MODEL} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
@@ -19,7 +19,7 @@ export const SafetyAuditLogQueryManager = {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `,
-  createSafetyAuditLogTableQueryIndex:`
+`
   
   -- Driver audit trail
 CREATE INDEX IF NOT EXISTS idx_audit_driver
@@ -28,5 +28,5 @@ ON safety_audit_logs (driver_id);
 -- Time-based audit review
 CREATE INDEX IF NOT EXISTS idx_audit_created_at
 ON safety_audit_logs (created_at);
-`
+` ]
 };

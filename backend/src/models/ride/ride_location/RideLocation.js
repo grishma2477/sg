@@ -1,10 +1,8 @@
 import { ModelManager } from "../../database/utils/ModelManager.js";
 import { RideLocationQueryManager } from "./RideLocationQueryManager.js";
-import { String } from "../../utils/Constant.js";
+import { String } from "../../../utils/Constant.js";
 
-const RideLocation = ModelManager.createModel([
-  RideLocationQueryManager.createRideLocationTableQuery,
-  RideLocationQueryManager.createRideLocationTableQuery],
+const RideLocation = ModelManager.createModel(RideLocationQueryManager.schema,
   String.RIDE_LOCATION_MODEL
 );
 

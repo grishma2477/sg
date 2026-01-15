@@ -6,7 +6,7 @@ import { String } from "../../utils/Constant.js";
  * Extended commenting system for reviews with safety concerns
  */
 export const SafetyCommentQueryManager = {
-  createSafetyCommentTableQuery: `
+schema: [`
     CREATE TABLE IF NOT EXISTS ${String.SAFETY_COMMENT_MODEL} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
       
@@ -68,7 +68,7 @@ export const SafetyCommentQueryManager = {
     );
   `,
 
-  createSafetyCommentIndexes: `
+`
     -- Review comments lookup
     CREATE INDEX IF NOT EXISTS idx_safety_comments_review 
     ON ${String.SAFETY_COMMENT_MODEL}(review_id, created_at ASC);
@@ -100,7 +100,7 @@ export const SafetyCommentQueryManager = {
     CREATE INDEX IF NOT EXISTS idx_safety_comments_followup 
     ON ${String.SAFETY_COMMENT_MODEL}(requires_follow_up, follow_up_completed)
     WHERE requires_follow_up = TRUE AND follow_up_completed = FALSE;
-  `
+  `]
 };
 
 /**

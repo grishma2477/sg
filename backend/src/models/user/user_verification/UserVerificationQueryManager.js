@@ -1,7 +1,7 @@
 import { String } from "../../../utils/Constant.js";
 
 export const UserVerificationQueryManager = {
-  createUserVerificationTableQuery: `
+  schema: [`
     CREATE TABLE IF NOT EXISTS ${String.USER_VERIFICATION_MODEL} (
       user_id UUID PRIMARY KEY REFERENCES ${String.USER_MODEL}(id) ON DELETE CASCADE,
 
@@ -17,9 +17,9 @@ export const UserVerificationQueryManager = {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
   `,
-  createUserVerificationTableQueryIndex:`
+ `
   -- Admin review queries
 CREATE INDEX IF NOT EXISTS idx_user_verification_status
 ON user_verifications (identity_verified);
-`
+`]
 };

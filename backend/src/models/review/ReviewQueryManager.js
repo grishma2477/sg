@@ -1,7 +1,7 @@
 import { String } from "../../utils/Constant.js";
 
 export const ReviewQueryManager = {
-  createReviewTableQuery: `
+  schema: [`
     CREATE TABLE IF NOT EXISTS ${String.REVIEW_MODEL} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
       ride_id UUID UNIQUE NOT NULL REFERENCES ${String.RIDE_MODEL}(id) ON DELETE CASCADE,
@@ -24,7 +24,7 @@ export const ReviewQueryManager = {
     );
   `,
 
-  createReviewTableQueryIndex:`
+ `
   
   -- Driver review history
 CREATE INDEX IF NOT EXISTS idx_reviews_driver
@@ -33,5 +33,5 @@ ON ride_reviews (reviewee_driver_id);
 -- Safety concern filtering
 CREATE INDEX IF NOT EXISTS idx_reviews_safety_concern
 ON ride_reviews (has_safety_concern)
-WHERE has_safety_concern = TRUE;`
+WHERE has_safety_concern = TRUE;` ]
 };

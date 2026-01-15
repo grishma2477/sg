@@ -10,7 +10,7 @@ import { String } from "../../utils/Constant.js";
  * - Estimated fare and distance
  */
 export const RideRequestQueryManager = {
-  createRideRequestTableQuery: `
+  schema: [`
     CREATE TABLE IF NOT EXISTS ${String.RIDE_REQUEST_MODEL} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
       
@@ -70,7 +70,7 @@ export const RideRequestQueryManager = {
     );
   `,
 
-  createRideRequestIndexes: `
+ `
     -- Status queries
     CREATE INDEX IF NOT EXISTS idx_ride_requests_status 
     ON ${String.RIDE_REQUEST_MODEL}(status);
@@ -101,5 +101,5 @@ export const RideRequestQueryManager = {
     CREATE INDEX IF NOT EXISTS idx_ride_requests_scheduled 
     ON ${String.RIDE_REQUEST_MODEL}(requested_pickup_time)
     WHERE requested_pickup_time IS NOT NULL;
-  `
+  `]
 };

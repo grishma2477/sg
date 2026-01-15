@@ -2,9 +2,7 @@ import { ModelManager } from "../../database/utils/ModelManager.js";
 import { RideQueryManager } from "./RideQueryManager.js";
 import { String } from "../../utils/Constant.js";
 
-const Ride = ModelManager.createModel([
-  RideQueryManager.createRideTableQuery,
-  RideQueryManager.createRideTableQueryIndex],
+const Ride = ModelManager.createModel(RideQueryManager.schema,
   String.RIDE_MODEL
 );
 
