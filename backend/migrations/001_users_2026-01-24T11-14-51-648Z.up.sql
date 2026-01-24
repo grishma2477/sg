@@ -3,10 +3,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
       role VARCHAR(20) NOT NULL CHECK (role IN ('rider','driver','admin')),
-      status VARCHAR(20) DEFAULT 'active',
-      is_verified BOOLEAN DEFAULT FALSE,
-      is_done BOOLEAN DEFAULT FALSE,
-
+      status VARCHAR(20) NOT NULL CHECK (status IN ('active','inactive','suspended', 'banned', 'deleted')) DEFAULT 'inactive',
 
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()

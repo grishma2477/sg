@@ -176,7 +176,7 @@ import { User, Lock, Mail, Phone } from 'lucide-react';
 
 const RegisterPage = ({ onRegister }) => {
   const navigate = useNavigate();
-  const [role, setRole] = useState('rider');
+  const [role, setRole] = useState('');
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',

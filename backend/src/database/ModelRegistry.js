@@ -1,7 +1,6 @@
 import User from "../models/user/User.js";
 import UserProfile from "../models/user/user_profile/UserProfile.js";
 import AuthCredential from "../models/user/auth_credentials/AuthCredential.js";
-import UserVerification from '../models/user/user_verification/UserVerification.js';
 import Ride from "../models/ride/Ride.js";
 import Driver from "../models/driver/Driver.js";
 import Vehicle from './../models/vehicle/Vehicle.js';
@@ -21,13 +20,17 @@ import Pricing from "../models/finance/pricing/Pricing.js";
 import Transaction from "../models/finance/transaction/Transaction.js";
 import Wallet from "../models/finance/transaction/wallet/Wallet.js";
 import AdminAuditModel from "../models/admin/AdminAudit.js";
+import KYC from "../models/user/kyc/KYC.js";
+import KYCDocument from "../models/user/kyc_document/KYCDocument.js";
 
 // Add every model here once.
 export const MODELS = [
     User,
     UserProfile,
     AuthCredential,
-    UserVerification,
+  
+    KYC,
+    KYCDocument,
     Vehicle,
     Driver,
     Ride,
@@ -46,8 +49,8 @@ export const MODELS = [
     Transaction,
     SafetyAuditLog,
     SafetyComment,
-    AdminAuditModel
-
+    AdminAuditModel,
+    
 
 
 

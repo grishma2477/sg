@@ -1,12 +1,11 @@
 CREATE TABLE IF NOT EXISTS user_profiles (
       user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
 
-      first_name VARCHAR(100) NOT NULL,
-      last_name VARCHAR(100) NOT NULL,
-      profile_photo_url TEXT,
+      is_email_verified BOOLEAN DEFAULT FALSE,
+      is_phone_verified BOOLEAN DEFAULT FALSE,
 
-      date_of_birth DATE,
-      gender VARCHAR(20),
+      is_kyc_verified BOOLEAN DEFAULT FALSE,
+      kyc_verified_at TIMESTAMPTZ,
 
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()

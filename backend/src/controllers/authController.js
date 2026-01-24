@@ -92,6 +92,9 @@ import { Constant } from "../utils/Constant.js";
 import UserProfile from "../models/user/user_profile/UserProfile.js"
 
 import { pool } from '../database/DBConnection.js';
+import KYC from "../models/user/kyc/KYC.js";
+import KYCDocument from './../models/user/kyc_document/KYCDocument';
+import { Phone } from 'lucide-react';
 /**
  * REGISTER
  * Everyone registers as a USER first
@@ -101,7 +104,7 @@ export const register = async (req, res, next) => {
   console.log("working till here ...")
 
   try {
-    const { first_name, last_name, email, password, role } = req.body;
+    const { first_name, last_name, email, password, phone_number } = req.body;
 
     // 1️⃣ Check email uniqueness
     const existing = await AuthCredentialModel.findOne({ email });
@@ -112,7 +115,7 @@ export const register = async (req, res, next) => {
     }
     // 2️⃣ Create user identity
     const user = await UserModel.create({
-      role,
+      role: "rider",
       status: "active"
     });
 
@@ -125,10 +128,20 @@ export const register = async (req, res, next) => {
       password_hash
     });
 
-    await UserProfile.create({
+    await KYC.create({
       user_id: user.id,
       first_name,
-      last_name
+      last_name,
+      phone_number,
+      email,
+    });
+    
+    await UserProfile.create({
+      user_id: user.id,
+      is_kyc_verified: false,
+      is_email_verified: true,
+      is_phone_verified: true
+      
     });
 
     res.status(201).json(

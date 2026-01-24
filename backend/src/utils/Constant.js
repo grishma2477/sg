@@ -31,7 +31,8 @@ export const String = {
   AUTH_CREDENTIAL_MODEL: "auth_credentials",
   USER_PROFILE_MODEL: "user_profiles",
   USER_VERIFICATION_MODEL: "user_verifications",
-
+  KYC_MODEL: "kyc",
+  KYC_DOCUMENT_MODEL: "kyc_documents",
   // ═══════════════════════════════════════════════════
   // DRIVER TABLES
   // ═══════════════════════════════════════════════════

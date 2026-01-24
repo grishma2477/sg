@@ -725,6 +725,10 @@ export const submitBid = async (req, res) => {
     } = req.body;
 
     console.log('💰 Submitting bid:', { requestId, driverId, bidAmount });
+    // TODO: #1 - Remove driver info , profile creation later when kyc implement 
+    // Make driver profile mandatory before bidding
+    // TODO: #2 Implement driver profile check here  
+
 
     // Get driver info
     const driverInfo = await pool.query(

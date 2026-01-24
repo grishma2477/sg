@@ -2,17 +2,50 @@ import { asyncHandler } from "../middleware/asyncHandler.js"
 import User from "../models/user/User.js"
 import { failure, success } from './../utils/ApiResponse.js';
 import AuthCredentialModel from "../models/auth/AuthCredential.js";
+import KYC from './../models/user/kyc/KYC';
 
-// Get uSer Profiler
+// Get User Profile
 export const getUserProfile = asyncHandler(async (req, res, next) => {
-    const user = await User.findById
-        (req.user.id);
-   if (!user) {
-       return failure(404, "User not found");
-   }
-    res.status(200).json(success( "User profile fetched successfully", user));
-});
+    const userId = req.user.id;
 
+    // Fetch data from individual tables
+    const user = await User.findById(userId);
+    
+    if (!user) {
+        return next(failure(404, "User not found"));
+    }
+
+    const authCred = await AuthCredentialModel.findOne({ user_id: userId });
+    const userProfile = await UserProfileModel.findOne({ user_id: userId });
+    const kycData = await KYCModel.findOne({ user_id: userId });
+    
+    let kycDetails = null;
+    if (kycData) {
+        const kycDocument = await KYCDocumentModel.findOne({ kyc_id: kycData.id });
+        const kycImages = await KYCImageModel.findAll({ kyc_id: kycData.id });
+        
+        kycDetails = {
+            ...kycData,
+            document: kycDocument,
+            images: kycImages
+        };
+    }
+
+    // Unified response
+    const response = {
+        user: {
+            id: user.id,
+            email: user.email,
+            username: user.username,
+            created_at: user.created_at
+        },
+        profile: userProfile || null,
+        auth_credentials: authCred || null,
+        kyc: kycDetails
+    };
+
+    res.status(200).json(success("User profile fetched successfully", response));
+});
 
 // Update User Profile
 export const updateUserProfile = asyncHandler(async (req, res, next) => {
