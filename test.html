@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CvSaathi UI Sitemap</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: white;
+            padding: 30px;
+            min-height: 100vh;
+            overflow-x: auto;
+        }
+
+        .container {
+            min-width: 1100px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .title {
+            text-align: center;
+            color: #1e293b;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 40px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sitemap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .level {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .page {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 10px;
+            text-align: center;
+            min-width: 100px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            position: relative;
+            border: 2px solid;
+        }
+
+        .home {
+            background: #DBEAFE;
+            color: #1E40AF;
+            font-size: 13px;
+            padding: 15px 30px;
+            border-color: #3B82F6;
+        }
+
+        .main-page {
+            background: #CFFAFE;
+            color: #155E75;
+            border-color: #06B6D4;
+        }
+
+        .auth-page {
+            background: #EDE9FE;
+            color: #5B21B6;
+            border-color: #8B5CF6;
+        }
+
+        .dashboard {
+            background: #D1FAE5;
+            color: #065F46;
+            font-size: 12px;
+            padding: 13px 28px;
+            border-color: #10B981;
+        }
+
+        .jobseeker-page {
+            background: #DBEAFE;
+            color: #1E3A8A;
+            border-color: #3B82F6;
+        }
+
+        .recruiter-page {
+            background: #FEF3C7;
+            color: #92400E;
+            border-color: #F59E0B;
+        }
+
+        .coach-page {
+            background: #FCE7F3;
+            color: #9F1239;
+            border-color: #EC4899;
+        }
+
+        .admin-page {
+            background: #FEE2E2;
+            color: #991B1B;
+            border-color: #EF4444;
+        }
+
+        .modal {
+            background: #E0E7FF;
+            color: #3730A3;
+            border-color: #6366F1;
+            border-style: dashed;
+        }
+
+        .connector-vertical {
+            width: 2px;
+            height: 25px;
+            background: #94A3B8;
+            margin: 0 auto;
+        }
+
+        .connector-horizontal {
+            height: 2px;
+            background: #94A3B8;
+            flex-grow: 1;
+            align-self: center;
+        }
+
+        .branch-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sub-pages {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 1000px;
+        }
+
+        .section-title {
+            color: #64748B;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 15px 0 10px 0;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .connection-line {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .horizontal-splitter {
+            display: flex;
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .horizontal-splitter::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: #94A3B8;
+        }
+
+        .branch-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 0 10px;
+        }
+
+        .legend {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #64748B;
+            font-size: 9px;
+        }
+
+        .legend-box {
+            width: 30px;
+            height: 18px;
+            border-radius: 4px;
+            border: 2px solid;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title">CvSaathi - User Interface Sitemap</div>
+        
+        <div class="sitemap">
+            <!-- Level 0: Home -->
+            <div class="page home">Home Page</div>
+            <div class="connector-vertical"></div>
+
+            <!-- Level 1: Main Pages -->
+            <div class="horizontal-splitter"></div>
+            <div class="connector-vertical"></div>
+            
+            <div class="level">
+                <div class="page main-page">About</div>
+                <div class="page main-page">Services</div>
+                <div class="page main-page">Jobs</div>
+                <div class="page main-page">Contact</div>
+                <div class="page auth-page">Login / Signup</div>
+                <div class="page dashboard">Dashboard</div>
+            </div>
+
+            <div class="connector-vertical"></div>
+            
+            <!-- Dashboard Sub-sections -->
+            <div class="section-title">Dashboard Modules by User Role</div>
+            
+            <div class="horizontal-splitter"></div>
+            <div class="connector-vertical"></div>
+
+            <div class="level">
+                <div class="branch-column">
+                    <div class="section-title" style="color: #3B82F6;">Job Seeker</div>
+                    <div class="sub-pages">
+                        <div class="page jobseeker-page">Dashboard</div>
+                        <div class="page jobseeker-page">My Analysis</div>
+                        <div class="page jobseeker-page">Applications</div>
+                        <div class="page jobseeker-page">Saved Jobs</div>
+                        <div class="page jobseeker-page">Job Matches</div>
+                        <div class="page jobseeker-page">Support</div>
+                        <div class="page jobseeker-page">Skills</div>
+                        <div class="page jobseeker-page">Settings</div>
+                    </div>
+                </div>
+
+                <div class="branch-column">
+                    <div class="section-title" style="color: #F59E0B;">Recruiter</div>
+                    <div class="sub-pages">
+                        <div class="page recruiter-page">Recruiter Dashboard</div>
+                        <div class="page recruiter-page">Post Job</div>
+                        <div class="page recruiter-page">Manage Jobs</div>
+                        <div class="page recruiter-page">View Applicants</div>
+                        <div class="page recruiter-page">Candidate Search</div>
+                        <div class="page recruiter-page">Analytics</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="level" style="margin-top: 20px;">
+                <div class="branch-column">
+                    <div class="section-title" style="color: #EC4899;">Career Coach</div>
+                    <div class="sub-pages">
+                        <div class="page coach-page">Coach Dashboard</div>
+                        <div class="page coach-page">Student Management</div>
+                        <div class="page coach-page">Assignments</div>
+                        <div class="page coach-page">Review Submissions</div>
+                        <div class="page coach-page">Interview Scheduling</div>
+                    </div>
+                </div>
+
+                <div class="branch-column">
+                    <div class="section-title" style="color: #EF4444;">Admin</div>
+                    <div class="sub-pages">
+                        <div class="page admin-page">Admin Panel</div>
+                        <div class="page admin-page">User Management</div>
+                        <div class="page admin-page">Analytics Dashboard</div>
+                        <div class="page admin-page">Content Moderation</div>
+                        <div class="page admin-page">System Settings</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal/Popup States -->
+            <div class="connector-vertical"></div>
+            <div class="section-title">Modal & Popup States</div>
+            
+            <div class="level">
+                <div class="page modal">Job Details Modal</div>
+                <div class="page modal">Application Form Modal</div>
+                <div class="page modal">CV Upload Modal</div>
+                <div class="page modal">Profile Edit Modal</div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-box" style="background: #CFFAFE; border-color: #06B6D4;"></div>
+                <span>Main Pages</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #D1FAE5; border-color: #10B981;"></div>
+                <span>Dashboard</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #DBEAFE; border-color: #3B82F6;"></div>
+                <span>Job Seeker</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #FEF3C7; border-color: #F59E0B;"></div>
+                <span>Recruiter</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #FCE7F3; border-color: #EC4899;"></div>
+                <span>Coach</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #FEE2E2; border-color: #EF4444;"></div>
+                <span>Admin</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #E0E7FF; border-color: #6366F1; border-style: dashed;"></div>
+                <span>Modals</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

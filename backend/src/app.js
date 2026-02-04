@@ -13,8 +13,10 @@ import adminRoutes from "./routes/adminRoutes.js";
 import rideRequestRoutes from "./routes/rideRequestRoutes.js"
 import biddingRoutes from "./routes/biddingRoutes.js"
 import driverRoutes from "./routes/driverStatusRoutes.js"
-dotenv.config();
+import kycRoutes from "./routes/kycRoutes.js"
 
+
+dotenv.config();
 const app = express();
 
 // ---------- GLOBAL MIDDLEWARE ---------- 
@@ -35,6 +37,8 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/ride-requests", rideRequestRoutes);
 app.use('/api/bidding', biddingRoutes);
 app.use('/api/drivers', driverRoutes)
+app.use('/api/kyc', kycRoutes);
+
 
 
 app.use(errorHandler);

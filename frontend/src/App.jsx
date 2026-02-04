@@ -583,6 +583,7 @@ import ProfilePage from './pages/ProfilePage';
 import DriverDashboard from "./pages/DriverDashboard";
 import ActiveRide from './pages/ActiveRideDriver';
 import RiderActiveRide from './pages/RiderActiveRide';
+import KYCUploadPage from './pages/KYCUploadPage';
 
 // Components
 import BottomNav from './components/BottomNav';
@@ -690,6 +691,8 @@ function App() {
             }
           />
 
+
+<Route path="/kyc-upload" element={<ProtectedRoute auth={auth}><KYCUploadPage /></ProtectedRoute>} />
           <Route
             path="/rider/view-bids/:requestId"
             element={
