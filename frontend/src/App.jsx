@@ -581,8 +581,8 @@ import KYCUploadPage from "./pages/KYCUploadPage";
 // Components
 import BottomNav from "./components/BottomNav";
 import ProtectedRoute from "./components/ProtectedRoute";
+// At the top with other imports
 
-// Utils
 import {
   getAuthFromCookies,
   saveAuthToCookies,
@@ -591,6 +591,7 @@ import {
 
 // Styles
 import "./App.css";
+import AdminKYCDashboard from './pages/AdminDashboard';
 
 function App() {
   const [auth, setAuth] = useState(() => {
@@ -653,6 +654,16 @@ function App() {
   element={
     <ProtectedRoute auth={auth}>
       <KYCUploadPage />
+    </ProtectedRoute>
+  }
+/>
+
+
+<Route
+  path="/admin/kyc"
+  element={
+    <ProtectedRoute auth={auth}>
+      <AdminKYCDashboard />
     </ProtectedRoute>
   }
 />
