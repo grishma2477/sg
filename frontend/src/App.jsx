@@ -62,13 +62,13 @@
 
 //       socket.on('connect', () => {
 //         console.log('✅ App: Socket connected:', socket.id);
-        
+
 //         socket.emit('authenticate', {
 //           userId: auth.userId,
 //           role: auth.userRole,
 //           driverId: auth.driverId
 //         });
-        
+
 //         console.log('📤 App: Authentication sent');
 //       });
 
@@ -91,9 +91,9 @@
 //         console.log('Pickup:', data.pickup_address);
 //         console.log('═══════════════════════════════════════════');
 //         console.log('');
-        
+
 //         alert(`🎉 YOUR BID WAS ACCEPTED!\n\nFare: ₹${data.fare_amount}\n\nRedirecting to ride page...`);
-        
+
 //         // Force navigation using window.location to ensure it works
 //         window.location.href = `/driver/active-ride/${data.rideId}`;
 //       });
@@ -139,7 +139,7 @@
 
 //     saveAuthToCookies(authData);
 //     setAuth(authData);
-    
+
 //     console.log('Auth state updated:', authData);
 //   };
 
@@ -379,7 +379,7 @@
 
 // //   const handleLogin = (data) => {
 // //     console.log('handleLogin called with:', data);
-    
+
 // //     const authData = {
 // //       token: data.token || data.accessToken,
 // //       refreshToken: data.refreshToken,
@@ -387,7 +387,7 @@
 // //       userRole: data.role,
 // //       driverId: data.driverId
 // //     };
-    
+
 // //     saveAuthToCookies(authData);
 // //     setAuth(authData);
 // //     console.log('Auth state updated:', authData);
@@ -395,14 +395,14 @@
 
 // //   const handleLogout = () => {
 // //     console.log('Logging out...');
-    
+
 // //     if (socket) {
 // //       socket.disconnect();
 // //       socket = null;
 // //     }
 
 // //     clearAuthData();
-    
+
 // //     setAuth({
 // //       token: null,
 // //       refreshToken: null,
@@ -422,128 +422,128 @@
 // //     <div className="app-container">
 // //       <Routes>
 // //         <Route path="/" element={<HomePage />} />
-        
-// //         <Route 
-// //           path="/login" 
+
+// //         <Route
+// //           path="/login"
 // //           element={
 // //             auth.token ? (
 // //               <Navigate to={auth.userRole === 'rider' ? '/rider/dashboard' : '/driver/dashboard'} replace />
 // //             ) : (
 // //               <LoginPage onLogin={handleLogin} />
 // //             )
-// //           } 
+// //           }
 // //         />
-        
-// //         <Route 
-// //           path="/register" 
+
+// //         <Route
+// //           path="/register"
 // //           element={
 // //             auth.token ? (
 // //               <Navigate to={auth.userRole === 'rider' ? '/rider/dashboard' : '/driver/dashboard'} replace />
 // //             ) : (
 // //               <RegisterPage onRegister={handleLogin} />
 // //             )
-// //           } 
+// //           }
 // //         />
 
 // //         {/* Rider Routes */}
-// //         <Route 
-// //           path="/rider/dashboard" 
+// //         <Route
+// //           path="/rider/dashboard"
 // //           element={
 // //             <ProtectedRoute auth={auth} requiredRole="rider">
 // //               <RiderDashboard auth={auth} onLogout={handleLogout} />
 // //             </ProtectedRoute>
-// //           } 
+// //           }
 // //         />
-        
-// //         <Route 
-// //           path="/rider/create-ride" 
+
+// //         <Route
+// //           path="/rider/create-ride"
 // //           element={
 // //             <ProtectedRoute auth={auth} requiredRole="rider">
 // //               <CreateRideRequest auth={auth} />
 // //             </ProtectedRoute>
-// //           } 
+// //           }
 // //         />
-        
-// //         <Route 
-// //           path="/rider/view-bids/:requestId" 
+
+// //         <Route
+// //           path="/rider/view-bids/:requestId"
 // //           element={
 // //             <ProtectedRoute auth={auth} requiredRole="rider">
 // //               <ViewBids auth={auth} />
 // //             </ProtectedRoute>
-// //           } 
+// //           }
 // //         />
 
-// //         <Route 
-// //           path="/rider/active-ride/:rideId" 
+// //         <Route
+// //           path="/rider/active-ride/:rideId"
 // //           element={
 // //             <ProtectedRoute auth={auth} requiredRole="rider">
 // //               <RiderActiveRide auth={auth} />
 // //             </ProtectedRoute>
-// //           } 
+// //           }
 // //         />
-        
-// //         <Route 
-// //           path="/rider/profile" 
+
+// //         <Route
+// //           path="/rider/profile"
 // //           element={
 // //             <ProtectedRoute auth={auth} requiredRole="rider">
 // //               <ProfilePage auth={auth} onLogout={handleLogout} />
 // //             </ProtectedRoute>
-// //           } 
+// //           }
 // //         />
 
 // //         {/* Driver Routes */}
-// //         <Route 
-// //           path="/driver/dashboard" 
+// //         <Route
+// //           path="/driver/dashboard"
 // //           element={
 // //             <ProtectedRoute auth={auth} requiredRole="driver">
 // //               <DriverDashboard auth={auth} onLogout={handleLogout} />
 // //             </ProtectedRoute>
-// //           } 
+// //           }
 // //         />
-        
-// //         <Route 
-// //           path="/driver/requests" 
+
+// //         <Route
+// //           path="/driver/requests"
 // //           element={
 // //             <ProtectedRoute auth={auth} requiredRole="driver">
 // //               <DriverRequests auth={auth} />
 // //             </ProtectedRoute>
-// //           } 
+// //           }
 // //         />
-        
-// //         <Route 
-// //           path="/driver/submit-bid/:requestId" 
+
+// //         <Route
+// //           path="/driver/submit-bid/:requestId"
 // //           element={
 // //             <ProtectedRoute auth={auth} requiredRole="driver">
 // //               <SubmitBid auth={auth} />
 // //             </ProtectedRoute>
-// //           } 
+// //           }
 // //         />
 
-// //         <Route 
-// //           path="/driver/active-ride/:rideId" 
+// //         <Route
+// //           path="/driver/active-ride/:rideId"
 // //           element={
 // //             <ProtectedRoute auth={auth} requiredRole="driver">
 // //               <ActiveRide auth={auth} />
 // //             </ProtectedRoute>
-// //           } 
+// //           }
 // //         />
-        
-// //         <Route 
-// //           path="/driver/profile" 
+
+// //         <Route
+// //           path="/driver/profile"
 // //           element={
 // //             <ProtectedRoute auth={auth} requiredRole="driver">
 // //               <ProfilePage auth={auth} onLogout={handleLogout} />
 // //             </ProtectedRoute>
-// //           } 
+// //           }
 // //         />
 
-// //         <Route 
-// //           path="/rating/:rideId" 
+// //         <Route
+// //           path="/rating/:rideId"
 // //           element={
 // //             <ProtectedRoute auth={auth}>
 // //               <RideRatingPage auth={auth} />
 // //             </ProtectedRoute>
-// //           } 
+// //           }
 // //         />
 
 // //         <Route path="*" element={<Navigate to="/" replace />} />
@@ -556,58 +556,57 @@
 
 // // export default App;
 
-
-
-
-
-
-
-
-import React, { useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 // Context
-import { SocketProvider } from './context/SocketContext';
+import { SocketProvider } from "./context/SocketContext";
 
 // Pages
-import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import RiderDashboard from './pages/RiderDashboard';
-import CreateRideRequest from './pages/CreateRideRequest';
-import ViewBids from './pages/ViewBids';
-import DriverRequests from './pages/DriverRequests';
-import SubmitBid from './pages/SubmitBid';
-import { RideRatingPage } from './pages/RideRatingPage';
-import ProfilePage from './pages/ProfilePage';
+import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import RiderDashboard from "./pages/RiderDashboard";
+import CreateRideRequest from "./pages/CreateRideRequest";
+import ViewBids from "./pages/ViewBids";
+import DriverRequests from "./pages/DriverRequests";
+import SubmitBid from "./pages/SubmitBid";
+import { RideRatingPage } from "./pages/RideRatingPage";
+import ProfilePage from "./pages/ProfilePage";
 import DriverDashboard from "./pages/DriverDashboard";
-import ActiveRide from './pages/ActiveRideDriver';
-import RiderActiveRide from './pages/RiderActiveRide';
-import KYCUploadPage from './pages/KYCUploadPage';
+import ActiveRide from "./pages/ActiveRideDriver";
+import RiderActiveRide from "./pages/RiderActiveRide";
+import KYCUploadPage from "./pages/KYCUploadPage";
 
 // Components
-import BottomNav from './components/BottomNav';
-import ProtectedRoute from './components/ProtectedRoute';
+import BottomNav from "./components/BottomNav";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Utils
-import { getAuthFromCookies, saveAuthToCookies, clearAuthData } from './utils/CookieUtils.js';
+import {
+  getAuthFromCookies,
+  saveAuthToCookies,
+  clearAuthData,
+} from "./utils/CookieUtils.js";
 
 // Styles
-import './App.css';
+import "./App.css";
 
 function App() {
   const [auth, setAuth] = useState(() => {
-    return getAuthFromCookies() || {
-      token: null,
-      refreshToken: null,
-      userId: null,
-      userRole: null,
-      driverId: null
-    };
+    return (
+      getAuthFromCookies() || {
+        token: null,
+        refreshToken: null,
+        userId: null,
+        userRole: null,
+        driverId: null,
+      }
+    );
   });
 
   const handleLogin = (data) => {
-    console.log('handleLogin called with:', data);
+    console.log("handleLogin called with:", data);
 
     const authData = {
       token: data.token || data.accessToken,
@@ -617,18 +616,18 @@ function App() {
       driverId: data.driverId,
       user: {
         id: data.userId,
-        role: data.role
-      }
+        role: data.role,
+      },
     };
 
     saveAuthToCookies(authData);
     setAuth(authData);
-    
-    console.log('Auth state updated:', authData);
+
+    console.log("Auth state updated:", authData);
   };
 
   const handleLogout = () => {
-    console.log('Logging out...');
+    console.log("Logging out...");
 
     clearAuthData();
 
@@ -638,10 +637,10 @@ function App() {
       userId: null,
       userRole: null,
       driverId: null,
-      user: null
+      user: null,
     });
 
-    console.log('Logout complete');
+    console.log("Logout complete");
   };
 
   return (
@@ -649,12 +648,27 @@ function App() {
       <div className="app-container">
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route
+  path="/kyc-upload"
+  element={
+    <ProtectedRoute auth={auth}>
+      <KYCUploadPage />
+    </ProtectedRoute>
+  }
+/>
 
           <Route
             path="/login"
             element={
               auth.token ? (
-                <Navigate to={auth.userRole === 'rider' ? '/rider/dashboard' : '/driver/dashboard'} replace />
+                <Navigate
+                  to={
+                    auth.userRole === "rider"
+                      ? "/rider/dashboard"
+                      : "/driver/dashboard"
+                  }
+                  replace
+                />
               ) : (
                 <LoginPage onLogin={handleLogin} />
               )
@@ -665,7 +679,14 @@ function App() {
             path="/register"
             element={
               auth.token ? (
-                <Navigate to={auth.userRole === 'rider' ? '/rider/dashboard' : '/driver/dashboard'} replace />
+                <Navigate
+                  to={
+                    auth.userRole === "rider"
+                      ? "/rider/dashboard"
+                      : "/driver/dashboard"
+                  }
+                  replace
+                />
               ) : (
                 <RegisterPage onRegister={handleLogin} />
               )
@@ -691,8 +712,6 @@ function App() {
             }
           />
 
-
-<Route path="/kyc-upload" element={<ProtectedRoute auth={auth}><KYCUploadPage /></ProtectedRoute>} />
           <Route
             path="/rider/view-bids/:requestId"
             element={
@@ -796,7 +815,10 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 
-        {auth.token && <BottomNav userRole={auth.userRole} />}
+        {/* {auth.token && <BottomNav userRole={auth.userRole} />}
+         */}
+
+         {auth.token && !window.location.pathname.includes('/kyc-upload') && <BottomNav userRole={auth.userRole} />}
       </div>
     </SocketProvider>
   );

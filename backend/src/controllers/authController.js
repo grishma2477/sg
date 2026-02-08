@@ -81,8 +81,8 @@ import KYCDocument from '../models/user/kyc_document/KYCDocument.js';
 
 /**
  * REGISTER
- * User selects role (rider/driver) on frontend
- * Basic KYC record created with placeholders
+ * Users can select role (rider/driver) during registration
+ * KYC completion happens separately after registration
  */
 export const register = async (req, res, next) => {
   console.log("📝 Registration started...");
@@ -94,7 +94,7 @@ export const register = async (req, res, next) => {
       email, 
       password, 
       phone_number,
-      role = "rider" // Comes from frontend role selection
+      role = "rider" // Default to rider, but accept driver from frontend
     } = req.body;
 
     console.log(`👤 Registering as: ${role}`);
@@ -106,7 +106,7 @@ export const register = async (req, res, next) => {
       );
     }
 
-    // Check email uniqueness
+    // 1️⃣ Check email uniqueness
     const existing = await AuthCredentialModel.findOne({ email });
     if (existing) {
       return res.status(400).json(
@@ -114,7 +114,7 @@ export const register = async (req, res, next) => {
       );
     }
 
-    // Create user with selected role
+    // 2️⃣ Create user identity with selected role
     const user = await UserModel.create({
       role: role,
       status: "active"
@@ -122,7 +122,7 @@ export const register = async (req, res, next) => {
 
     console.log(`✅ User created with ID: ${user.id}, Role: ${role}`);
 
-    // Create credentials
+    // 3️⃣ Create credentials
     const password_hash = await bcrypt.hash(password, 10);
 
     await AuthCredentialModel.create({
@@ -133,7 +133,7 @@ export const register = async (req, res, next) => {
 
     console.log('✅ Auth credentials created');
 
-    // Create minimal KYC record (placeholders - will be completed in KYC page)
+    // 4️⃣ Create minimal KYC record (placeholders - will be completed in KYC page)
     await KYC.create({
       user_id: user.id,
       first_name: first_name || '',
@@ -151,15 +151,11 @@ export const register = async (req, res, next) => {
 
     console.log('✅ Minimal KYC record created (to be completed later)');
     
-    // Create user profile
-    await UserProfile.create({
-      user_id: user.id,
-      is_kyc_verified: false,
-      is_email_verified: true,
-      is_phone_verified: true
-    });
+    // ❌ DO NOT CREATE USER PROFILE HERE
+    // user_profiles will be created/updated during KYC completion
+    // Because your user_profiles table has NOT NULL columns that we don't have data for yet
 
-    console.log('✅ User profile created');
+    console.log('✅ Registration completed successfully');
 
     res.status(201).json(
       ApiResponse.success(
@@ -220,7 +216,7 @@ export const login = async (req, res) => {
       });
     }
 
-    // Check KYC status
+    // Check KYC status (if user_profiles exists for this user)
     const kycQuery = `
       SELECT 
         up.is_kyc_verified,
@@ -228,9 +224,9 @@ export const login = async (req, res) => {
         k.address,
         k.profile_url,
         k.national_identity_number
-      FROM user_profiles up
-      JOIN kyc k ON up.user_id = k.user_id
-      WHERE up.user_id = $1
+      FROM kyc k
+      LEFT JOIN user_profiles up ON k.user_id = up.user_id
+      WHERE k.user_id = $1
     `;
     const kycResult = await pool.query(kycQuery, [user.id]);
     
@@ -239,7 +235,7 @@ export const login = async (req, res) => {
     
     if (kycResult.rows.length > 0) {
       const kycData = kycResult.rows[0];
-      isKycVerified = kycData.is_kyc_verified;
+      isKycVerified = kycData.is_kyc_verified || false;
       
       // Check if KYC is complete (not placeholder values)
       isKycComplete = 
@@ -297,7 +293,6 @@ export const login = async (req, res) => {
     });
   }
 };
-
 //old version
 // export const login = async (req, res) => {
 //   try {
