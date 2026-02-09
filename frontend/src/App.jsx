@@ -591,7 +591,8 @@ import {
 
 // Styles
 import "./App.css";
-import AdminKYCDashboard from './pages/AdminDashboard';
+import AdminKYCDashboard from "./pages/AdminDashboard";
+import AdminDashboard from "./pages/AdminDash.jsx";
 
 function App() {
   const [auth, setAuth] = useState(() => {
@@ -650,23 +651,40 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route
-  path="/kyc-upload"
-  element={
-    <ProtectedRoute auth={auth}>
-      <KYCUploadPage />
-    </ProtectedRoute>
-  }
-/>
+            path="/kyc-upload"
+            element={
+              <ProtectedRoute auth={auth}>
+                <KYCUploadPage />
+              </ProtectedRoute>
+            }
+          />
 
+          <Route
+            path="/admin/kyc"
+            element={
+              <ProtectedRoute auth={auth}>
+                <AdminKYCDashboard />
+              </ProtectedRoute>
+            }
+          />
+          {/* Admin Routes */}
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute auth={auth} requiredRole="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
 
-<Route
-  path="/admin/kyc"
-  element={
-    <ProtectedRoute auth={auth}>
-      <AdminKYCDashboard />
-    </ProtectedRoute>
-  }
-/>
+          <Route
+            path="/admin/kyc"
+            element={
+              <ProtectedRoute auth={auth} requiredRole="admin">
+                <AdminKYCDashboard />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/login"
@@ -674,9 +692,11 @@ function App() {
               auth.token ? (
                 <Navigate
                   to={
-                    auth.userRole === "rider"
-                      ? "/rider/dashboard"
-                      : "/driver/dashboard"
+                    auth.userRole === "admin"
+                      ? "/admin/dashboard"
+                      : auth.userRole === "rider"
+                        ? "/rider/dashboard"
+                        : "/driver/dashboard"
                   }
                   replace
                 />
@@ -829,7 +849,11 @@ function App() {
         {/* {auth.token && <BottomNav userRole={auth.userRole} />}
          */}
 
-         {auth.token && !window.location.pathname.includes('/kyc-upload') && <BottomNav userRole={auth.userRole} />}
+        {auth.token &&
+          !window.location.pathname.includes("/kyc-upload") &&
+          !window.location.pathname.includes("/admin") && ( 
+            <BottomNav userRole={auth.userRole} />
+          )}
       </div>
     </SocketProvider>
   );

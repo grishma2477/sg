@@ -702,8 +702,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Plus, X, Navigation, DollarSign, Users, Package, CreditCard } from 'lucide-react';
 
-// Add this to your index.html in the <head> section:
-// <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places"></script>
 
 const CreateRideRequest = ({ auth }) => {
   const navigate = useNavigate();
