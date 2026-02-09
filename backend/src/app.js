@@ -1,6 +1,5 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import fileUpload from "express-fileupload";
 
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -16,7 +15,6 @@ import driverRoutes from "./routes/driverStatusRoutes.js"
 import kycRoutes from "./routes/kycRoutes.js"
 
 
-dotenv.config();
 const app = express();
 
 // ---------- GLOBAL MIDDLEWARE ---------- 

@@ -1,7 +1,8 @@
 import { String } from "../../utils/Constant.js";
 
 export const UserQueryManager = {
-  schema: [`
+  schema: [
+    `
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
     CREATE TABLE IF NOT EXISTS ${String.USER_MODEL} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

@@ -1,26 +1,16 @@
 // src/config/db.js
-import dotenv from 'dotenv';
-import postgres from 'pg';
 
-dotenv.config({ path: "./src/.env" });
+import postgres from 'pg';
+import { Env } from '../utils/Env.js';
+
 const { Pool } = postgres;
 
-// 🔍 DEBUG: log DB config (safe version)
-console.log("🔍 DB CONFIG USED BY BACKEND:");
-console.log({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  user: process.env.DB_USER,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD ? "****" : undefined
-});
-
 const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  host: Env.DB_HOST,
+  port: Env.DB_PORT,
+  user: Env.DB_USER,
+  database: Env.DB_NAME,
+  password: Env.DB_PASSWORD
 });
 
 const connectDB = async () => {

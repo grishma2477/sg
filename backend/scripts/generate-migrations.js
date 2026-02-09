@@ -3,7 +3,9 @@ import path from "path";
 import { MODELS } from "../src/database/ModelRegistry.js";
 
 const migrationsDir = path.join(process.cwd(), "migrations");
-if (!fs.existsSync(migrationsDir)) fs.mkdirSync(migrationsDir);
+if (!fs.existsSync(migrationsDir)) {
+    fs.mkdirSync(migrationsDir, { recursive: true });
+}
 
 const pad = (n) => String(n).padStart(3, "0");
 const nowTag = () => new Date().toISOString().replace(/[:.]/g, "-");
