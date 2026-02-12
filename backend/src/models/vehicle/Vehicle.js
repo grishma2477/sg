@@ -1,9 +1,10 @@
 import { ModelManager } from "../../database/utils/ModelManager.js";
-import { VehicleQueryManager } from "./VehicleQueryManager.js";
+import { VehicleApplicationQueryManager } from "./VehicleQueryManager.js";
 import { String } from "../../utils/Constant.js";
 
-const Vehicle = ModelManager.createModel(VehicleQueryManager.schema,
-  String.VEHICLE_MODEL
+const VehicleApplication = ModelManager.createModel(
+  VehicleApplicationQueryManager.schema,
+  String.VEHICLE_APPLICATION_MODEL
 );
 
-export default Vehicle;
+export default VehicleApplication;

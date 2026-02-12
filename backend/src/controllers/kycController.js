@@ -1,15 +1,60 @@
 
-
-
-
-
-
 // // src/controllers/kycController.js
-// // CLEAN VERSION - KYC table has all data, user_profiles has ONLY verification flags
+// // FIXED: Creates KYC record if it doesn't exist (handles old users)
 
 // import { pool } from '../database/DBConnection.js';
 // import { uploadToCloudinary } from '../utils/cloudinaryUpload.js';
 // import { ApiResponse } from '../utils/ApiResponse.js';
+
+// // TODO: Move this to backend/src/application/services/KYCVerificationService.js
+// const scheduleAutoVerification = async (userId, userRole) => {
+//   console.log(`⏰ Scheduling auto-verification for user ${userId} in 10 seconds...`);
+  
+//   setTimeout(async () => {
+//     const client = await pool.connect();
+    
+//     try {
+//       await client.query('BEGIN');
+
+//       console.log(`🔍 Auto-verifying KYC for user: ${userId}`);
+
+//       await client.query(`
+//         UPDATE user_profiles 
+//         SET is_kyc_verified = true,
+//             kyc_verified_at = NOW(),
+//             updated_at = NOW()
+//         WHERE user_id = $1
+//       `, [userId]);
+
+//       console.log('✅ KYC auto-verified!');
+
+//       if (userRole === 'driver') {
+//         const existingDriver = await client.query(
+//           'SELECT id FROM drivers WHERE user_id = $1',
+//           [userId]
+//         );
+
+//         if (existingDriver.rows.length === 0) {
+//           await client.query(`
+//             INSERT INTO drivers (user_id, is_online, is_available, status)
+//             VALUES ($1, false, false, 'offline')
+//           `, [userId]);
+
+//           console.log('🚗 Driver profile created automatically!');
+//         }
+//       }
+
+//       await client.query('COMMIT');
+//       console.log('🎉 Auto-verification completed!');
+
+//     } catch (error) {
+//       await client.query('ROLLBACK');
+//       console.error('❌ Auto-verification error:', error);
+//     } finally {
+//       client.release();
+//     }
+//   }, 10000);
+// };
 
 // /**
 //  * GET /api/kyc/status
@@ -75,7 +120,7 @@
 
 // /**
 //  * POST /api/kyc/complete
-//  * Saves ALL data to KYC table, creates user_profiles with ONLY verification flags
+//  * FIXED: Creates KYC record if it doesn't exist (handles users created before KYC system)
 //  */
 // export const completeKYC = async (req, res, next) => {
 //   const client = await pool.connect();
@@ -113,7 +158,7 @@
 //       return res.status(400).json(ApiResponse.error('Document front image is required'));
 //     }
 
-//     // Upload profile photo
+//     // Upload files
 //     console.log('📤 Uploading profile photo...');
 //     const profileUrl = await uploadToCloudinary(
 //       req.files.profilePhoto.tempFilePath,
@@ -121,7 +166,6 @@
 //       'image'
 //     );
 
-//     // Upload document front
 //     console.log('📤 Uploading document front...');
 //     const docFrontUrl = await uploadToCloudinary(
 //       req.files.documentFront.tempFilePath,
@@ -129,7 +173,6 @@
 //       'image'
 //     );
 
-//     // Upload document back (optional)
 //     let docBackUrl = null;
 //     if (req.files.documentBack) {
 //       console.log('📤 Uploading document back...');
@@ -140,46 +183,82 @@
 //       );
 //     }
 
-//     // 1. Update KYC table with ALL personal data
-//     const updateKycQuery = `
-//       UPDATE kyc SET
-//         first_name = $1,
-//         last_name = $2,
-//         date_of_birth = $3,
-//         address = $4,
-//         profile_url = $5,
-//         phone_number = $6,
-//         email = $7,
-//         gender = $8,
-//         national_identity_number = $9,
-//         blood_group = $10,
-//         updated_at = NOW()
-//       WHERE user_id = $11
-//       RETURNING id
-//     `;
+//     // 🆕 CHECK if KYC record exists, if not CREATE it first
+//     const existingKyc = await client.query(
+//       'SELECT id FROM kyc WHERE user_id = $1',
+//       [userId]
+//     );
 
-//     const kycResult = await client.query(updateKycQuery, [
-//       firstName,
-//       lastName,
-//       dateOfBirth,
-//       address,
-//       profileUrl,
-//       phoneNumber,
-//       email,
-//       gender,
-//       nationalIdentityNumber,
-//       bloodGroup,
-//       userId
-//     ]);
+//     let kycId;
 
-//     if (kycResult.rows.length === 0) {
-//       throw new Error('Failed to update KYC record');
+//     if (existingKyc.rows.length === 0) {
+//       // KYC record doesn't exist - CREATE it
+//       console.log('ℹ️  No KYC record found - creating new one');
+      
+//       const createKycQuery = `
+//         INSERT INTO kyc (
+//           user_id, first_name, last_name, date_of_birth, address, 
+//           profile_url, phone_number, email, gender, 
+//           national_identity_number, blood_group
+//         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+//         RETURNING id
+//       `;
+
+//       const createResult = await client.query(createKycQuery, [
+//         userId,
+//         firstName,
+//         lastName,
+//         dateOfBirth,
+//         address,
+//         profileUrl,
+//         phoneNumber,
+//         email,
+//         gender,
+//         nationalIdentityNumber,
+//         bloodGroup
+//       ]);
+
+//       kycId = createResult.rows[0].id;
+//       console.log('✅ KYC record created:', kycId);
+
+//     } else {
+//       // KYC record exists - UPDATE it
+//       const updateKycQuery = `
+//         UPDATE kyc SET
+//           first_name = $1,
+//           last_name = $2,
+//           date_of_birth = $3,
+//           address = $4,
+//           profile_url = $5,
+//           phone_number = $6,
+//           email = $7,
+//           gender = $8,
+//           national_identity_number = $9,
+//           blood_group = $10,
+//           updated_at = NOW()
+//         WHERE user_id = $11
+//         RETURNING id
+//       `;
+
+//       const updateResult = await client.query(updateKycQuery, [
+//         firstName,
+//         lastName,
+//         dateOfBirth,
+//         address,
+//         profileUrl,
+//         phoneNumber,
+//         email,
+//         gender,
+//         nationalIdentityNumber,
+//         bloodGroup,
+//         userId
+//       ]);
+
+//       kycId = updateResult.rows[0].id;
+//       console.log('✅ KYC record updated:', kycId);
 //     }
 
-//     const kycId = kycResult.rows[0].id;
-//     console.log('✅ KYC table updated with all personal data');
-
-//     // 2. Save documents
+//     // Save documents
 //     await client.query('DELETE FROM kyc_documents WHERE kyc_id = $1', [kycId]);
 
 //     const insertDocQuery = `
@@ -201,12 +280,11 @@
 
 //     console.log('✅ Documents saved');
 
-//     // 3. Create user_profiles with ONLY verification flags
+//     // Create or check user_profiles
 //     const checkProfileQuery = `SELECT user_id FROM user_profiles WHERE user_id = $1`;
 //     const profileExists = await client.query(checkProfileQuery, [userId]);
 
 //     if (profileExists.rows.length === 0) {
-//       // Create user_profiles - ONLY verification flags, NO personal data
 //       const createProfileQuery = `
 //         INSERT INTO user_profiles (
 //           user_id,
@@ -217,19 +295,31 @@
 //       `;
       
 //       await client.query(createProfileQuery, [userId]);
-
-//       console.log('✅ user_profiles created (verification flags only)');
-//     } else {
-//       console.log('ℹ️  user_profiles already exists');
+//       console.log('✅ user_profiles created');
 //     }
+
+//     // Get user role
+//     const userResult = await client.query(
+//       'SELECT role FROM users WHERE id = $1',
+//       [userId]
+//     );
+
+//     const userRole = userResult.rows.length > 0 ? userResult.rows[0].role : null;
 
 //     await client.query('COMMIT');
 
-//     console.log('🎉 KYC completion successful - Awaiting admin verification');
+//     console.log('🎉 KYC completion successful');
+    
+//     // Schedule auto-verification
+//     // TODO: Move to application/services/KYCVerificationService.js
+//     if (userRole) {
+//       scheduleAutoVerification(userId, userRole);
+//       console.log('⏰ Auto-verification scheduled for 10 seconds');
+//     }
 
 //     res.status(200).json(ApiResponse.success({
 //       kycId: kycId,
-//       message: 'KYC completed successfully. Awaiting admin verification.'
+//       message: 'KYC completed successfully. Auto-verification in 10 seconds (test mode).'
 //     }, 'KYC_COMPLETED'));
 
 //   } catch (error) {
@@ -250,7 +340,6 @@
 
 // /**
 //  * POST /api/kyc/verify/:userId (ADMIN ONLY)
-//  * When admin approves, set is_kyc_verified = true and create driver profile if needed
 //  */
 // export const verifyKYC = async (req, res, next) => {
 //   const client = await pool.connect();
@@ -264,7 +353,6 @@
 //     console.log(`🔍 Admin verifying KYC for user: ${userId}, Approved: ${approved}`);
 
 //     if (!approved) {
-//       // Reject KYC
 //       await client.query(`
 //         UPDATE user_profiles 
 //         SET is_kyc_verified = false,
@@ -280,7 +368,6 @@
 //       }, 'KYC_REJECTED'));
 //     }
 
-//     // APPROVE KYC - Set verification flag to TRUE
 //     await client.query(`
 //       UPDATE user_profiles 
 //       SET is_kyc_verified = true,
@@ -289,9 +376,8 @@
 //       WHERE user_id = $1
 //     `, [userId]);
 
-//     console.log('✅ KYC VERIFIED - is_kyc_verified set to TRUE');
+//     console.log('✅ KYC VERIFIED');
 
-//     // Check user role
 //     const userResult = await client.query(
 //       'SELECT role FROM users WHERE id = $1',
 //       [userId]
@@ -302,9 +388,7 @@
 //     }
 
 //     const userRole = userResult.rows[0].role;
-//     console.log('👤 User role:', userRole);
 
-//     // If DRIVER, automatically create driver profile
 //     if (userRole === 'driver') {
 //       const existingDriver = await client.query(
 //         'SELECT id FROM drivers WHERE user_id = $1',
@@ -317,15 +401,11 @@
 //           VALUES ($1, false, false, 'offline')
 //         `, [userId]);
 
-//         console.log('🚗 Driver profile created automatically!');
-//       } else {
-//         console.log('ℹ️  Driver profile already exists');
+//         console.log('🚗 Driver profile created!');
 //       }
 //     }
 
 //     await client.query('COMMIT');
-
-//     console.log('🎉 KYC verification completed');
 
 //     res.json(ApiResponse.success({
 //       message: 'KYC verified successfully' + 
@@ -412,7 +492,6 @@
 
 //     const kyc = kycResult.rows[0];
 
-//     // Get documents
 //     const docsQuery = 'SELECT * FROM kyc_documents WHERE kyc_id = $1';
 //     const docsResult = await pool.query(docsQuery, [kyc.id]);
 
@@ -428,62 +507,10 @@
 // };
 
 
-// src/controllers/kycController.js
-// FIXED: Creates KYC record if it doesn't exist (handles old users)
 
 import { pool } from '../database/DBConnection.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUpload.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
-
-// TODO: Move this to backend/src/application/services/KYCVerificationService.js
-const scheduleAutoVerification = async (userId, userRole) => {
-  console.log(`⏰ Scheduling auto-verification for user ${userId} in 10 seconds...`);
-  
-  setTimeout(async () => {
-    const client = await pool.connect();
-    
-    try {
-      await client.query('BEGIN');
-
-      console.log(`🔍 Auto-verifying KYC for user: ${userId}`);
-
-      await client.query(`
-        UPDATE user_profiles 
-        SET is_kyc_verified = true,
-            kyc_verified_at = NOW(),
-            updated_at = NOW()
-        WHERE user_id = $1
-      `, [userId]);
-
-      console.log('✅ KYC auto-verified!');
-
-      if (userRole === 'driver') {
-        const existingDriver = await client.query(
-          'SELECT id FROM drivers WHERE user_id = $1',
-          [userId]
-        );
-
-        if (existingDriver.rows.length === 0) {
-          await client.query(`
-            INSERT INTO drivers (user_id, is_online, is_available, status)
-            VALUES ($1, false, false, 'offline')
-          `, [userId]);
-
-          console.log('🚗 Driver profile created automatically!');
-        }
-      }
-
-      await client.query('COMMIT');
-      console.log('🎉 Auto-verification completed!');
-
-    } catch (error) {
-      await client.query('ROLLBACK');
-      console.error('❌ Auto-verification error:', error);
-    } finally {
-      client.release();
-    }
-  }, 10000);
-};
 
 /**
  * GET /api/kyc/status
@@ -549,7 +576,6 @@ export const getKYCStatus = async (req, res, next) => {
 
 /**
  * POST /api/kyc/complete
- * FIXED: Creates KYC record if it doesn't exist (handles users created before KYC system)
  */
 export const completeKYC = async (req, res, next) => {
   const client = await pool.connect();
@@ -612,7 +638,7 @@ export const completeKYC = async (req, res, next) => {
       );
     }
 
-    // 🆕 CHECK if KYC record exists, if not CREATE it first
+    // Check if KYC record exists
     const existingKyc = await client.query(
       'SELECT id FROM kyc WHERE user_id = $1',
       [userId]
@@ -621,7 +647,6 @@ export const completeKYC = async (req, res, next) => {
     let kycId;
 
     if (existingKyc.rows.length === 0) {
-      // KYC record doesn't exist - CREATE it
       console.log('ℹ️  No KYC record found - creating new one');
       
       const createKycQuery = `
@@ -651,7 +676,6 @@ export const completeKYC = async (req, res, next) => {
       console.log('✅ KYC record created:', kycId);
 
     } else {
-      // KYC record exists - UPDATE it
       const updateKycQuery = `
         UPDATE kyc SET
           first_name = $1,
@@ -739,17 +763,25 @@ export const completeKYC = async (req, res, next) => {
 
     console.log('🎉 KYC completion successful');
     
-    // Schedule auto-verification
-    // TODO: Move to application/services/KYCVerificationService.js
-    if (userRole) {
-      scheduleAutoVerification(userId, userRole);
-      console.log('⏰ Auto-verification scheduled for 10 seconds');
+    // ✅ EMIT SOCKET EVENT TO ADMIN
+    const io = req.app.get('io');
+    if (io) {
+      console.log('📡 Emitting new KYC submission to admins...');
+      io.emit('kyc:new_submission', {
+        userId: userId,
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        role: userRole,
+        timestamp: new Date()
+      });
+      console.log('✅ Socket event emitted: kyc:new_submission');
     }
 
     res.status(200).json(ApiResponse.success({
       kycId: kycId,
-      message: 'KYC completed successfully. Auto-verification in 10 seconds (test mode).'
-    }, 'KYC_COMPLETED'));
+      message: 'KYC submitted successfully. Waiting for admin approval.'
+    }, 'KYC_SUBMITTED'));
 
   } catch (error) {
     await client.query('ROLLBACK');
@@ -785,12 +817,22 @@ export const verifyKYC = async (req, res, next) => {
       await client.query(`
         UPDATE user_profiles 
         SET is_kyc_verified = false,
-            kyc_verified_at = NULL,
             updated_at = NOW()
         WHERE user_id = $1
       `, [userId]);
 
       await client.query('COMMIT');
+
+      // ✅ EMIT SOCKET EVENT TO USER
+      const io = req.app.get('io');
+      if (io) {
+        console.log('📡 Emitting KYC rejection to user:', userId);
+        io.to(`user:${userId}`).emit('kyc:status_update', {
+          approved: false,
+          message: remarks || 'Your KYC has been rejected',
+          timestamp: new Date()
+        });
+      }
 
       return res.json(ApiResponse.success({
         message: `KYC rejected. ${remarks || ''}`
@@ -800,7 +842,6 @@ export const verifyKYC = async (req, res, next) => {
     await client.query(`
       UPDATE user_profiles 
       SET is_kyc_verified = true,
-          kyc_verified_at = NOW(),
           updated_at = NOW()
       WHERE user_id = $1
     `, [userId]);
@@ -835,6 +876,17 @@ export const verifyKYC = async (req, res, next) => {
     }
 
     await client.query('COMMIT');
+
+    // ✅ EMIT SOCKET EVENT TO USER
+    const io = req.app.get('io');
+    if (io) {
+      console.log('📡 Emitting KYC approval to user:', userId);
+      io.to(`user:${userId}`).emit('kyc:status_update', {
+        approved: true,
+        message: 'Your KYC has been approved! You can now start driving.',
+        timestamp: new Date()
+      });
+    }
 
     res.json(ApiResponse.success({
       message: 'KYC verified successfully' + 

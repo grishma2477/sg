@@ -658,10 +658,6 @@
 // };
 
 // export default RiderDashboard;
-
-
-
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -673,9 +669,15 @@ import {
   Eye,
   X,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Shield,
+  FileText,
+  Loader2
 } from "lucide-react";
 import { useSocket } from "../context/SocketContext";
+import { getToken } from '../utils/CookieUtils';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const RiderDashboard = ({ auth, onLogout }) => {
   const navigate = useNavigate();
@@ -689,16 +691,47 @@ const RiderDashboard = ({ auth, onLogout }) => {
   });
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState(null);
+  
+  // KYC State
+  const [kycStatus, setKycStatus] = useState(null);
+  const [kycLoading, setKycLoading] = useState(true);
+
+  // ═══════════════════════════════════════════════════════════════
+  // CHECK KYC STATUS ON MOUNT
+  // ═══════════════════════════════════════════════════════════════
+  useEffect(() => {
+    checkKYCStatus();
+  }, []);
+
+  const checkKYCStatus = async () => {
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_URL}/api/kyc/status`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+      console.log('📋 KYC Status:', data);
+      
+      if (data.success) {
+        setKycStatus(data.data);
+      }
+    } catch (error) {
+      console.error('❌ Failed to check KYC:', error);
+    } finally {
+      setKycLoading(false);
+    }
+  };
 
   // ═══════════════════════════════════════════════════════════════
   // SOCKET EVENT LISTENERS
   // ═══════════════════════════════════════════════════════════════
   useEffect(() => {
-    if (!socket) return;
+    // Only set up socket listeners if KYC is verified
+    if (!socket || !kycStatus?.isVerified) return;
 
     console.log('🔌 Setting up socket listeners for rider...');
 
-    // Listen for new bids
     socket.on('ride:bid:new', (bidData) => {
       console.log('💰 New bid received:', bidData);
       
@@ -709,11 +742,9 @@ const RiderDashboard = ({ auth, onLogout }) => {
         requestId: bidData.requestId
       });
 
-      // Refresh requests to show updated bid count
       fetchRequests();
     });
 
-    // Listen for bid acceptance confirmation (from server)
     socket.on('ride:bid:accepted:confirmed', (data) => {
       console.log('🎉 Bid acceptance confirmed:', data);
       
@@ -724,7 +755,6 @@ const RiderDashboard = ({ auth, onLogout }) => {
         rideId: data.rideId
       });
 
-      // Update requests list
       setRequests(prev => prev.map(req => 
         req.id === data.requestId 
           ? { ...req, status: 'accepted', ride_id: data.rideId }
@@ -732,7 +762,6 @@ const RiderDashboard = ({ auth, onLogout }) => {
       ));
     });
 
-    // Listen for ride status changes
     socket.on('ride:status:changed', (data) => {
       console.log('🔄 Ride status changed:', data);
       
@@ -755,27 +784,40 @@ const RiderDashboard = ({ auth, onLogout }) => {
       fetchRequests();
     });
 
+    // ✅ Listen for KYC status updates
+    socket.on('kyc:status_update', (data) => {
+      console.log('🔔 KYC Status Update:', data);
+      showNotification({
+        type: data.approved ? 'success' : 'error',
+        title: data.approved ? '✅ KYC Approved!' : '❌ KYC Rejected',
+        message: data.message
+      });
+      checkKYCStatus(); // Refresh KYC status
+    });
+
     return () => {
       console.log('🧹 Cleaning up rider socket listeners');
       socket.off('ride:bid:new');
       socket.off('ride:bid:accepted:confirmed');
       socket.off('ride:status:changed');
+      socket.off('kyc:status_update');
     };
-  }, [socket]);
+  }, [socket, kycStatus]);
 
   // ═══════════════════════════════════════════════════════════════
-  // FETCH RIDE REQUESTS
+  // FETCH RIDE REQUESTS (only if KYC verified)
   // ═══════════════════════════════════════════════════════════════
   useEffect(() => {
-    fetchRequests();
-    // Refresh every 30 seconds (not too frequent since we have sockets)
-    const interval = setInterval(fetchRequests, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    if (kycStatus?.isVerified) {
+      fetchRequests();
+      const interval = setInterval(fetchRequests, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [kycStatus]);
 
   const fetchRequests = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/ride-requests", {
+      const response = await fetch(`${API_URL}/api/ride-requests`, {
         headers: {
           Authorization: `Bearer ${auth.token}`,
         },
@@ -796,9 +838,6 @@ const RiderDashboard = ({ auth, onLogout }) => {
     }
   };
 
-  // ═══════════════════════════════════════════════════════════════
-  // NOTIFICATION HELPER
-  // ═══════════════════════════════════════════════════════════════
   const showNotification = (notif) => {
     setNotification(notif);
     setTimeout(() => setNotification(null), 5000);
@@ -808,9 +847,6 @@ const RiderDashboard = ({ auth, onLogout }) => {
     setNotification(null);
   };
 
-  // ═══════════════════════════════════════════════════════════════
-  // STATUS BADGE HELPER
-  // ═══════════════════════════════════════════════════════════════
   const getStatusBadge = (status) => {
     const badges = {
       pending: { class: "badge-warning", text: "⏳ Waiting for Bids", color: "#F59E0B" },
@@ -822,6 +858,239 @@ const RiderDashboard = ({ auth, onLogout }) => {
     return badges[status] || { class: "badge-warning", text: status, color: "#94A3B8" };
   };
 
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER: LOADING STATE
+  // ═══════════════════════════════════════════════════════════════
+  if (kycLoading) {
+    return (
+      <div className="p-4" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="text-center">
+          <Loader2 className="w-16 h-16 animate-spin" style={{ margin: '0 auto', marginBottom: '1rem', color: '#3B82F6' }} />
+          <p className="text-dim">Checking your verification status...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER: KYC NOT STARTED - BLOCK EVERYTHING
+  // ═══════════════════════════════════════════════════════════════
+  if (!kycStatus?.kycExists || !kycStatus?.isComplete) {
+    return (
+      <div className="p-4" style={{ minHeight: '100vh' }}>
+        <div className="header">
+          <h1 className="header-title">My Rides</h1>
+          <p className="text-dim mt-1">Complete KYC to book rides</p>
+        </div>
+
+        <div className="p-4">
+          {/* KYC Required Card */}
+          <div className="card text-center" style={{
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.05))',
+            border: '2px solid #EF4444',
+            padding: '2rem'
+          }}>
+            <div style={{
+              width: '80px',
+              height: '80px',
+              margin: '0 auto 1.5rem',
+              background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Shield size={40} color="white" />
+            </div>
+
+            <h2 className="font-bold mb-3" style={{ fontSize: '1.5rem' }}>
+              KYC Verification Required
+            </h2>
+            
+            <p className="text-dim mb-6" style={{ fontSize: '0.875rem', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
+              To book rides and use our platform, you need to complete your KYC verification. 
+              This helps us ensure the safety of all our users.
+            </p>
+
+            <button
+              onClick={() => navigate('/kyc-upload')}
+              className="btn btn-primary"
+              style={{
+                padding: '1rem 2rem',
+                fontSize: '1rem',
+                background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+                cursor: 'pointer',
+                border: 'none'
+              }}
+            >
+              <FileText size={20} />
+              Complete KYC Now
+            </button>
+          </div>
+
+          {/* What You'll Need */}
+          <div className="card mt-4">
+            <h3 className="font-bold mb-3">📋 What You'll Need:</h3>
+            <ul className="space-y-2 text-dim" style={{ fontSize: '0.875rem' }}>
+              <li>✓ Personal Information (Name, DOB, Address)</li>
+              <li>✓ National ID / Citizenship / Passport</li>
+              <li>✓ A Clear Selfie</li>
+              <li>✓ Document Photos (Front & Back)</li>
+            </ul>
+          </div>
+
+          {/* Process Steps */}
+          <div className="card mt-4">
+            <h3 className="font-bold mb-3">🚀 Verification Process:</h3>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  background: '#10B981',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  fontWeight: 'bold',
+                  fontSize: '0.875rem',
+                  color: 'white'
+                }}>1</div>
+                <div>
+                  <div className="font-bold" style={{ fontSize: '0.875rem' }}>Complete KYC Form</div>
+                  <div className="text-dim" style={{ fontSize: '0.75rem' }}>Fill in your details and upload documents</div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  background: '#3B82F6',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  fontWeight: 'bold',
+                  fontSize: '0.875rem',
+                  color: 'white'
+                }}>2</div>
+                <div>
+                  <div className="font-bold" style={{ fontSize: '0.875rem' }}>Admin Review</div>
+                  <div className="text-dim" style={{ fontSize: '0.75rem' }}>Our team will verify your documents (24-72 hours)</div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  background: '#8B5CF6',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  fontWeight: 'bold',
+                  fontSize: '0.875rem',
+                  color: 'white'
+                }}>3</div>
+                <div>
+                  <div className="font-bold" style={{ fontSize: '0.875rem' }}>Start Riding!</div>
+                  <div className="text-dim" style={{ fontSize: '0.75rem' }}>Once approved, you can book rides instantly</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER: KYC PENDING VERIFICATION - BLOCK EVERYTHING
+  // ═══════════════════════════════════════════════════════════════
+  if (kycStatus?.isComplete && !kycStatus?.isVerified) {
+    return (
+      <div className="p-4" style={{ minHeight: '100vh' }}>
+        <div className="header">
+          <h1 className="header-title">My Rides</h1>
+          <p className="text-dim mt-1">Verification in progress</p>
+        </div>
+
+        <div className="p-4">
+          {/* Pending Verification Card */}
+          <div className="card text-center" style={{
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.05))',
+            border: '2px solid #F59E0B',
+            padding: '2rem'
+          }}>
+            <div style={{
+              width: '80px',
+              height: '80px',
+              margin: '0 auto 1.5rem',
+              background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              animation: 'pulse 2s infinite'
+            }}>
+              <Clock size={40} color="white" />
+            </div>
+
+            <h2 className="font-bold mb-3" style={{ fontSize: '1.5rem' }}>
+              KYC Under Review
+            </h2>
+            
+            <p className="text-dim mb-6" style={{ fontSize: '0.875rem', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
+              Thank you for submitting your KYC documents! 
+              Our team is currently reviewing your application.
+            </p>
+
+            <div style={{
+              padding: '1rem',
+              background: 'rgba(245, 158, 11, 0.1)',
+              borderRadius: '8px',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              fontSize: '0.875rem',
+              textAlign: 'left'
+            }}>
+              <div className="font-bold mb-1">⏱️ Expected Timeline:</div>
+              <div className="text-dim">
+                Verification typically takes 24-72 hours. 
+                We'll notify you once approved!
+              </div>
+            </div>
+          </div>
+
+          {/* What Happens Next */}
+          <div className="card mt-4">
+            <h3 className="font-bold mb-3">🔍 What Happens Next:</h3>
+            <ul className="space-y-2 text-dim" style={{ fontSize: '0.875rem' }}>
+              <li>✓ Our team reviews your documents</li>
+              <li>✓ We verify your identity and information</li>
+              <li>✓ You'll receive notification once approved</li>
+              <li>✓ You can then book rides instantly</li>
+            </ul>
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER: KYC VERIFIED - SHOW FULL DASHBOARD
+  // ═══════════════════════════════════════════════════════════════
   return (
     <div className="p-4" style={{ paddingBottom: "5rem" }}>
       {/* Header */}
@@ -841,6 +1110,22 @@ const RiderDashboard = ({ auth, onLogout }) => {
             <Plus size={20} />
             New Ride
           </button>
+        </div>
+      </div>
+
+      {/* KYC Verified Badge */}
+      <div className="p-4">
+        <div className="card mb-4" style={{
+          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.05))',
+          border: '2px solid #10B981',
+          padding: '0.75rem'
+        }}>
+          <div className="flex items-center gap-2">
+            <CheckCircle size={20} color="#10B981" />
+            <div className="font-bold" style={{ color: '#059669', fontSize: '0.875rem' }}>
+              ✅ KYC Verified - Ready to Book Rides
+            </div>
+          </div>
         </div>
       </div>
 
@@ -989,7 +1274,6 @@ const RiderDashboard = ({ auth, onLogout }) => {
               
               return (
                 <div key={request.id} className="card mb-3">
-                  {/* Status Badge */}
                   <div className="flex items-center justify-between mb-3">
                     <div
                       style={{
@@ -1008,7 +1292,6 @@ const RiderDashboard = ({ auth, onLogout }) => {
                     </div>
                   </div>
 
-                  {/* Route */}
                   <div className="mb-3">
                     <div className="flex items-start gap-2 mb-2">
                       <div
@@ -1057,7 +1340,6 @@ const RiderDashboard = ({ auth, onLogout }) => {
                     </div>
                   </div>
 
-                  {/* Details */}
                   <div
                     style={{
                       display: 'grid',
@@ -1087,7 +1369,6 @@ const RiderDashboard = ({ auth, onLogout }) => {
                     </div>
                   </div>
 
-                  {/* Bid Count (for pending requests) */}
                   {request.status === 'pending' && (
                     <div className="mb-3">
                       <div
@@ -1121,7 +1402,6 @@ const RiderDashboard = ({ auth, onLogout }) => {
                     </div>
                   )}
 
-                  {/* Action Buttons */}
                   {request.status === 'pending' && (
                     <button
                       onClick={() => navigate(`/rider/requests/${request.id}/bids`)}

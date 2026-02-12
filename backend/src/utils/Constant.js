@@ -41,12 +41,15 @@ export const String = {
   DRIVER_RESTRICTION_MODEL: "driver_restrictions",
   DRIVER_LOCATION_MODEL: "driver_locations",
   DRIVER_VISIBILITY_MODEL: "driver_visibility",
+  DRIVER_APPLICATION_MODEL: 'driver_applications',
 
   // ═══════════════════════════════════════════════════
   // VEHICLE TABLE
   // ═══════════════════════════════════════════════════
   VEHICLE_MODEL: "vehicles",
+  VEHICLE_APPLICATION_MODEL: "vehicle_applications",
 
+  
   // ═══════════════════════════════════════════════════
   // RIDE TABLES
   // ═══════════════════════════════════════════════════

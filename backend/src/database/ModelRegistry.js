@@ -22,15 +22,16 @@ import Wallet from "../models/finance/transaction/wallet/Wallet.js";
 import AdminAuditModel from "../models/admin/AdminAudit.js";
 import KYC from "../models/user/kyc/KYC.js";
 import KYCDocument from "../models/user/kyc_document/KYCDocument.js";
+import DriverApplication from "../models/driver_application/DriverApplication.js";
 
 // Add every model here once.
 export const MODELS = [
     User,
     UserProfile,
     AuthCredential,
-  
     KYC,
     KYCDocument,
+    DriverApplication,
     Driver,
     Vehicle,
     Ride,
@@ -50,8 +51,5 @@ export const MODELS = [
     SafetyAuditLog,
     SafetyComment,
     AdminAuditModel,
-    
-
-
 
 ];

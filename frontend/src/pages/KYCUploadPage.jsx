@@ -735,6 +735,9 @@
 
 // export default KYCUploadPage;
 
+
+
+
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, Upload, CheckCircle, AlertCircle, Loader2, ArrowLeft, ArrowRight, X } from 'lucide-react';

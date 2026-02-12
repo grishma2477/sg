@@ -577,6 +577,7 @@ import DriverDashboard from "./pages/DriverDashboard";
 import ActiveRide from "./pages/ActiveRideDriver";
 import RiderActiveRide from "./pages/RiderActiveRide";
 import KYCUploadPage from "./pages/KYCUploadPage";
+import ApplyForDriver from './pages/ApplyForDriver';
 
 // Components
 import BottomNav from "./components/BottomNav";
@@ -593,6 +594,7 @@ import {
 import "./App.css";
 import AdminKYCDashboard from "./pages/AdminDashboard";
 import AdminDashboard from "./pages/AdminDash.jsx";
+import RequireKYC from "./pages/RequireKyc.jsx";
 
 function App() {
   const [auth, setAuth] = useState(() => {
@@ -729,7 +731,10 @@ function App() {
             path="/rider/dashboard"
             element={
               <ProtectedRoute auth={auth} requiredRole="rider">
+               
+
                 <RiderDashboard auth={auth} onLogout={handleLogout} />
+            
               </ProtectedRoute>
             }
           />
@@ -738,7 +743,10 @@ function App() {
             path="/rider/create-ride"
             element={
               <ProtectedRoute auth={auth} requiredRole="rider">
+                <RequireKYC>
+
                 <CreateRideRequest auth={auth} />
+                </RequireKYC>
               </ProtectedRoute>
             }
           />
@@ -797,6 +805,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/apply-driver"
+            element={
+              <ProtectedRoute auth={auth}>
+                <ApplyForDriver />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/driver/submit-bid/:requestId"
@@ -851,7 +867,8 @@ function App() {
 
         {auth.token &&
           !window.location.pathname.includes("/kyc-upload") &&
-          !window.location.pathname.includes("/admin") && ( 
+          !window.location.pathname.includes("/admin") &&
+          !window.location.pathname.includes("/apply-driver") && (
             <BottomNav userRole={auth.userRole} />
           )}
       </div>
