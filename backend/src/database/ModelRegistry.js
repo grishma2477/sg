@@ -23,6 +23,7 @@ import AdminAuditModel from "../models/admin/AdminAudit.js";
 import KYC from "../models/user/kyc/KYC.js";
 import KYCDocument from "../models/user/kyc_document/KYCDocument.js";
 import DriverApplication from "../models/driver_application/DriverApplication.js";
+import { DriverVerifications } from "../models/driver/driver_verifications/DriverVerifications.js";
 
 // Add every model here once.
 export const MODELS = [
@@ -32,6 +33,7 @@ export const MODELS = [
     KYC,
     KYCDocument,
     DriverApplication,
+    DriverVerifications,
     Driver,
     Vehicle,
     Ride,

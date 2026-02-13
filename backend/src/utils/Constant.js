@@ -42,6 +42,7 @@ export const String = {
   DRIVER_LOCATION_MODEL: "driver_locations",
   DRIVER_VISIBILITY_MODEL: "driver_visibility",
   DRIVER_APPLICATION_MODEL: 'driver_applications',
+  DRIVER_VERIFICATIONS_MODEL: 'driver_verifications',
 
   // ═══════════════════════════════════════════════════
   // VEHICLE TABLE

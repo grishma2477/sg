@@ -1,4 +1,4 @@
-/* Apply For Driver - Custom Styles */
+/* Apply For Driver - Complete Multi-Step Styles */
 
 .apply-loading {
   min-height: 100vh;
@@ -123,8 +123,8 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
   border-bottom: 2px solid #f3f4f6;
 }
 
@@ -140,11 +140,16 @@
   cursor: pointer;
   transition: all 0.2s;
   color: #6b7280;
+  flex-shrink: 0;
 }
 
 .btn-back:hover {
   background: #e5e7eb;
   transform: translateX(-4px);
+}
+
+.header-content {
+  flex: 1;
 }
 
 .header-content h1 {
@@ -160,6 +165,78 @@
   margin: 0.25rem 0 0 0;
 }
 
+/* Progress Bar */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  transition: width 0.3s ease;
+  border-radius: 999px;
+}
+
+/* Step Indicators */
+.step-indicators {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  padding: 0 0.5rem;
+}
+
+.step-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0.4;
+  transition: opacity 0.3s;
+  flex: 1;
+}
+
+.step-indicator.active {
+  opacity: 1;
+}
+
+.step-indicator svg {
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  background: #f3f4f6;
+  border-radius: 50%;
+  color: #6b7280;
+  transition: all 0.3s;
+}
+
+.step-indicator.active svg {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+}
+
+.step-indicator span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-align: center;
+}
+
+.step-indicator.active span {
+  color: #667eea;
+}
+
+.step-arrow {
+  color: #d1d5db;
+  flex-shrink: 0;
+  margin: 0 0.25rem;
+}
+
 /* Error Message */
 .error-message {
   background: #fee2e2;
@@ -173,10 +250,19 @@
 
 /* Form Sections */
 .form-section {
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  background: #f9fafb;
-  border-radius: 16px;
+  margin-bottom: 1.5rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .section-header {
@@ -185,11 +271,14 @@
   gap: 0.75rem;
   margin-bottom: 1.5rem;
   color: #667eea;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f3f4f6;
 }
 
 .section-header svg {
   width: 24px;
   height: 24px;
+  flex-shrink: 0;
 }
 
 .section-header h3 {
@@ -204,6 +293,7 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .form-group {
@@ -231,6 +321,7 @@
   color: #111827;
   background: white;
   transition: all 0.2s;
+  font-family: inherit;
 }
 
 .form-group input:focus,
@@ -240,20 +331,17 @@
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-/* Checkbox Group */
-.checkbox-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 0.5rem 0;
+.form-group input::placeholder {
+  color: #9ca3af;
 }
 
+/* Checkbox Labels */
 .checkbox-label {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   cursor: pointer;
-  padding: 0.5rem;
+  padding: 0.75rem;
   border-radius: 8px;
   transition: background 0.2s;
 }
@@ -267,20 +355,45 @@
   height: 20px;
   cursor: pointer;
   accent-color: #667eea;
+  flex-shrink: 0;
 }
 
 .checkbox-label span {
   font-size: 0.875rem;
   color: #374151;
+  font-weight: 500;
+}
+
+/* Amenities Section */
+.amenities-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #f3f4f6;
+}
+
+.amenities-section h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 1rem;
+}
+
+.amenities-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
 }
 
 /* Upload Section */
 .upload-section {
   margin-bottom: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #f3f4f6;
 }
 
-.upload-section:last-child {
-  margin-bottom: 0;
+.upload-section:first-child {
+  border-top: none;
+  padding-top: 0;
 }
 
 .upload-section h4 {
@@ -322,12 +435,14 @@
 .upload-box.uploaded {
   border-color: #10b981;
   background: #f0fdf4;
+  border-style: solid;
 }
 
 .upload-box svg {
   width: 32px;
   height: 32px;
   color: #667eea;
+  flex-shrink: 0;
 }
 
 .upload-box.uploaded svg {
@@ -353,13 +468,59 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding: 0 0.5rem;
+}
+
+/* Navigation Buttons */
+.form-nav-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #f3f4f6;
+}
+
+.btn-nav {
+  flex: 1;
+  padding: 1rem 2rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: inherit;
+}
+
+.btn-prev {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.btn-prev:hover {
+  background: #e5e7eb;
+  transform: translateX(-4px);
+}
+
+.btn-next {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+}
+
+.btn-next:hover {
+  transform: translateX(4px);
+  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
 }
 
 /* Submit Button */
 .btn-submit {
-  width: 100%;
+  flex: 1;
   padding: 1.25rem 2rem;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #10b981, #059669);
   color: white;
   border: none;
   border-radius: 12px;
@@ -371,12 +532,12 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  margin-top: 1rem;
+  font-family: inherit;
 }
 
 .btn-submit:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
 }
 
 .btn-submit:disabled {
@@ -413,17 +574,36 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .apply-container {
+    padding: 1rem 0.5rem;
+  }
+
   .apply-card {
     padding: 1.5rem;
+    border-radius: 16px;
   }
 
   .form-grid,
-  .upload-grid {
+  .upload-grid,
+  .amenities-grid {
     grid-template-columns: 1fr;
   }
 
   .form-group.full {
     grid-column: 1;
+  }
+
+  .step-indicators {
+    padding: 0;
+  }
+
+  .step-indicator span {
+    font-size: 0.65rem;
+  }
+
+  .step-arrow {
+    width: 12px;
+    height: 12px;
   }
 
   .success-card {
@@ -432,5 +612,18 @@
 
   .section-header h3 {
     font-size: 1.125rem;
+  }
+
+  .header-content h1 {
+    font-size: 1.5rem;
+  }
+
+  .form-nav-buttons {
+    flex-direction: column;
+  }
+
+  .btn-nav,
+  .btn-submit {
+    width: 100%;
   }
 }
