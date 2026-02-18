@@ -59,6 +59,8 @@ export const String = {
   RIDE_REQUEST_MODEL: "ride_requests",
   RIDE_LOCATION_MODEL: "ride_locations",
   RIDE_STOP_MODEL: "ride_stops",
+  RIDER_SAFETY_STATS_MODEL: "rider_safety_stats",
+
 
   // ═══════════════════════════════════════════════════
   // REVIEW & SAFETY TABLES

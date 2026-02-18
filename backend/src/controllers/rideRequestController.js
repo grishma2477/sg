@@ -16,7 +16,7 @@
 // //     // Find eligible drivers and broadcast
 // //     const drivers = await matchingService.findEligibleDrivers(result.requestId);
 // //     const driverIds = drivers.map(d => d.driverId);
-    
+
 // //     broadcastRideRequest({
 // //       requestId: result.requestId,
 // //       pickup: req.body.pickup,
@@ -99,11 +99,11 @@
 // //     if (stops && stops.length > 0) {
 // //       const maxStops = Math.min(stops.length, 2);
 // //       console.log(`📍 Adding ${maxStops} stops...`);
-      
+
 // //       for (let i = 0; i < maxStops; i++) {
 // //         const stop = stops[i];
 // //         const stopCoords = `POINT(${stop.location.coordinates[0]} ${stop.location.coordinates[1]})`;
-        
+
 // //         await pool.query(
 // //           `INSERT INTO ride_stops (
 // //             ride_request_id,
@@ -124,7 +124,7 @@
 // //           ]
 // //         );
 // //       }
-      
+
 // //       console.log('✅ Stops added successfully');
 // //     }
 
@@ -168,7 +168,7 @@
 
 //     // Calculate distance using Haversine formula
 //     const toRadians = (degrees) => degrees * (Math.PI / 180);
-    
+
 //     const lat1 = pickupLocation.coordinates[1];
 //     const lon1 = pickupLocation.coordinates[0];
 //     const lat2 = dropoffLocation.coordinates[1];
@@ -177,11 +177,11 @@
 //     const R = 6371; // Earth's radius in km
 //     const dLat = toRadians(lat2 - lat1);
 //     const dLon = toRadians(lon2 - lon1);
-    
+
 //     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
 //               Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
 //               Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    
+
 //     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 //     const distance = R * c; // Distance in km
 
@@ -245,11 +245,11 @@
 //     if (stops && stops.length > 0) {
 //       const maxStops = Math.min(stops.length, 2);
 //       console.log(`📍 Adding ${maxStops} stops...`);
-      
+
 //       for (let i = 0; i < maxStops; i++) {
 //         const stop = stops[i];
 //         const stopCoords = `POINT(${stop.location.coordinates[0]} ${stop.location.coordinates[1]})`;
-        
+
 //         await pool.query(
 //           `INSERT INTO ride_stops (
 //             ride_request_id,
@@ -270,7 +270,7 @@
 //           ]
 //         );
 //       }
-      
+
 //       console.log('✅ Stops added successfully');
 //     }
 
@@ -496,7 +496,7 @@
 // export const getNearbyRideRequests = async (req, res) => {
 //   try {
 //     const driverId = req.user.id;
-    
+
 //     console.log('📍 Fetching nearby requests for driver:', driverId);
 
 //     const query = `
@@ -535,11 +535,11 @@
 //       ORDER BY rr.created_at DESC
 //       LIMIT 20
 //     `;
-    
+
 //     const result = await pool.query(query);
-    
+
 //     console.log(`✅ Found ${result.rows.length} pending requests`);
-    
+
 //     return res.status(200).json({
 //       success: true,
 //       data: result.rows
@@ -572,7 +572,7 @@
 // // export const getNearbyRideRequests = async (req, res) => {
 // //   try {
 // //     const driverId = req.user.id;
-    
+
 // //     console.log('📍 Fetching nearby requests for driver:', driverId);
 
 // //     // Just return all pending requests (simpler approach)
@@ -599,11 +599,11 @@
 // //       ORDER BY rr.created_at DESC
 // //       LIMIT 20
 // //     `;
-    
+
 // //     const result = await pool.query(query);
-    
+
 // //     console.log(`✅ Found ${result.rows.length} pending requests`);
-    
+
 // //     return res.status(200).json({
 // //       success: true,
 // //       data: result.rows,
@@ -641,7 +641,7 @@
 
 //     if (driverCheck.rows.length === 0) {
 //       console.log('⚠️ Driver record not found, creating one...');
-      
+
 //       // Create driver record if it doesn't exist
 //       await pool.query(
 //         'INSERT INTO drivers (user_id, is_online, is_available, created_at) VALUES ($1, true, true, NOW())',
@@ -726,7 +726,7 @@ const matchingService = new DriverMatchingService();
 //     // Find eligible drivers and broadcast
 //     const drivers = await matchingService.findEligibleDrivers(result.requestId);
 //     const driverIds = drivers.map(d => d.driverId);
-    
+
 //     broadcastRideRequest({
 //       requestId: result.requestId,
 //       pickup: req.body.pickup,
@@ -809,11 +809,11 @@ const matchingService = new DriverMatchingService();
 //     if (stops && stops.length > 0) {
 //       const maxStops = Math.min(stops.length, 2);
 //       console.log(`📍 Adding ${maxStops} stops...`);
-      
+
 //       for (let i = 0; i < maxStops; i++) {
 //         const stop = stops[i];
 //         const stopCoords = `POINT(${stop.location.coordinates[0]} ${stop.location.coordinates[1]})`;
-        
+
 //         await pool.query(
 //           `INSERT INTO ride_stops (
 //             ride_request_id,
@@ -834,7 +834,7 @@ const matchingService = new DriverMatchingService();
 //           ]
 //         );
 //       }
-      
+
 //       console.log('✅ Stops added successfully');
 //     }
 
@@ -855,6 +855,9 @@ const matchingService = new DriverMatchingService();
 //     });
 //   }
 // };
+
+
+
 
 export const createRideRequest = async (req, res) => {
   try {
@@ -878,7 +881,7 @@ export const createRideRequest = async (req, res) => {
 
     // Calculate distance using Haversine formula
     const toRadians = (degrees) => degrees * (Math.PI / 180);
-    
+
     const lat1 = pickupLocation.coordinates[1];
     const lon1 = pickupLocation.coordinates[0];
     const lat2 = dropoffLocation.coordinates[1];
@@ -887,11 +890,11 @@ export const createRideRequest = async (req, res) => {
     const R = 6371; // Earth's radius in km
     const dLat = toRadians(lat2 - lat1);
     const dLon = toRadians(lon2 - lon1);
-    
+
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    
+      Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c; // Distance in km
 
@@ -955,11 +958,11 @@ export const createRideRequest = async (req, res) => {
     if (stops && stops.length > 0) {
       const maxStops = Math.min(stops.length, 2);
       console.log(`📍 Adding ${maxStops} stops...`);
-      
+
       for (let i = 0; i < maxStops; i++) {
         const stop = stops[i];
         const stopCoords = `POINT(${stop.location.coordinates[0]} ${stop.location.coordinates[1]})`;
-        
+
         await pool.query(
           `INSERT INTO ride_stops (
             ride_request_id,
@@ -980,7 +983,7 @@ export const createRideRequest = async (req, res) => {
           ]
         );
       }
-      
+
       console.log('✅ Stops added successfully');
     }
 
@@ -1201,55 +1204,53 @@ export const cancelRideRequest = async (req, res, next) => {
     next(err);
   }
 };
-
-
 export const getNearbyRideRequests = async (req, res) => {
   try {
     const driverId = req.user.id;
-    
-    console.log('📍 Fetching nearby requests for driver:', driverId);
 
+    console.log('📍 Fetching nearby requests for driver:', driverId);
     const query = `
-      SELECT 
-        rr.id,
-        rr.rider_id,
-        rr.pickup_address,
-        rr.dropoff_address,
-        rr.pricing_mode,
-        rr.vehicle_preference,
-        rr.passenger_count,
-        rr.luggage_count,
-        rr.special_instructions,
-        rr.status,
-        rr.created_at,
-        rr.estimated_distance_km,
-        rr.estimated_duration_minutes,
-        rr.estimated_fare_min,
-        rr.estimated_fare_max,
-        CONCAT(up.first_name, ' ', up.last_name) as rider_name,
-        (
-          SELECT json_agg(
-            json_build_object(
-              'address', rs.address,
-              'stop_order', rs.stop_order
-            ) ORDER BY rs.stop_order
-          )
-          FROM ride_stops rs
-          WHERE rs.ride_request_id = rr.id
-        ) as stops
-      FROM ride_requests rr
-      JOIN users u ON rr.rider_id = u.id
-      LEFT JOIN user_profiles up ON u.id = up.user_id
-      WHERE rr.status = 'pending'
-      AND rr.pricing_mode = 'bidding'
-      ORDER BY rr.created_at DESC
-      LIMIT 20
-    `;
-    
+  SELECT 
+    rr.id,
+    rr.rider_id,
+    rr.pickup_address,
+    rr.dropoff_address,
+    rr.pricing_mode,
+    rr.vehicle_preference,
+    rr.passenger_count,
+    rr.luggage_count,
+    rr.special_instructions,
+    rr.status,
+    rr.created_at,
+    rr.estimated_distance_km,
+    rr.estimated_duration_minutes,
+    rr.estimated_fare_min,
+    rr.estimated_fare_max,
+    CONCAT(k.first_name, ' ', k.last_name) as rider_name,
+    (
+      SELECT json_agg(
+        json_build_object(
+          'address', rs.address,
+          'stop_order', rs.stop_order
+        ) ORDER BY rs.stop_order
+      )
+      FROM ride_stops rs
+      WHERE rs.ride_request_id = rr.id
+    ) as stops
+  FROM ride_requests rr
+  JOIN users u ON rr.rider_id = u.id
+  LEFT JOIN kyc k ON u.id = k.user_id
+  WHERE rr.status = 'pending'
+  AND rr.pricing_mode = 'bidding'
+  ORDER BY rr.created_at DESC
+  LIMIT 20
+`;
+
+
     const result = await pool.query(query);
-    
+
     console.log(`✅ Found ${result.rows.length} pending requests`);
-    
+
     return res.status(200).json({
       success: true,
       data: result.rows
@@ -1264,6 +1265,68 @@ export const getNearbyRideRequests = async (req, res) => {
     });
   }
 };
+
+// export const getNearbyRideRequests = async (req, res) => {
+//   try {
+//     const driverId = req.user.id;
+
+//     console.log('📍 Fetching nearby requests for driver:', driverId);
+
+//     const query = `
+//       SELECT 
+//         rr.id,
+//         rr.rider_id,
+//         rr.pickup_address,
+//         rr.dropoff_address,
+//         rr.pricing_mode,
+//         rr.vehicle_preference,
+//         rr.passenger_count,
+//         rr.luggage_count,
+//         rr.special_instructions,
+//         rr.status,
+//         rr.created_at,
+//         rr.estimated_distance_km,
+//         rr.estimated_duration_minutes,
+//         rr.estimated_fare_min,
+//         rr.estimated_fare_max,
+//         CONCAT(up.first_name, ' ', up.last_name) as rider_name,
+//         (
+//           SELECT json_agg(
+//             json_build_object(
+//               'address', rs.address,
+//               'stop_order', rs.stop_order
+//             ) ORDER BY rs.stop_order
+//           )
+//           FROM ride_stops rs
+//           WHERE rs.ride_request_id = rr.id
+//         ) as stops
+//       FROM ride_requests rr
+//       JOIN users u ON rr.rider_id = u.id
+//       LEFT JOIN user_profiles up ON u.id = up.user_id
+//       WHERE rr.status = 'pending'
+//       AND rr.pricing_mode = 'bidding'
+//       ORDER BY rr.created_at DESC
+//       LIMIT 20
+//     `;
+
+//     const result = await pool.query(query);
+
+//     console.log(`✅ Found ${result.rows.length} pending requests`);
+
+//     return res.status(200).json({
+//       success: true,
+//       data: result.rows
+//     });
+
+//   } catch (error) {
+//     console.error('❌ Error fetching nearby requests:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'INTERNAL_SERVER_ERROR',
+//       error: error.message
+//     });
+//   }
+// };
 // export const getNearbyRequests = async (req, res, next) => {
 //   try {
 //     const requests = await matchingService.getNearbyRequestsForDriver(
@@ -1282,7 +1345,7 @@ export const getNearbyRideRequests = async (req, res) => {
 // export const getNearbyRideRequests = async (req, res) => {
 //   try {
 //     const driverId = req.user.id;
-    
+
 //     console.log('📍 Fetching nearby requests for driver:', driverId);
 
 //     // Just return all pending requests (simpler approach)
@@ -1309,11 +1372,11 @@ export const getNearbyRideRequests = async (req, res) => {
 //       ORDER BY rr.created_at DESC
 //       LIMIT 20
 //     `;
-    
+
 //     const result = await pool.query(query);
-    
+
 //     console.log(`✅ Found ${result.rows.length} pending requests`);
-    
+
 //     return res.status(200).json({
 //       success: true,
 //       data: result.rows,
@@ -1351,7 +1414,7 @@ export const updateDriverLocation = async (req, res) => {
 
     if (driverCheck.rows.length === 0) {
       console.log('⚠️ Driver record not found, creating one...');
-      
+
       // Create driver record if it doesn't exist
       await pool.query(
         'INSERT INTO drivers (user_id, is_online, is_available, created_at) VALUES ($1, true, true, NOW())',

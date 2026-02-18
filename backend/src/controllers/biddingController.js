@@ -992,7 +992,162 @@ export const getRideRequestBids = async (req, res) => {
 // };
 
 
-// Accept a bid - COMPLETE FIXED VERSION
+// // Accept a bid - COMPLETE FIXED VERSION
+// export const acceptBid = async (req, res) => {
+//   try {
+//     const { bidId } = req.params;
+//     const riderId = req.user.id;
+
+//     console.log('✅ Accepting bid:', bidId);
+
+//     // Get bid details
+//     const bidResult = await pool.query(
+//       'SELECT * FROM ride_bids WHERE id = $1',
+//       [bidId]
+//     );
+
+//     if (bidResult.rows.length === 0) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Bid not found'
+//       });
+//     }
+
+//     const bid = bidResult.rows[0];
+
+//     // Get ride request details
+//     const requestResult = await pool.query(
+//       'SELECT * FROM ride_requests WHERE id = $1',
+//       [bid.ride_request_id]
+//     );
+
+//     if (requestResult.rows.length === 0) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Ride request not found'
+//       });
+//     }
+
+//     const request = requestResult.rows[0];
+
+//     // Create ride WITH request_id to link tables
+//     const rideQuery = `
+//       INSERT INTO rides (
+//         rider_id,
+//         driver_id,
+//         request_id,
+//         fare_amount,
+//         currency,
+//         status,
+//         created_at
+//       ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+//       RETURNING *
+//     `;
+
+//     const rideResult = await pool.query(rideQuery, [
+//       request.rider_id,
+//       bid.driver_id,
+//       request.id,         // Link to ride_requests table
+//       bid.bid_amount,
+//       'NPR',
+//       'accepted'
+//     ]);
+
+//     const ride = rideResult.rows[0];
+
+//     console.log('✅ Ride created:', ride.id);
+//     console.log('Linked to request:', request.id);
+
+//     // Update bid status
+//     await pool.query(
+//       `UPDATE ride_bids 
+//        SET status = 'accepted', accepted_at = NOW()
+//        WHERE id = $1`,
+//       [bidId]
+//     );
+
+//     // Update ride request
+//     await pool.query(
+//       `UPDATE ride_requests
+//        SET status = 'accepted',
+//            matched_driver_id = $1
+//        WHERE id = $2`,
+//       [bid.driver_id, bid.ride_request_id]
+//     );
+
+//     // Reject other bids
+//     await pool.query(
+//       `UPDATE ride_bids
+//        SET status = 'rejected'
+//        WHERE ride_request_id = $1 AND id != $2`,
+//       [bid.ride_request_id, bidId]
+//     );
+
+//     // SEND SOCKET NOTIFICATION TO DRIVER
+//     try {
+//       // Get driver's user_id for socket notification
+//       const driverUserResult = await pool.query(
+//         'SELECT user_id FROM drivers WHERE id = $1',
+//         [bid.driver_id]
+//       );
+
+//       if (driverUserResult.rows.length > 0) {
+//         const driverUserId = driverUserResult.rows[0].user_id;
+        
+//         console.log('');
+//         console.log('═══════════════════════════════════════════');
+//         console.log('🔔 SENDING SOCKET NOTIFICATION');
+//         console.log('═══════════════════════════════════════════');
+//         console.log('Driver Database ID:', bid.driver_id);
+//         console.log('Driver User ID:', driverUserId);
+//         console.log('Ride ID:', ride.id);
+//         console.log('Pickup:', request.pickup_address);
+//         console.log('Dropoff:', request.dropoff_address);
+//         console.log('Fare:', bid.bid_amount);
+//         console.log('═══════════════════════════════════════════');
+//         console.log('');
+        
+//         // Notify using driver database ID (socket room is driver:${driverId})
+//         notifyBidAccepted(bid.driver_id, {
+//           rideId: ride.id,
+//           bidId: bidId,
+//           message: 'Your bid was accepted!',
+//           pickup_address: request.pickup_address,
+//           dropoff_address: request.dropoff_address,
+//           fare_amount: bid.bid_amount
+//         });
+        
+//         console.log('📢 Socket notification sent to driver room: driver:' + bid.driver_id);
+//       } else {
+//         console.log('⚠️ Driver user not found for driver_id:', bid.driver_id);
+//       }
+//     } catch (socketError) {
+//       console.log('⚠️ Socket notification failed:', socketError.message);
+//       console.error(socketError);
+//     }
+
+//     console.log('✅ Bid acceptance complete!');
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'BID_ACCEPTED',
+//       data: {
+//         bid: bid,
+//         ride_id: ride.id
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error('❌ Error accepting bid:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'INTERNAL_SERVER_ERROR',
+//       error: error.message
+//     });
+//   }
+// };
+
+// Accept a bid - FIXED VERSION (no request_id in rides table)
 export const acceptBid = async (req, res) => {
   try {
     const { bidId } = req.params;
@@ -1030,24 +1185,22 @@ export const acceptBid = async (req, res) => {
 
     const request = requestResult.rows[0];
 
-    // Create ride WITH request_id to link tables
+    // Create ride (NO request_id column - using reverse link instead)
     const rideQuery = `
       INSERT INTO rides (
         rider_id,
         driver_id,
-        request_id,
         fare_amount,
         currency,
         status,
-        created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        requested_at
+      ) VALUES ($1, $2, $3, $4, $5, NOW())
       RETURNING *
     `;
 
     const rideResult = await pool.query(rideQuery, [
       request.rider_id,
       bid.driver_id,
-      request.id,         // Link to ride_requests table
       bid.bid_amount,
       'NPR',
       'accepted'
@@ -1056,7 +1209,6 @@ export const acceptBid = async (req, res) => {
     const ride = rideResult.rows[0];
 
     console.log('✅ Ride created:', ride.id);
-    console.log('Linked to request:', request.id);
 
     // Update bid status
     await pool.query(
@@ -1066,13 +1218,14 @@ export const acceptBid = async (req, res) => {
       [bidId]
     );
 
-    // Update ride request
+    // Update ride request with created_ride_id (reverse link)
     await pool.query(
       `UPDATE ride_requests
        SET status = 'accepted',
-           matched_driver_id = $1
-       WHERE id = $2`,
-      [bid.driver_id, bid.ride_request_id]
+           matched_driver_id = $1,
+           created_ride_id = $2
+       WHERE id = $3`,
+      [bid.driver_id, ride.id, bid.ride_request_id]
     );
 
     // Reject other bids
@@ -1116,6 +1269,7 @@ export const acceptBid = async (req, res) => {
           dropoff_address: request.dropoff_address,
           fare_amount: bid.bid_amount
         });
+        console.log(" The driver id is ", driverUserId)
         
         console.log('📢 Socket notification sent to driver room: driver:' + bid.driver_id);
       } else {

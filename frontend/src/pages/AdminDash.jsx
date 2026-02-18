@@ -1,3 +1,5 @@
+
+
 // import React, { useState, useEffect } from 'react';
 // import { useNavigate } from 'react-router-dom';
 // import { 
@@ -6,7 +8,9 @@
 // } from 'lucide-react';
 // import { getToken, clearAuthData } from '../utils/CookieUtils';
 // import { io } from 'socket.io-client';
+// import AdminDriverApplicationReview from './AdminDriverApplicationReview';
 // import './AdminDashboard.css';
+// import './AdminDriverApplicationReview.css';
 
 // const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -210,6 +214,12 @@
 //       console.error('❌ Failed to fetch application details:', error);
 //       alert('Error loading application details');
 //     }
+//   };
+
+//   const handleDriverAppReviewed = () => {
+//     setViewingDriverAppDetails(false);
+//     setSelectedDriverApp(null);
+//     fetchPendingDriverApps();
 //   };
 
 //   const handleReviewDriverApp = async (applicationId, approved) => {
@@ -748,133 +758,11 @@
 
 //       {/* Driver Application Details Modal */}
 //       {viewingDriverAppDetails && selectedDriverApp && (
-//         <div className="modal-overlay" onClick={() => setViewingDriverAppDetails(false)}>
-//           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-//             <div className="modal-header" style={{ background: 'linear-gradient(135deg, #667eea, #764ba2)' }}>
-//               <div>
-//                 <h2>Driver Application Review</h2>
-//                 <p>{selectedDriverApp.application.full_name || selectedDriverApp.application.email}</p>
-//               </div>
-//               <button onClick={() => setViewingDriverAppDetails(false)} className="modal-close">
-//                 <X size={28} />
-//               </button>
-//             </div>
-
-//             <div className="modal-content">
-//               {/* Personal Info */}
-//               <div className="modal-grid">
-//                 <div className="modal-info">
-//                   <h3><User size={20} /> Applicant Information</h3>
-//                   <div className="info-grid">
-//                     <div className="info-item">
-//                       <label>Name</label>
-//                       <div>{selectedDriverApp.application.first_name} {selectedDriverApp.application.last_name}</div>
-//                     </div>
-//                     <div className="info-item">
-//                       <label>Email</label>
-//                       <div>{selectedDriverApp.application.email}</div>
-//                     </div>
-//                     <div className="info-item">
-//                       <label>Phone</label>
-//                       <div>{selectedDriverApp.application.phone_number}</div>
-//                     </div>
-//                     <div className="info-item">
-//                       <label>Applied</label>
-//                       <div>{new Date(selectedDriverApp.application.created_at).toLocaleDateString()}</div>
-//                     </div>
-//                   </div>
-//                 </div>
-
-//                 <div className="modal-photo">
-//                   <h3>Profile Photo</h3>
-//                   <img src={selectedDriverApp.application.profile_url} alt="Profile" />
-//                 </div>
-//               </div>
-
-//               {/* License Info */}
-//               <div className="modal-documents">
-//                 <h3><FileText size={20} /> Driver License</h3>
-//                 <div className="document-card">
-//                   <div className="document-info">
-//                     <div><label>License Number:</label> {selectedDriverApp.application.license_number}</div>
-//                     <div><label>Category:</label> {selectedDriverApp.application.license_category}</div>
-//                     <div><label>Issued:</label> {new Date(selectedDriverApp.application.license_issued_date).toLocaleDateString()}</div>
-//                     <div><label>Expiry:</label> {new Date(selectedDriverApp.application.license_expiry_date).toLocaleDateString()}</div>
-//                   </div>
-//                   <div className="document-images">
-//                     <div className="doc-image">
-//                       <label>License Front</label>
-//                       <img src={selectedDriverApp.application.license_front_url} alt="License Front" />
-//                     </div>
-//                     {selectedDriverApp.application.license_back_url && (
-//                       <div className="doc-image">
-//                         <label>License Back</label>
-//                         <img src={selectedDriverApp.application.license_back_url} alt="License Back" />
-//                       </div>
-//                     )}
-//                   </div>
-//                 </div>
-//               </div>
-
-//               {/* Vehicle Info */}
-//               {selectedDriverApp.vehicle && (
-//                 <div className="modal-documents">
-//                   <h3><Car size={20} /> Vehicle Information</h3>
-//                   <div className="document-card">
-//                     <div className="document-info">
-//                       <div><label>Type:</label> {selectedDriverApp.vehicle.vehicle_type}</div>
-//                       <div><label>Make/Model:</label> {selectedDriverApp.vehicle.make} {selectedDriverApp.vehicle.model}</div>
-//                       <div><label>Year:</label> {selectedDriverApp.vehicle.year}</div>
-//                       <div><label>Color:</label> {selectedDriverApp.vehicle.color}</div>
-//                       <div><label>Plate:</label> {selectedDriverApp.vehicle.license_plate}</div>
-//                       <div><label>Seats:</label> {selectedDriverApp.vehicle.seat_capacity}</div>
-//                     </div>
-                    
-//                     <div className="document-images" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-//                       <div className="doc-image">
-//                         <label>Registration</label>
-//                         <img src={selectedDriverApp.vehicle.registration_url} alt="Registration" />
-//                       </div>
-//                       <div className="doc-image">
-//                         <label>Insurance</label>
-//                         <img src={selectedDriverApp.vehicle.insurance_url} alt="Insurance" />
-//                       </div>
-//                       <div className="doc-image">
-//                         <label>Vehicle Front</label>
-//                         <img src={selectedDriverApp.vehicle.photo_front_url} alt="Vehicle Front" />
-//                       </div>
-//                       {selectedDriverApp.vehicle.photo_back_url && (
-//                         <div className="doc-image">
-//                           <label>Vehicle Back</label>
-//                           <img src={selectedDriverApp.vehicle.photo_back_url} alt="Vehicle Back" />
-//                         </div>
-//                       )}
-//                     </div>
-//                   </div>
-//                 </div>
-//               )}
-//             </div>
-
-//             <div className="modal-footer">
-//               <button 
-//                 onClick={() => handleReviewDriverApp(selectedDriverApp.application.id, false)}
-//                 disabled={processingDriverApp}
-//                 className="btn-reject"
-//               >
-//                 {processingDriverApp ? <Loader2 className="spinner" size={20} /> : <XCircle size={20} />}
-//                 Reject Application
-//               </button>
-//               <button 
-//                 onClick={() => handleReviewDriverApp(selectedDriverApp.application.id, true)}
-//                 disabled={processingDriverApp}
-//                 className="btn-approve"
-//               >
-//                 {processingDriverApp ? <Loader2 className="spinner" size={20} /> : <CheckCircle size={20} />}
-//                 Approve & Create Driver
-//               </button>
-//             </div>
-//           </div>
-//         </div>
+//         <AdminDriverApplicationReview
+//           application={selectedDriverApp.application}
+//           onClose={() => setViewingDriverAppDetails(false)}
+//           onReviewed={handleDriverAppReviewed}
+//         />
 //       )}
 //     </div>
 //   );
@@ -893,8 +781,12 @@ import {
 import { getToken, clearAuthData } from '../utils/CookieUtils';
 import { io } from 'socket.io-client';
 import AdminDriverApplicationReview from './AdminDriverApplicationReview';
+import AdminUserManagement from './AdminUserManagement';
+import AdminBadgeManagement from './AdminBadgeManagement';
 import './AdminDashboard.css';
 import './AdminDriverApplicationReview.css';
+import './AdminUserManagement.css';
+import './AdminBadgeManagement.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -1473,6 +1365,25 @@ const AdminDashboard = () => {
             >
               Driver Applications
             </button>
+          </div>
+
+          <div className="nav-section">
+            <div className="nav-title">MANAGEMENT</div>
+            <button 
+              className={`nav-item ${activeSection === 'user-management' ? 'active' : ''}`}
+              onClick={() => setActiveSection('user-management')}
+            >
+              👥 User Management
+            </button>
+            <button 
+              className={`nav-item ${activeSection === 'badge-management' ? 'active' : ''}`}
+              onClick={() => setActiveSection('badge-management')}
+            >
+              🎖️ Badge Management
+            </button>
+          </div>
+
+          <div className="nav-section">
             <button className="nav-item logout" onClick={handleLogout}>
               <LogOut size={16} />
               Logout
@@ -1526,6 +1437,8 @@ const AdminDashboard = () => {
           {activeSection === 'dashboard' && renderDashboard()}
           {activeSection === 'kyc' && renderKYC()}
           {activeSection === 'driver-apps' && renderDriverApps()}
+          {activeSection === 'user-management' && <AdminUserManagement />}
+          {activeSection === 'badge-management' && <AdminBadgeManagement />}
         </div>
       </main>
 

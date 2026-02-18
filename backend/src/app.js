@@ -14,7 +14,7 @@ import biddingRoutes from "./routes/biddingRoutes.js"
 import driverRoutes from "./routes/driverStatusRoutes.js"
 import kycRoutes from "./routes/kycRoutes.js"
 import driverApplicationRoutes from './routes/driverApplicationRoutes.js';
-
+import adminUserRoutes from "./routes/adminUserRoutes.js"
 
 const app = express();
 
@@ -33,11 +33,13 @@ app.use("/api/auth", authRoutes);
 app.use("/api/rides", rideRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin/manage", adminUserRoutes);
 app.use("/api/ride-requests", rideRequestRoutes);
 app.use('/api/bidding', biddingRoutes);
 app.use('/api/drivers', driverRoutes)
 app.use('/api/kyc', kycRoutes);
 app.use('/api/driver-applications', driverApplicationRoutes);
+
 
 
 

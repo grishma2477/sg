@@ -99,23 +99,40 @@
 //   }
 // };
 
-
 const POSITIVE_TAPS = {
+  // Rider rating driver
   FELT_SAFE: 3,
   RESPECTFUL: 2,
   FOLLOWED_RULES: 2,
   RESPONSIBLE: 2,
   ROUTE_OK: 1,
-  COMMUNICATION: 1
+  COMMUNICATION: 1,
+  
+  // Driver rating rider 
+  POLITE: 2,
+  PUNCTUAL: 2,
+  CLEAN: 2,
+  EASY_RIDER: 1,
+  ACCEPTABLE: 1
 };
 
 const NEGATIVE_TAPS = {
+  // Rider rating driver
   UNCOMFORTABLE: -15,
   RECKLESS: -20,
   UNNECESSARY_ROUTE: -10,
   INAPPROPRIATE: -25,
   IGNORED_COMM: -5,
-  SAFETY_CONCERN: -40
+  SAFETY_CONCERN: -40,
+  
+  // Driver rating rider 
+  LATE: -10,
+  RUDE: -15,
+  MESSY: -10,
+  VERY_RUDE: -25,
+  NO_SHOW: -20,
+  DAMAGED_CAR: -30,
+  INTOXICATED: -40
 };
 
 export const SafetyImpactFactory = {

@@ -868,7 +868,8 @@ function App() {
         {auth.token &&
           !window.location.pathname.includes("/kyc-upload") &&
           !window.location.pathname.includes("/admin") &&
-          !window.location.pathname.includes("/apply-driver") && (
+          !window.location.pathname.includes("/apply-driver") &&
+          !window.location.pathname.includes("/user") &&  (
             <BottomNav userRole={auth.userRole} />
           )}
       </div>

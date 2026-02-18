@@ -634,7 +634,7 @@ export const checkApplication = async (req, res, next) => {
 
     const query = `
       SELECT 
-        da.id,
+        da.id,con
         da.status,
         da.created_at,
         da.updated_at,
@@ -1239,13 +1239,18 @@ export const reviewApplication = async (req, res, next) => {
 
     let driverId;
     if (driverExists.rows.length === 0) {
-      const driverResult = await client.query(
-        `INSERT INTO drivers (user_id, is_online, is_available, status)
-         VALUES ($1, false, false, 'offline')
-         RETURNING id`,
-        [userId]
-      );
-      driverId = driverResult.rows[0].id;
+     // 3. Create/update driver profile using ON CONFLICT
+    const driverResult = await client.query(
+      `INSERT INTO drivers (user_id, is_online, is_available, status, created_at)
+       VALUES ($1, false, false, 'offline', NOW())
+       ON CONFLICT (user_id) DO UPDATE 
+       SET status = 'offline', updated_at = NOW()
+       RETURNING id`,
+      [userId]
+    );
+    const driverId = driverResult.rows[0].id;
+    
+    console.log('✅ Driver profile created/updated:', driverId);
     } else {
       driverId = driverExists.rows[0].id;
     }

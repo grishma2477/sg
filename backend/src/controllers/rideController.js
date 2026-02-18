@@ -588,7 +588,7 @@
 //       // ─────────────────────────────────────────────────────────────────────
 //       try {
 //         const { emitToUser } = await import('../realtime/socketServer.js');
-        
+
 //         emitToUser(request.rider_id, 'ride:accepted', {
 //           rideId: ride.id,
 //           message: 'A driver has accepted your ride!',
@@ -655,7 +655,7 @@
 //         r.created_at,
 //         r.started_at,
 //         r.completed_at,
-        
+
 //         -- Request info
 //         rr.pickup_address,
 //         rr.dropoff_address,
@@ -666,7 +666,7 @@
 //         rr.passenger_count,
 //         rr.luggage_count,
 //         rr.vehicle_preference,
-        
+
 //         -- Rider info - Use email if no name
 //         COALESCE(
 //           NULLIF(TRIM(CONCAT(rp.first_name, ' ', rp.last_name)), ''), 
@@ -675,7 +675,7 @@
 //         ) as rider_name,
 //         ra.phone as rider_phone,
 //         ra.email as rider_email,
-        
+
 //         -- Driver info - Use email if no name
 //         COALESCE(
 //           NULLIF(TRIM(CONCAT(dp.first_name, ' ', dp.last_name)), ''), 
@@ -685,29 +685,29 @@
 //         da.phone as driver_phone,
 //         da.email as driver_email,
 //         d.user_id as driver_user_id,
-        
+
 //         -- Vehicle info
 //         v.vehicle_type,
 //         v.make as vehicle_make,
 //         v.model as vehicle_model,
 //         v.color as vehicle_color,
 //         v.license_plate
-        
+
 //       FROM rides r
 //       LEFT JOIN ride_requests rr ON r.request_id = rr.id
-      
+
 //       -- Rider
 //       LEFT JOIN users ru ON r.rider_id = ru.id
 //       LEFT JOIN user_profiles rp ON ru.id = rp.user_id
 //       LEFT JOIN auth_credentials ra ON ru.id = ra.user_id
-      
+
 //       -- Driver
 //       LEFT JOIN drivers d ON r.driver_id = d.id
 //       LEFT JOIN users du ON d.user_id = du.id
 //       LEFT JOIN user_profiles dp ON du.id = dp.user_id
 //       LEFT JOIN auth_credentials da ON du.id = da.user_id
 //       LEFT JOIN vehicles v ON d.id = v.driver_id
-      
+
 //       WHERE r.id = $1
 //     `;
 
@@ -722,7 +722,7 @@
 //     }
 
 //     const ride = result.rows[0];
-    
+
 //     console.log('✅ Ride found!');
 //     console.log('Rider:', ride.rider_name, '(', ride.rider_email, ')');
 //     console.log('Driver:', ride.driver_name, '(', ride.driver_email, ')');
@@ -788,7 +788,7 @@
 // //         r.created_at,
 // //         r.started_at,
 // //         r.completed_at,
-        
+
 // //         -- Request info
 // //         rr.pickup_address,
 // //         rr.dropoff_address,
@@ -799,22 +799,22 @@
 // //         rr.passenger_count,
 // //         rr.luggage_count,
 // //         rr.vehicle_preference,
-        
+
 // //         -- Rider name and phone
 // //         CONCAT(rp.first_name, ' ', rp.last_name) as rider_name,
 // //         ra.phone as rider_phone,
-        
+
 // //         -- Driver name and phone  
 // //         CONCAT(dp.first_name, ' ', dp.last_name) as driver_name,
 // //         da.phone as driver_phone,
-        
+
 // //         -- Vehicle info
 // //         v.vehicle_type,
 // //         v.make as vehicle_make,
 // //         v.model as vehicle_model,
 // //         v.color as vehicle_color,
 // //         v.license_plate
-        
+
 // //       FROM rides r
 // //       LEFT JOIN ride_requests rr ON r.request_id = rr.id
 // //       LEFT JOIN users ru ON r.rider_id = ru.id
@@ -907,7 +907,7 @@
 //       [rideId, driverDbId]
 //     );
 
-    
+
 
 //     /// update the client side as well using socket
 
@@ -1134,7 +1134,7 @@
 //     // EMIT SOCKET EVENT TO RIDER TO SHOW REVIEW FORM
 //     // ═══════════════════════════════════════════════════
 //     const { emitToUser } = await import('../realtime/socketServer.js');
-    
+
 //     emitToUser(ride.rider_id, 'ride:completed', {
 //       rideId: ride.id,
 //       message: 'Ride completed! Please rate your driver.',
@@ -1260,7 +1260,7 @@ export const acceptRideRequest = async (req, res) => {
     const { requestId } = req.params;
     const { fareAmount } = req.body;
     const userId = req.user.id;
-    const driverId = req.driverId; 
+    const driverId = req.driverId;
 
     console.log('✅ Driver accepting ride request:', requestId);
     console.log('Driver ID:', driverId);
@@ -1383,7 +1383,7 @@ export const acceptRideRequest = async (req, res) => {
       // 🔥 SOCKET.IO: NOTIFY RIDER THAT DRIVER ACCEPTED THE RIDE
       // ═══════════════════════════════════════════════════════════════════════
       console.log('📢 Sending Socket notification to rider:', request.rider_id);
-      
+
       emitToUser(request.rider_id, 'ride:accepted', {
         rideId: ride.id,
         requestId: requestId,
@@ -1442,6 +1442,138 @@ export const acceptRideRequest = async (req, res) => {
 /**
  * Get ride details with proper null checks
  */
+// export const getRideDetails = async (req, res) => {
+//   try {
+//     const { rideId } = req.params;
+
+//     console.log('📋 Getting ride:', rideId);
+
+//     const query = `
+//       SELECT 
+//         r.id,
+//         r.rider_id,
+//         r.driver_id,
+//         r.status,
+//         r.fare_amount,
+//         r.currency,
+//         r.request_id,
+//         r.created_at,
+//         r.started_at,
+//         r.completed_at,
+
+//         -- Request info
+//         rr.pickup_address,
+//         rr.dropoff_address,
+//         rr.pickup_location,
+//         rr.dropoff_location,
+//         rr.estimated_distance_km,
+//         rr.estimated_duration_minutes,
+//         rr.passenger_count,
+//         rr.luggage_count,
+//         rr.vehicle_preference,
+
+//         -- Rider info
+//         COALESCE(
+//           NULLIF(TRIM(CONCAT(rp.first_name, ' ', rp.last_name)), ''), 
+//           SPLIT_PART(ra.email, '@', 1),
+//           'Rider'
+//         ) as rider_name,
+//         ra.phone as rider_phone,
+//         ra.email as rider_email,
+
+//         -- Driver info
+//         COALESCE(
+//           NULLIF(TRIM(CONCAT(dp.first_name, ' ', dp.last_name)), ''), 
+//           SPLIT_PART(da.email, '@', 1),
+//           'Driver'
+//         ) as driver_name,
+//         da.phone as driver_phone,
+//         da.email as driver_email,
+//         d.user_id as driver_user_id,
+
+//         -- Vehicle info
+//         v.vehicle_type,
+//         v.make as vehicle_make,
+//         v.model as vehicle_model,
+//         v.color as vehicle_color,
+//         v.license_plate
+
+//       FROM rides r
+//       LEFT JOIN ride_requests rr ON r.request_id = rr.id
+
+//       -- Rider
+//       LEFT JOIN users ru ON r.rider_id = ru.id
+//       LEFT JOIN user_profiles rp ON ru.id = rp.user_id
+//       LEFT JOIN auth_credentials ra ON ru.id = ra.user_id
+
+//       -- Driver
+//       LEFT JOIN drivers d ON r.driver_id = d.id
+//       LEFT JOIN users du ON d.user_id = du.id
+//       LEFT JOIN user_profiles dp ON du.id = dp.user_id
+//       LEFT JOIN auth_credentials da ON du.id = da.user_id
+//       LEFT JOIN vehicles v ON d.id = v.driver_id
+
+//       WHERE r.id = $1
+//     `;
+
+//     const result = await pool.query(query, [rideId]);
+
+//     if (result.rows.length === 0) {
+//       console.log('❌ No ride found');
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Ride not found'
+//       });
+//     }
+
+//     const ride = result.rows[0];
+
+//     console.log('✅ Ride found!');
+
+//     // Get stops
+//     if (ride.request_id) {
+//       const stopsQuery = `
+//         SELECT 
+//           id,
+//           ride_request_id,
+//           stop_order,
+//           stop_type,
+//           address,
+//           location,
+//           arrived_at as actual_arrival_time,
+//           departed_at as actual_departure_time,
+//           max_wait_seconds,
+//           created_at
+//         FROM ride_stops 
+//         WHERE ride_request_id = $1 
+//         ORDER BY stop_order ASC
+//       `;
+//       const stopsResult = await pool.query(stopsQuery, [ride.request_id]);
+//       ride.stops = stopsResult.rows;
+//       console.log('Found', stopsResult.rows.length, 'stops');
+//     } else {
+//       ride.stops = [];
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       data: ride
+//     });
+
+//   } catch (error) {
+//     console.error('❌ Error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'INTERNAL_SERVER_ERROR',
+//       error: error.message
+//     });
+//   }
+// };
+
+
+
+// FIXED getRideDetails query (rideController.js around line 250-350)
+
 export const getRideDetails = async (req, res) => {
   try {
     const { rideId } = req.params;
@@ -1456,12 +1588,12 @@ export const getRideDetails = async (req, res) => {
         r.status,
         r.fare_amount,
         r.currency,
-        r.request_id,
         r.created_at,
         r.started_at,
         r.completed_at,
         
         -- Request info
+        rr.id as request_id,
         rr.pickup_address,
         rr.dropoff_address,
         rr.pickup_location,
@@ -1474,7 +1606,7 @@ export const getRideDetails = async (req, res) => {
         
         -- Rider info
         COALESCE(
-          NULLIF(TRIM(CONCAT(rp.first_name, ' ', rp.last_name)), ''), 
+          NULLIF(TRIM(CONCAT(k_rider.first_name, ' ', k_rider.last_name)), ''), 
           SPLIT_PART(ra.email, '@', 1),
           'Rider'
         ) as rider_name,
@@ -1483,7 +1615,7 @@ export const getRideDetails = async (req, res) => {
         
         -- Driver info
         COALESCE(
-          NULLIF(TRIM(CONCAT(dp.first_name, ' ', dp.last_name)), ''), 
+          NULLIF(TRIM(CONCAT(k_driver.first_name, ' ', k_driver.last_name)), ''), 
           SPLIT_PART(da.email, '@', 1),
           'Driver'
         ) as driver_name,
@@ -1499,17 +1631,17 @@ export const getRideDetails = async (req, res) => {
         v.license_plate
         
       FROM rides r
-      LEFT JOIN ride_requests rr ON r.request_id = rr.id
+      LEFT JOIN ride_requests rr ON rr.created_ride_id = r.id
       
       -- Rider
       LEFT JOIN users ru ON r.rider_id = ru.id
-      LEFT JOIN user_profiles rp ON ru.id = rp.user_id
+      LEFT JOIN kyc k_rider ON ru.id = k_rider.user_id
       LEFT JOIN auth_credentials ra ON ru.id = ra.user_id
       
       -- Driver
       LEFT JOIN drivers d ON r.driver_id = d.id
       LEFT JOIN users du ON d.user_id = du.id
-      LEFT JOIN user_profiles dp ON du.id = dp.user_id
+      LEFT JOIN kyc k_driver ON du.id = k_driver.user_id
       LEFT JOIN auth_credentials da ON du.id = da.user_id
       LEFT JOIN vehicles v ON d.id = v.driver_id
       
@@ -1527,27 +1659,27 @@ export const getRideDetails = async (req, res) => {
     }
 
     const ride = result.rows[0];
-    
+
     console.log('✅ Ride found!');
 
     // Get stops
     if (ride.request_id) {
       const stopsQuery = `
-        SELECT 
-          id,
-          ride_request_id,
-          stop_order,
-          stop_type,
-          address,
-          location,
-          arrived_at as actual_arrival_time,
-          departed_at as actual_departure_time,
-          max_wait_seconds,
-          created_at
-        FROM ride_stops 
-        WHERE ride_request_id = $1 
-        ORDER BY stop_order ASC
-      `;
+  SELECT 
+    id,
+    ride_request_id,
+    stop_order,
+    stop_type,
+    address,
+    location,
+    actual_arrival_time,
+    actual_departure_time,
+    max_wait_seconds,
+    created_at
+  FROM ride_stops 
+  WHERE ride_request_id = $1 
+  ORDER BY stop_order ASC
+`;
       const stopsResult = await pool.query(stopsQuery, [ride.request_id]);
       ride.stops = stopsResult.rows;
       console.log('Found', stopsResult.rows.length, 'stops');
@@ -1569,7 +1701,6 @@ export const getRideDetails = async (req, res) => {
     });
   }
 };
-
 /**
  * ✅ FIXED: Start ride with Socket.io notification
  */
@@ -1619,7 +1750,7 @@ export const startRide = async (req, res) => {
     // 🔥 SOCKET.IO: NOTIFY RIDER THAT RIDE HAS STARTED
     // ═══════════════════════════════════════════════════════════════════════
     console.log('📢 Sending ride started notification to rider:', ride.rider_id);
-    
+
     emitToUser(ride.rider_id, 'ride:started', {
       rideId: ride.id,
       status: 'started',
@@ -1780,7 +1911,7 @@ export const completeRide = async (req, res) => {
     // 🔥 SOCKET.IO: NOTIFY RIDER TO SHOW REVIEW FORM
     // ═══════════════════════════════════════════════════════════════════════
     console.log('📢 Sending ride completed notification to rider:', ride.rider_id);
-    
+
     emitToUser(ride.rider_id, 'ride:completed', {
       rideId: ride.id,
       status: 'completed',
