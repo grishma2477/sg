@@ -1,0 +1,279 @@
+{
+  "info": {
+    "name": "Wallet System - Phase 1",
+    "description": "Complete wallet & ride payment testing",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Get Wallet Balance",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/wallet/balance",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "wallet", "balance"]
+        }
+      }
+    },
+    {
+      "name": "2. Top-up Wallet",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": 1000,\n  \"paymentMethod\": \"khalti\",\n  \"gatewayTransactionId\": \"test-txn-123\",\n  \"paymentGateway\": \"khalti\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/wallet/topup",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "wallet", "topup"]
+        }
+      }
+    },
+    {
+      "name": "3. Withdraw from Wallet",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": 500,\n  \"bankDetails\": {\n    \"accountNumber\": \"1234567890\",\n    \"bankName\": \"Nepal Bank\",\n    \"accountHolder\": \"John Doe\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/wallet/withdraw",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "wallet", "withdraw"]
+        }
+      }
+    },
+    {
+      "name": "4. Transfer Funds",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"toUserId\": \"uuid-of-recipient\",\n  \"amount\": 100,\n  \"description\": \"Test transfer\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/wallet/transfer",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "wallet", "transfer"]
+        }
+      }
+    },
+    {
+      "name": "5. Get Transaction History",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/wallet/transactions?limit=50",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "wallet", "transactions"],
+          "query": [
+            {
+              "key": "limit",
+              "value": "50"
+            },
+            {
+              "key": "category",
+              "value": "ride_payment",
+              "disabled": true
+            },
+            {
+              "key": "status",
+              "value": "completed",
+              "disabled": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "6. Get Ride Payment History",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/wallet/ride-payments?limit=20",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "wallet", "ride-payments"],
+          "query": [
+            {
+              "key": "limit",
+              "value": "20"
+            },
+            {
+              "key": "status",
+              "value": "completed",
+              "disabled": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "7. Get Payment Stats",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/wallet/payment-stats",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "wallet", "payment-stats"]
+        }
+      }
+    },
+    {
+      "name": "8. Get Ride Payment Details",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/wallet/ride-payments/{{rideId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "wallet", "ride-payments", "{{rideId}}"]
+        }
+      }
+    },
+    {
+      "name": "9. ADMIN - Lock Wallet",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Suspicious activity detected\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/wallet/admin/{{userId}}/lock",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "wallet", "admin", "{{userId}}", "lock"]
+        }
+      }
+    },
+    {
+      "name": "10. ADMIN - Unlock Wallet",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/wallet/admin/{{userId}}/unlock",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "wallet", "admin", "{{userId}}", "unlock"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "your-jwt-token-here",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "admin-jwt-token-here",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "user-uuid-here",
+      "type": "string"
+    },
+    {
+      "key": "rideId",
+      "value": "ride-uuid-here",
+      "type": "string"
+    }
+  ]
+}

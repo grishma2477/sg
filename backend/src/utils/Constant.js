@@ -75,6 +75,12 @@ export const String = {
   WALLET_MODEL: "wallets",
   TRANSACTION_MODEL: "transactions",
   PRICING_MODEL: "pricing",
+  PAYMENT_HOLD_MODEL: "payment_holds",
+  RIDE_PAYMENT_MODEL: "ride_payments",
+  PROMO_CODES: "promo_codes",
+  PROMO_CODE_REDEMPTION: "promo_code_redemptions",
+  GIFT_CARD_MODEL: "gift_cards",
+  GIFT_CARD_REDEMPTION: "gift_card_redemptions",
 
   // ═══════════════════════════════════════════════════
   // REFERENCE TABLES

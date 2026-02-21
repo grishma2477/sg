@@ -725,20 +725,9 @@ export const submitBid = async (req, res) => {
     } = req.body;
 
     console.log('💰 Submitting bid:', { requestId, driverId, bidAmount });
-    // TODO: #1 - Remove driver info , profile creation later when kyc implement 
+    
     // Make driver profile mandatory before bidding
     // TODO: #2 Implement driver profile check here  
-
-
-    // Get driver info
-    const driverInfo = await pool.query(
-      `SELECT d.id, v.vehicle_type, v.make, v.model, v.color, v.license_plate
-       FROM drivers d
-       LEFT JOIN vehicles v ON d.id = v.driver_id
-       WHERE d.user_id = $1
-       LIMIT 1`,
-      [driverId]
-    );
 
     if (driverInfo.rows.length === 0) {
       return res.status(404).json({

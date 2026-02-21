@@ -25,6 +25,12 @@ import KYCDocument from "../models/user/kyc_document/KYCDocument.js";
 import DriverApplication from "../models/driver_application/DriverApplication.js";
 import { DriverVerifications } from "../models/driver/driver_verifications/DriverVerifications.js";
 import RiderSafetyStats from "../models/ride/rider_safety_stats/RiderSafetyStats.js";
+import GiftCard from "../models/finance/gift_card/GiftCard.js";
+import GiftCardRedemption from "../models/finance/gift_card_redemption/GiftCardRedemption.js";
+import PaymentHold from "../models/finance/payment_hold/PaymentHold.js";
+import PromoCode from "../models/finance/promo_code/PromoCode.js";
+import PromoRedemption from "../models/finance/promo_redemption/PromoRedemption.js";
+import RidePayment from "../models/finance/ride_payment/RidePayment.js";
 
 // Add every model here once.
 export const MODELS = [
@@ -51,6 +57,12 @@ export const MODELS = [
     TapDefinition,
     Pricing,
     Wallet,
+    GiftCard,
+    GiftCardRedemption,
+    PaymentHold,
+    PromoCode,
+    PromoRedemption,
+    RidePayment,
     Transaction,
     SafetyAuditLog,
     SafetyComment,
