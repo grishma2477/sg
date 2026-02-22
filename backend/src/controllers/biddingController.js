@@ -711,7 +711,11 @@
 
 
 import { pool } from '../database/DBConnection.js';
+import Driver from '../models/driver/Driver.js';
+import RideBid from '../models/ride/RideBid.js';
+import VehicleApplication from '../models/vehicle/Vehicle.js';
 import { notifyBidAccepted } from '../realtime/socketServer.js';
+import { Constant, String } from '../utils/Constant.js';
 
 // Submit a bid
 export const submitBid = async (req, res) => {
@@ -729,6 +733,17 @@ export const submitBid = async (req, res) => {
     // Make driver profile mandatory before bidding
     // TODO: #2 Implement driver profile check here  
 
+
+    
+    // Get driver info
+    const driverInfo = await pool.query(
+      `SELECT d.id, v.vehicle_type, v.make, v.model, v.color, v.license_plate
+       FROM drivers d
+       LEFT JOIN vehicles v ON d.id = v.driver_id
+       WHERE d.user_id = $1
+       LIMIT 1`,
+      [driverId]
+    );
     if (driverInfo.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -770,6 +785,14 @@ export const submitBid = async (req, res) => {
       driver.color || null,
       driver.license_plate || null
     ]);
+
+    // TODO #2: Like Mongoose concept 
+    // const ride_bids = await RideBid.create({
+    //   ride_request_id:1,
+    //   driverId:2
+    // })
+
+    
 
     console.log('✅ Bid submitted:', result.rows[0].id);
 

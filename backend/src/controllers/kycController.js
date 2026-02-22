@@ -511,6 +511,8 @@
 import { pool } from '../database/DBConnection.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUpload.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import KYC from "../models/user/kyc/KYC.js"
+import { String } from '../utils/Constant.js';
 
 /**
  * GET /api/kyc/status
@@ -533,6 +535,15 @@ export const getKYCStatus = async (req, res, next) => {
     `;
     
     const result = await pool.query(kycQuery, [userId]);
+
+    const myResultFind = await KYC.find()
+    // console.log(`FIND===================> ${JSON.stringify(myResultFind, null, 2) }`);
+    
+    const myResultPop = await KYC.populate([
+      { model: String.USER_MODEL, attributes: ["role", "status", "id"] },
+    ]).find()
+    console.log(`POP ===================> ${JSON.stringify(myResultPop, null, 2) }`);
+    
 
     if (result.rows.length === 0) {
       return res.json(ApiResponse.success({
