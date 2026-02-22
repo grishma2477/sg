@@ -523,9 +523,9 @@ export const getKYCStatus = async (req, res, next) => {
 
     const kycQuery = `
       SELECT 
-        k.*,
-        COALESCE(up.is_kyc_verified, false) as is_kyc_verified,
-        u.role
+      k.*,
+      COALESCE(up.is_kyc_verified, false) as is_kyc_verified,
+      u.role
       FROM kyc k
       JOIN users u ON k.user_id = u.id
       LEFT JOIN user_profiles up ON k.user_id = up.user_id

@@ -7,9 +7,6 @@ import { String } from "../../utils/Constant.js";
 
 export class LedgerService {
 
-  // ═══════════════════════════════════════════════════════════
-  // GET OR CREATE LEDGER ACCOUNT
-  // ═══════════════════════════════════════════════════════════
 
   static async getOrCreateAccount({ ownerType, ownerId, accountType }) {
     try {
@@ -37,10 +34,6 @@ export class LedgerService {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // GET PLATFORM ACCOUNT
-  // ═══════════════════════════════════════════════════════════
-
   static async getPlatformAccount(accountType) {
     try {
       const account = await LedgerAccount.findOne({
@@ -60,9 +53,6 @@ export class LedgerService {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // CREATE LEDGER ENTRY (DOUBLE-ENTRY)
-  // ═══════════════════════════════════════════════════════════
 
   static async createEntry({
     debitAccountId,
@@ -93,9 +83,6 @@ export class LedgerService {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // GET ACCOUNT BALANCE
-  // ═══════════════════════════════════════════════════════════
 
   static async getAccountBalance(accountId) {
     try {
