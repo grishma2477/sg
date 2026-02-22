@@ -1,31 +1,34 @@
-import { pool } from "../DBConnection.js";
 import * as crud from "./DBMethods.js";
+import { executeQuery } from "./DBMethods.js";
 
 export const ModelManager = {
   createModel: (schemaQueries = [], tableName) => {
-
-    //This kind of logic only for table creation without the array of table and index creation  logic
-    // // Auto-create table
+    let populate = [];
 
     return {
       tableName,
       getSchemaQueries: () => schemaQueries,
-      // CREATE
+      
       create: (data, client) =>
         crud.create(tableName, data, client),
 
-      // READ
-      find: (filters = {}, client) =>
-        crud.find(tableName, filters, client),
+      find: async (filters = {}, client) => {
+        return await executeQuery(tableName, populate, 'find', filters, client);
+      },
 
-      findAll: (client) =>
-        crud.find(tableName, {}, client),
+      findAll: async (client) => {
+        return await executeQuery(tableName, populate, 'findAll', {}, client);
+      },
 
-      findOne: (filters = {}, client) =>
-        crud.findOne(tableName, filters, client),
+      findOne: async (filters = {}, client) => {
+        const rows = await executeQuery(tableName, populate, 'findOne', filters, client);
+        return rows[0] || null
+      },
 
-      findById: (id, client) =>
-        crud.findById(tableName, id, client),
+      findById: async (id, client) => {
+        const rows =  await executeQuery(tableName, populate, 'findById', { id }, client);
+        return rows[0] || null
+      },
 
       existsById: (id, client) =>
         crud.existsById(tableName, id, client),
@@ -43,6 +46,11 @@ export const ModelManager = {
 
       findByIdAndDelete: (id, client) =>
         crud.findByIdAndDelete(tableName, id, client),
-    };
+
+      populate: function (populateArray = []) {
+        populate = populateArray; 
+        return this;  
+      }
+    }
   }
-};
+}

@@ -3,7 +3,7 @@ import UserProfile from "../models/user/user_profile/UserProfile.js";
 import AuthCredential from "../models/user/auth_credentials/AuthCredential.js";
 import Ride from "../models/ride/Ride.js";
 import Driver from "../models/driver/Driver.js";
-import Vehicle from './../models/vehicle/Vehicle.js';
+import VehicleApplication from './../models/vehicle/Vehicle.js';
 import RideBid from "../models/ride/RideBid.js";
 import RideRequest from "../models/ride/RideRequest.js";
 import DriverLocation from "../models/driver/driver_location/DriverLocation.js";
@@ -34,9 +34,9 @@ export const MODELS = [
     KYC,
     KYCDocument,
     DriverApplication,
-    DriverVerifications,
     Driver,
-    Vehicle,
+    DriverVerifications,
+    VehicleApplication,
     Ride,
     RideLocation,
     RideRequest,

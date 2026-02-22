@@ -50,7 +50,7 @@ export const RideQueryManager = {
 
       rider_id UUID NOT NULL REFERENCES ${String.USER_MODEL}(id),
       driver_id UUID REFERENCES ${String.DRIVER_MODEL}(id),
-      vehicle_id UUID REFERENCES ${String.VEHICLE_MODEL}(id),
+      vehicle_id UUID REFERENCES ${String.VEHICLE_APPLICATION_MODEL}(id),
 
       status VARCHAR(20) NOT NULL DEFAULT 'requested',
       is_paid BOOLEAN DEFAULT FALSE,
