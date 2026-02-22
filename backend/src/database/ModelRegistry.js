@@ -3,7 +3,7 @@ import UserProfile from "../models/user/user_profile/UserProfile.js";
 import AuthCredential from "../models/user/auth_credentials/AuthCredential.js";
 import Ride from "../models/ride/Ride.js";
 import Driver from "../models/driver/Driver.js";
-import Vehicle from './../models/vehicle/Vehicle.js';
+import VehicleApplication from './../models/vehicle/Vehicle.js';
 import RideBid from "../models/ride/RideBid.js";
 import RideRequest from "../models/ride/RideRequest.js";
 import DriverLocation from "../models/driver/driver_location/DriverLocation.js";
@@ -23,7 +23,7 @@ import AdminAuditModel from "../models/admin/AdminAudit.js";
 import KYC from "../models/user/kyc/KYC.js";
 import KYCDocument from "../models/user/kyc_document/KYCDocument.js";
 import DriverApplication from "../models/driver_application/DriverApplication.js";
-import { DriverVerifications } from "../models/driver/driver_verifications/DriverVerifications.js";
+import  DriverVerifications  from "../models/driver/driver_verifications/DriverVerifications.js";
 import RiderSafetyStats from "../models/ride/rider_safety_stats/RiderSafetyStats.js";
 import GiftCard from "../models/finance/gift_card/GiftCard.js";
 import GiftCardRedemption from "../models/finance/gift_card_redemption/GiftCardRedemption.js";
@@ -53,7 +53,7 @@ export const MODELS = [
     DriverApplication,
     Driver,
     DriverVerifications,
-    Vehicle,
+    VehicleApplication,
     Ride,
     RideLocation,
     RideRequest,

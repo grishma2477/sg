@@ -50,7 +50,6 @@ export const String = {
   VEHICLE: "vehicles",
   VEHICLE_APPLICATION_MODEL: "vehicle_applications",
 
-  
   // ═══════════════════════════════════════════════════
   // RIDE TABLES
   // ═══════════════════════════════════════════════════

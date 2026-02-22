@@ -116,3 +116,94 @@ export const existsById = async (table, id, client) => {
   );
   return rows.length > 0;
 };
+
+export const executeQuery = async (tableName, populate, method, filters = {}, client) => {
+  let query = '';
+  let queryParams = [];
+
+  if (method === 'find' || method === 'findAll') {
+    query = `SELECT * FROM ${tableName} AS ${tableName}`;
+  } else if (method === 'findOne') {
+    query = `SELECT * FROM ${tableName} AS ${tableName}`;
+  } else if (method === 'findById') {
+    query = `SELECT * FROM ${tableName} AS ${tableName} WHERE id = $1`;
+    queryParams = [filters.id];
+  }
+
+  const joinClause = buildPopulateJoin(tableName, populate);
+  if (joinClause) {
+    query += ` ${joinClause}`;
+  }
+
+  if (Object.keys(filters).length > 0) {
+    const filterClause = Object.keys(filters)
+      .map((key, index) => `${key} = $${index + queryParams.length + 1}`)
+      .join(' AND ');  
+
+    if (query.includes('WHERE')) {
+      query += ` AND ${filterClause}`;
+    } else {
+      query += ` WHERE ${filterClause}`;
+    }
+
+    queryParams = [...queryParams, ...Object.values(filters)];
+  }
+
+  const db = getClient(client);
+  const { rows } = await db.query(query, queryParams);
+  return formatPopulatedResults(rows,populate);
+};
+
+function buildPopulateJoin(tableName, populate) {
+  if (!populate || populate.length === 0) return '';
+
+  const joinClauses = populate.map(pop => {
+    const alias = pop.model.toLowerCase(); 
+    const foreignKey = generateForeignKey(alias);  
+    const primaryKey = 'id'; 
+
+    return `
+      LEFT JOIN ${pop.model} AS ${alias}
+      ON ${tableName}.${foreignKey} = ${pop.model}.${primaryKey}
+    `;
+  });
+
+  return joinClauses.join(' ');
+}
+
+function formatPopulatedResults(rows, populate) {
+  if (populate.length === 0) {
+    return rows;
+  }
+  return rows.map((row) => {
+    populate.forEach(pop => {
+      const modelName = convertToModelName(pop.model.toLowerCase());
+      if (!row[modelName]) {
+        row[modelName] = {}; 
+      }
+      pop.attributes.forEach(attribute => {
+        if (row[attribute]) {
+          row[modelName][attribute] = row[attribute];
+          delete row[attribute];  
+        }
+      });
+
+    });
+
+    return row;
+  });
+}
+
+function generateForeignKey(modelName) {
+  // Add "_id" to the singular model name and return
+  return `${convertToModelName(modelName)}_id`;
+}
+
+function convertToModelName(modelName) {
+  const parts = modelName.split('_');
+  let baseModelName = parts[0];
+  if (baseModelName.endsWith('s')) {
+    baseModelName = baseModelName.slice(0, -1);
+  } 
+  return baseModelName;
+}
