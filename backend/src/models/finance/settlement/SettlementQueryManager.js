@@ -1,4 +1,5 @@
-import { String } from "../../../utils/Constant";
+import { String } from "../../../utils/Constant.js";
+
 
 export const SettlementQueryManager = {
   schema: [`

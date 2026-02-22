@@ -41,7 +41,7 @@ import PaymentAttempt from "../models/finance/payment_attempt/PaymentAttempt.js"
 import Settlement from "../models/finance/settlement/Settlement.js";
 import PayoutRequest from "../models/finance/payout/PayoutRequest.js";
 import PayoutBatch from "../models/finance/payout/PayoutBatch.js";
-import PayoutAttempt from "../models/finance/payout/PayoutAttempt.js";
+import PayoutAttempt from './../models/finance/payout/PayoutAttempt.js';
 
 // Add every model here once.
 export const MODELS = [

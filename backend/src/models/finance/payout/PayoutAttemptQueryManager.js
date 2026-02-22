@@ -1,9 +1,9 @@
-import { String } from "../../../utils/Constant";
+import { String } from "../../../utils/Constant.js";
 
 
 export const PayoutAttemptQueryManager = {
   schema: [`
-    CREATE TABLE IF NOT EXISTS ${String.PAYOUT_ATTEMPT} (
+    CREATE TABLE IF NOT EXISTS ${String.PAYOUT_ATTEMPTS} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
       
       -- Link to payout request
@@ -34,12 +34,12 @@ export const PayoutAttemptQueryManager = {
   `
     -- Indexes
     CREATE INDEX IF NOT EXISTS idx_payout_attempt_request 
-    ON ${String.PAYOUT_ATTEMPT}(payout_request_id);
+    ON ${String.PAYOUT_ATTEMPTS}(payout_request_id);
     
     CREATE INDEX IF NOT EXISTS idx_payout_attempt_batch 
-    ON ${String.PAYOUT_ATTEMPT}(batch_id);
+    ON ${String.PAYOUT_ATTEMPTS}(batch_id);
     
     CREATE INDEX IF NOT EXISTS idx_payout_attempt_status 
-    ON ${String.PAYOUT_ATTEMPT}(status);
+    ON ${String.PAYOUT_ATTEMPTS}(status);
   `]
 };
