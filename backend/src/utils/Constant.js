@@ -47,7 +47,7 @@ export const String = {
   // ═══════════════════════════════════════════════════
   // VEHICLE TABLE
   // ═══════════════════════════════════════════════════
-  VEHICLE_MODEL: "vehicles",
+  VEHICLE: "vehicles",
   VEHICLE_APPLICATION_MODEL: "vehicle_applications",
 
   
@@ -81,8 +81,24 @@ export const String = {
   PROMO_CODE_REDEMPTION: "promo_code_redemptions",
   GIFT_CARD_MODEL: "gift_cards",
   GIFT_CARD_REDEMPTION: "gift_card_redemptions",
+  PAYMENT_METHOD_MODEL: 'payment_methods',
+  PAYMENT_PROVIDER_MODEL: 'payment_providers',
 
-  // ═══════════════════════════════════════════════════
+  //=========================================
+  // PAYMENT METHODS 
+  // =========================================
+  LEDGER_ACCOUNT: 'ledger_account',
+  LEDGER_ENTRY: 'ledger_entry',
+  PAYMENT: 'payment',
+  PAYMENT_ATTEMPT: 'payment_attempts',
+  BNPL: 'bnpl',
+  SETTLEMENT: 'settlement',
+  PAYOUT_REQUEST: 'payout_requests',
+  PAYOUT_BATCH: 'payout_batches',
+  PAYOUT_ATTEMPTS: 'payout_attempts',
+  
+
+// ══════════════════════════════════════════════════
   // REFERENCE TABLES
   // ═══════════════════════════════════════════════════
   TAP_DEFINITION_MODEL: "tap_definitions",

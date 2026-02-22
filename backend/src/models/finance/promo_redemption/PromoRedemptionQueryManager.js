@@ -5,7 +5,7 @@ export const PromoRedemptionQueryManager = {
     CREATE TABLE IF NOT EXISTS ${String.PROMO_CODE_REDEMPTION} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
       
-      promo_code_id UUID NOT NULL REFERENCES promo_codes(id) ON DELETE CASCADE,
+      promo_code_id UUID NOT NULL REFERENCES ${String.PROMO_CODES}(id) ON DELETE CASCADE,
       user_id UUID NOT NULL REFERENCES ${String.USER_MODEL}(id),
       ride_id UUID NOT NULL REFERENCES ${String.RIDE_MODEL}(id),
       
@@ -29,15 +29,15 @@ export const PromoRedemptionQueryManager = {
   `
     -- Indexes
     CREATE INDEX IF NOT EXISTS idx_redemption_promo 
-    ON promo_redemptions(promo_code_id);
+    ON ${String.PROMO_CODE_REDEMPTION}(promo_code_id);
     
     CREATE INDEX IF NOT EXISTS idx_redemption_user 
-    ON promo_redemptions(user_id);
+    ON ${String.PROMO_CODE_REDEMPTION}(user_id);
     
     CREATE INDEX IF NOT EXISTS idx_redemption_ride 
-    ON promo_redemptions(ride_id);
+    ON ${String.PROMO_CODE_REDEMPTION}(ride_id);
     
     CREATE INDEX IF NOT EXISTS idx_redemption_status 
-    ON promo_redemptions(status, redeemed_at DESC);
+    ON ${String.PROMO_CODE_REDEMPTION}(status, redeemed_at DESC);
   `]
 };

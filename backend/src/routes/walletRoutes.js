@@ -1,5 +1,5 @@
 import express from 'express';
-import { auth } from '../middleware/auth.js';
+import { verifyuser as auth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/requireRole.js';
 import {
   getWalletBalance,
@@ -18,10 +18,6 @@ import {
 } from '../controllers/ridePaymentController.js';
 
 const router = express.Router();
-
-// ═══════════════════════════════════════════════════════════
-// WALLET ROUTES (Authenticated Users)
-// ═══════════════════════════════════════════════════════════
 
 // Get wallet balance
 router.get('/balance', auth, getWalletBalance);

@@ -31,6 +31,17 @@ import PaymentHold from "../models/finance/payment_hold/PaymentHold.js";
 import PromoCode from "../models/finance/promo_code/PromoCode.js";
 import PromoRedemption from "../models/finance/promo_redemption/PromoRedemption.js";
 import RidePayment from "../models/finance/ride_payment/RidePayment.js";
+import LedgerAccount from "../models/finance/ledger_account/LedgerAccount.js";
+import LedgerEntry from "../models/finance/ledger_entry/LedgerEntry.js";
+import PaymentProvider from "../models/finance/payment_method/payment_provider/PaymentProvider.js";
+import PaymentMethod from "../models/finance/payment_method/PaymentMethod.js";
+import BNPLAccount from "../models/finance/bnpl/BNPLAccount.js";
+import Payment from "../models/finance/payment/Payment.js";
+import PaymentAttempt from "../models/finance/payment_attempt/PaymentAttempt.js";
+import Settlement from "../models/finance/settlement/Settlement.js";
+import PayoutRequest from "../models/finance/payout/PayoutRequest.js";
+import PayoutBatch from "../models/finance/payout/PayoutBatch.js";
+import PayoutAttempt from "../models/finance/payout/PayoutAttempt.js";
 
 // Add every model here once.
 export const MODELS = [
@@ -40,8 +51,8 @@ export const MODELS = [
     KYC,
     KYCDocument,
     DriverApplication,
-    DriverVerifications,
     Driver,
+    DriverVerifications,
     Vehicle,
     Ride,
     RideLocation,
@@ -55,17 +66,35 @@ export const MODELS = [
     DriverVisibility,
     Review,
     TapDefinition,
-    Pricing,
+    //Pricing and payouts models here
+    LedgerAccount,
+    LedgerEntry,
+    PaymentProvider,
+    PaymentMethod,
     Wallet,
+    Transaction,
+    BNPLAccount,
+
+    
+    Pricing,
     GiftCard,
     GiftCardRedemption,
-    PaymentHold,
+    
     PromoCode,
     PromoRedemption,
     RidePayment,
-    Transaction,
+
+// payment and payouts
+    Payment,
+    PaymentAttempt,
+    PaymentHold,
+    Settlement,
+    PayoutRequest,
+    PayoutBatch,
+    PayoutAttempt,
     SafetyAuditLog,
     SafetyComment,
     AdminAuditModel,
+
 
 ];

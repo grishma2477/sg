@@ -37,6 +37,7 @@ export class WalletService {
 
   static async getWalletBalance(userId) {
     try {
+      console.log(userId)
       const wallet = await Wallet.findOne({ user_id: userId });
       
       if (!wallet) {

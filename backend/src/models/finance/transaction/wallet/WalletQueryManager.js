@@ -11,10 +11,6 @@ export const WalletQueryManager = {
       
       currency VARCHAR(3) DEFAULT 'NPR',
       
-      daily_withdrawal_limit DECIMAL(10,2) DEFAULT 50000.00,
-      today_withdrawn DECIMAL(10,2) DEFAULT 0.00,
-      last_withdrawal_date DATE,
-      
       is_locked BOOLEAN DEFAULT FALSE,
       lock_reason TEXT,
       

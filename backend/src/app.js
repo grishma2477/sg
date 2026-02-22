@@ -15,7 +15,7 @@ import driverRoutes from "./routes/driverStatusRoutes.js"
 import kycRoutes from "./routes/kycRoutes.js"
 import driverApplicationRoutes from './routes/driverApplicationRoutes.js';
 import adminUserRoutes from "./routes/adminUserRoutes.js"
-
+import walletRoutes from "./routes/walletRoutes.js"
 const app = express();
 
 // ---------- GLOBAL MIDDLEWARE ---------- 
@@ -39,6 +39,7 @@ app.use('/api/bidding', biddingRoutes);
 app.use('/api/drivers', driverRoutes)
 app.use('/api/kyc', kycRoutes);
 app.use('/api/driver-applications', driverApplicationRoutes);
+app.use('/api/wallet', walletRoutes);
 
 
 
