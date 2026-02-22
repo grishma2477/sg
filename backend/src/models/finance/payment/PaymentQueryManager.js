@@ -1,4 +1,4 @@
-import { String } from "../../../utils/Constant";
+import { String } from "../../../utils/Constant.js";
 
 export const PaymentQueryManager = {
   schema: [`
@@ -79,7 +79,7 @@ export const PaymentQueryManager = {
     CREATE INDEX IF NOT EXISTS idx_payment_created 
     ON ${String.PAYMENT}(created_at DESC);
   `],
-  
+
   triggers: [`
     -- Update updated_at trigger
     CREATE OR REPLACE FUNCTION update_payment_timestamp()

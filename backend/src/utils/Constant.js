@@ -22,8 +22,8 @@ export const String = {
   // ===================================================
   // Globals Constant 
   // ===================================================
-  MINIMUM_RIDE:10,
-  INITIAL_POINTS:1000,
+  MINIMUM_RIDE: 10,
+  INITIAL_POINTS: 1000,
   // ═══════════════════════════════════════════════════
   // USER & AUTH TABLES
   // ═══════════════════════════════════════════════════
@@ -51,7 +51,7 @@ export const String = {
   VEHICLE_APPLICATION_MODEL: "vehicle_applications",
 
   // ═══════════════════════════════════════════════════
-  // RIDE TABLES
+  // RIDE TABLESS
   // ═══════════════════════════════════════════════════
   RIDE_MODEL: "rides",
   RIDE_BID_MODEL: "ride_bids",
@@ -90,14 +90,15 @@ export const String = {
   LEDGER_ENTRY: 'ledger_entry',
   PAYMENT: 'payment',
   PAYMENT_ATTEMPT: 'payment_attempts',
+  PAYOUT_ATTEMPT: 'payout_attempts',
   BNPL: 'bnpl',
   SETTLEMENT: 'settlement',
   PAYOUT_REQUEST: 'payout_requests',
   PAYOUT_BATCH: 'payout_batches',
   PAYOUT_ATTEMPTS: 'payout_attempts',
-  
 
-// ══════════════════════════════════════════════════
+
+  // ══════════════════════════════════════════════════
   // REFERENCE TABLES
   // ═══════════════════════════════════════════════════
   TAP_DEFINITION_MODEL: "tap_definitions",

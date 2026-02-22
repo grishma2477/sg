@@ -1,6 +1,6 @@
-import { String } from "../../../utils/Constant";
+import { String } from "../../../utils/Constant.js";
 
-export const PayoutAttemptQueryManager = {
+export const PayoutBatchQueryManager = {
   schema: [`
     CREATE TABLE IF NOT EXISTS ${String.PAYOUT_ATTEMPT} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

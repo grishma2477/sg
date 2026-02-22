@@ -32,7 +32,7 @@ export const RidePaymentQueryManager = {
       
       -- Transaction references
       transaction_id UUID REFERENCES ${String.TRANSACTION_MODEL}(id),
-      payment_hold_id UUID REFERENCES payment_holds(id),
+      payment_hold_id UUID REFERENCES ${String.PAYMENT_HOLD_MODEL}(id),
       
       -- BNPL tracking
       is_bnpl BOOLEAN DEFAULT FALSE,
