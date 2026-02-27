@@ -47,10 +47,7 @@ export const String = {
   // ═══════════════════════════════════════════════════
   // VEHICLE TABLE
   // ═══════════════════════════════════════════════════
-<<<<<<< HEAD
   VEHICLE: "vehicles",
-=======
->>>>>>> origin/pop
   VEHICLE_APPLICATION_MODEL: "vehicle_applications",
 
   // ═══════════════════════════════════════════════════

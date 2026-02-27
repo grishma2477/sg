@@ -541,7 +541,7 @@ export const getKYCStatus = async (req, res, next) => {
     
     const myResultPop = await KYC.populate([
       { model: String.USER_MODEL, attributes: ["role", "status", "id"] },
-    ]).find()
+    ]).findById(userId)
     console.log(`POP ===================> ${JSON.stringify(myResultPop, null, 2) }`);
     
 
