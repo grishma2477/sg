@@ -1,6 +1,41 @@
 import { PaymentService } from "../application/services/PaymentService.js";
 import { LedgerService } from "../application/services/LedgerService.js";
+import { AppError } from "../utils/AppError.js";
+import PaymentProvider from "../models/finance/payment_method/payment_provider/PaymentProvider.js";
 
+// ═══════════════════════════════════════════════════════════
+// CREATE PAYMENT PROVIDER FOR USERS TO LINK THIER ACCOUNTS FOR PAYMENTS AND PURCHASES
+// ═══════════════════════════════════════════════════════════
+
+
+export const createPaymentProvider = async (req, res) => {
+  try {
+    const { name, type, config } = req.body;
+
+    if (!name || !type) {
+      throw new AppError("NAME_AND_TYPE_REQUIRED", 400);
+    }
+
+    const provider = await PaymentProvider.create({
+      name,
+      type,
+      config: config || {},
+      is_active: true
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "PAYMENT_PROVIDER_CREATED",
+      data: provider
+    });
+
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
 // ═══════════════════════════════════════════════════════════
 // GET WALLET BALANCE
 // ═══════════════════════════════════════════════════════════

@@ -4,6 +4,7 @@ import { withTransaction } from "../../infrastructure/transactions/withTransacti
 import { AppError } from "../../utils/AppError.js";
 import { String } from "../../utils/Constant.js";
 import moment from "moment";
+import { PricingCalculationService } from "./PricingCalculationService.js";
 
 /**
  * Ride Request Service
@@ -51,7 +52,10 @@ export class RideRequestService {
     // 2️⃣ CALCULATE ROUTE & ESTIMATE FARE
     // ═══════════════════════════════════════════════════
     const routeData = await this._calculateRoute(pickup, dropoff, stops);
-    const fareEstimate = await this._estimateFare(routeData, preferences);
+const pricing = PricingCalculationService.calculateEstimatedFare({
+  distanceKm: routeData.distanceKm,
+  durationMinutes: routeData.durationMinutes
+});    
     
     // ═══════════════════════════════════════════════════
     // 3️⃣ DETERMINE EXPIRATION

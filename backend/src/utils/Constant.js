@@ -11,6 +11,10 @@ export const Constant = {
   RefreshTokenExpirationTime: process.env.REFRESH_TOKEN_EXPIRATION_TIME,
 };
 
+export const POINTS_CONVERSION = {
+  POINTS_PER_NPR: 10 / 3,   
+  NPR_PER_POINT: 0.3
+};
 /**
  * Database Table Names
  * 
@@ -76,9 +80,11 @@ export const String = {
   PRICING_MODEL: "pricing",
   PAYMENT_HOLD_MODEL: "payment_holds",
   RIDE_PAYMENT_MODEL: "ride_payments",
+  RIDE_PRICING: 'ride_pricing',
   PROMO_CODES: "promo_codes",
   PROMO_CODE_REDEMPTION: "promo_code_redemptions",
   GIFT_CARD_MODEL: "gift_cards",
+  PENDING_GIFT_CARD_MODEL: "pending_gift_card_model",
   GIFT_CARD_REDEMPTION: "gift_card_redemptions",
   PAYMENT_METHOD_MODEL: 'payment_methods',
   PAYMENT_PROVIDER_MODEL: 'payment_providers',
@@ -95,6 +101,8 @@ export const String = {
   PAYOUT_REQUEST: 'payout_requests',
   PAYOUT_BATCH: 'payout_batches',
   PAYOUT_ATTEMPTS: 'payout_attempts',
+  FINANCIAL_POINT_BATCH: 'financial_point_batches',
+  FINANCIAL_POINT_ACCOUNT: 'financial_point_accounts',
   
 
 // ══════════════════════════════════════════════════

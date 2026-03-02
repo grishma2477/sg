@@ -52,6 +52,39 @@ export class LedgerService {
       throw new AppError('PLATFORM_ACCOUNT_ERROR', 500);
     }
   }
+  // ═══════════════════════════════════════════════════════════
+  // INITIALIZE PLATFORM ACCOUNTS (RUN ON SERVER START)
+  // ═══════════════════════════════════════════════════════════
+
+  static async initializePlatformAccounts() {
+    const requiredAccounts = [
+      'escrow',
+      'revenue',
+      'clearing',
+      'bnpl',
+      'gift'
+    ];
+
+    for (const type of requiredAccounts) {
+      const existing = await LedgerAccount.findOne({
+        owner_type: 'platform',
+        account_type: type
+      });
+
+      if (!existing) {
+        await LedgerAccount.create({
+          owner_type: 'platform',
+          owner_id: null,
+          account_type: type,
+          currency: 'NPR'
+        });
+
+        console.log(`🏦 Platform ledger account created: ${type}`);
+      }
+    }
+
+    console.log('✅ Platform ledger accounts verified');
+  }
 
 
   static async createEntry({
@@ -84,26 +117,42 @@ export class LedgerService {
   }
 
 
-  static async getAccountBalance(accountId) {
-    try {
-      const result = await pool.query(`
-        SELECT 
-          COALESCE(SUM(CASE WHEN credit_account_id = $1 THEN amount ELSE 0 END), 0) -
-          COALESCE(SUM(CASE WHEN debit_account_id = $1 THEN amount ELSE 0 END), 0) AS balance
-        FROM ${String.LEDGER_ENTRY}
-        WHERE credit_account_id = $1 OR debit_account_id = $1
-      `, [accountId]);
+  // static async getAccountBalance(accountId) {
+  //   try {
+  //     const result = await pool.query(`
+  //       SELECT 
+  //         COALESCE(SUM(CASE WHEN credit_account_id = $1 THEN amount ELSE 0 END), 0) -
+  //         COALESCE(SUM(CASE WHEN debit_account_id = $1 THEN amount ELSE 0 END), 0) AS balance
+  //       FROM ${String.LEDGER_ENTRY}
+  //       WHERE credit_account_id = $1 OR debit_account_id = $1
+  //     `, [accountId]);
 
-      return parseFloat(result.rows[0].balance) || 0;
-    } catch (error) {
-      console.error('Error getting account balance:', error);
-      throw new AppError('BALANCE_CALCULATION_ERROR', 500);
-    }
-  }
+  //     return parseFloat(result.rows[0].balance) || 0;
+  //   } catch (error) {
+  //     console.error('Error getting account balance:', error);
+  //     throw new AppError('BALANCE_CALCULATION_ERROR', 500);
+  //   }
+  // }
 
   // ═══════════════════════════════════════════════════════════
   // GET USER WALLET BALANCE
   // ═══════════════════════════════════════════════════════════
+
+
+  static async getAccountBalance(accountId, client = null) {
+    const executor = client || pool;
+
+    const result = await executor.query(`
+    SELECT 
+      COALESCE(SUM(CASE WHEN credit_account_id = $1 THEN amount ELSE 0 END), 0) -
+      COALESCE(SUM(CASE WHEN debit_account_id = $1 THEN amount ELSE 0 END), 0) AS balance
+    FROM ${String.LEDGER_ENTRY}
+    WHERE credit_account_id = $1 OR debit_account_id = $1
+  `, [accountId]);
+
+    return parseFloat(result.rows[0].balance) || 0;
+  }
+
 
   static async getUserWalletBalance(userId, ownerType = 'user') {
     try {
@@ -226,7 +275,7 @@ export class LedgerService {
       }
 
       // Verify balance
-      const balance = await this.getAccountBalance(sourceAccount.id);
+      const balance = await this.getAccountBalance(sourceAccount.id, client);
       if (balance < amount) {
         throw new AppError('INSUFFICIENT_FUNDS', 400, {
           available: balance,

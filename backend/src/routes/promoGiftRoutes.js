@@ -1,5 +1,5 @@
 import express from 'express';
-import { auth } from '../middleware/auth.js';
+import { verifyuser as auth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/requireRole.js';
 import {
   createPromoCode,

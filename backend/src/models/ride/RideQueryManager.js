@@ -55,15 +55,20 @@ export const RideQueryManager = {
       status VARCHAR(20) NOT NULL DEFAULT 'requested',
       is_paid BOOLEAN DEFAULT FALSE,
 
-      -- Pricing info (optional, can be in separate table)
-      fare_amount NUMERIC(10,2),
-      currency VARCHAR(10) DEFAULT 'USD',
 
       -- Lifecycle timestamps
       requested_at TIMESTAMPTZ DEFAULT NOW(),
       accepted_at TIMESTAMPTZ,
       started_at TIMESTAMPTZ,
       completed_at TIMESTAMPTZ,
+
+      estimated_distance_km NUMERIC(8,2),
+      estimated_duration_minutes INTEGER,
+      estimated_fare NUMERIC(10,2),
+
+      actual_distance_km NUMERIC(8,2),
+      actual_duration_minutes INTEGER,
+      final_fare NUMERIC(10,2),
 
       -- Admin fields
       forced_by_admin BOOLEAN DEFAULT FALSE,

@@ -1,3 +1,4 @@
+
 import { String } from "../../utils/Constant.js";
 
 /**
@@ -26,8 +27,9 @@ export const RideRequestQueryManager = {
       -- Calculated route info
       estimated_distance_km NUMERIC(10, 2),  -- from routing service
       estimated_duration_minutes INTEGER,
-      estimated_fare_min NUMERIC(10, 2),
-      estimated_fare_max NUMERIC(10, 2),
+      estimated_total NUMERIC(10, 2),
+      platform_fee NUMERIC(10, 2),
+      tax_amount NUMERIC(10, 2),
       
       -- Request details
       passenger_count INTEGER DEFAULT 1 CHECK (passenger_count BETWEEN 1 AND 8),
@@ -70,7 +72,7 @@ export const RideRequestQueryManager = {
     );
   `,
 
- `
+  `
     -- Status queries
     CREATE INDEX IF NOT EXISTS idx_ride_requests_status 
     ON ${String.RIDE_REQUEST_MODEL}(status);

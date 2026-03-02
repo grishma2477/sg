@@ -42,6 +42,7 @@ import Settlement from "../models/finance/settlement/Settlement.js";
 import PayoutRequest from "../models/finance/payout/PayoutRequest.js";
 import PayoutBatch from "../models/finance/payout/PayoutBatch.js";
 import PayoutAttempt from './../models/finance/payout/PayoutAttempt.js';
+import PendingGiftCard from "../models/finance/gift_card/pending_gift_card/PendingGiftCard.js";
 
 // Add every model here once.
 export const MODELS = [
@@ -77,17 +78,18 @@ export const MODELS = [
 
     
     Pricing,
+    PendingGiftCard,
     GiftCard,
     GiftCardRedemption,
     
     PromoCode,
     PromoRedemption,
+    PaymentHold,
     RidePayment,
 
 // payment and payouts
     Payment,
     PaymentAttempt,
-    PaymentHold,
     Settlement,
     PayoutRequest,
     PayoutBatch,

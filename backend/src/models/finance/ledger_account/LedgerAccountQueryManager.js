@@ -15,16 +15,16 @@ export const LedgerAccountQueryManager = {
       
       -- Type of account
       account_type VARCHAR(30) NOT NULL CHECK (
-        account_type IN (
-          'wallet',      -- User/Driver wallet
-          'escrow',      -- Platform escrow for rides
-          'revenue',     -- Platform commission
-          'bnpl',        -- BNPL liability
-          'gift',        -- Gift card account
-          'clearing'     -- Payment gateway clearing
-        )
-      ),
-      
+  account_type IN (
+    'wallet',
+    'escrow',
+    'revenue',
+    'bnpl',
+    'gift',
+    'clearing',
+    'payable'   -- driver pending earnings (NOT yet paid out)
+  )
+),
       currency VARCHAR(3) DEFAULT 'NPR',
       
       created_at TIMESTAMPTZ DEFAULT NOW()

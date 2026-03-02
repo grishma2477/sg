@@ -99,59 +99,78 @@ export class RideLifecycleService {
    * 
    * This triggers the mandatory review flow for both parties.
    */
-  async completeRide({ rideId }) {
-    const ride = await RideModel.findById(rideId);
+  // async completeRide({ rideId }) {
+  //   const ride = await RideModel.findById(rideId);
 
-    if (!ride) {
-      throw new AppError("RIDE_NOT_FOUND", 404);
-    }
+  //   if (!ride) {
+  //     throw new AppError("RIDE_NOT_FOUND", 404);
+  //   }
 
-    if (ride.status !== "started") {
-      throw new AppError("RIDE_MUST_BE_STARTED_BEFORE_COMPLETION", 400, {
-        currentStatus: ride.status
-      });
-    }
+  //   if (ride.status !== "started") {
+  //     throw new AppError("RIDE_MUST_BE_STARTED_BEFORE_COMPLETION", 400, {
+  //       currentStatus: ride.status
+  //     });
+  //   }
 
-    // Get the driver to find their user_id
-    const driver = await DriverModel.findById(ride.driver_id);
-    if (!driver) {
-      throw new AppError("DRIVER_NOT_FOUND", 404);
-    }
+  //   // Get the driver to find their user_id
+  //   const driver = await DriverModel.findById(ride.driver_id);
+  //   if (!driver) {
+  //     throw new AppError("DRIVER_NOT_FOUND", 404);
+  //   }
 
-    // Complete the ride
-    const updated = await RideModel.findByIdAndUpdate(rideId, {
-      status: "completed",
-      completed_at: new Date()
-    });
+  //   // Complete the ride
+  //   const updated = await RideModel.findByIdAndUpdate(rideId, {
+  //     status: "completed",
+  //     completed_at: new Date()
+  //   });
 
-    // ═══════════════════════════════════════════════════
-    // SET PENDING REVIEW FLAGS IN REDIS
-    // Both rider and driver must submit reviews
-    // ═══════════════════════════════════════════════════
+  //   // ═══════════════════════════════════════════════════
+  //   // SET PENDING REVIEW FLAGS IN REDIS
+  //   // Both rider and driver must submit reviews
+  //   // ═══════════════════════════════════════════════════
     
-    // Rider's pending review (keyed by rider's user_id)
-    await redis.set(
-      `pending_review:${ride.rider_id}`,
-      rideId,
-      "EX",
-      60 * 60 * 24 * 7  // Expires in 7 days
-    );
+  //   // Rider's pending review (keyed by rider's user_id)
+  //   await redis.set(
+  //     `pending_review:${ride.rider_id}`,
+  //     rideId,
+  //     "EX",
+  //     60 * 60 * 24 * 7  // Expires in 7 days
+  //   );
 
-    // Driver's pending review (keyed by driver's user_id)
-    await redis.set(
-      `pending_review:${driver.user_id}`,
-      rideId,
-      "EX",
-      60 * 60 * 24 * 7  // Expires in 7 days
-    );
+  //   // Driver's pending review (keyed by driver's user_id)
+  //   await redis.set(
+  //     `pending_review:${driver.user_id}`,
+  //     rideId,
+  //     "EX",
+  //     60 * 60 * 24 * 7  // Expires in 7 days
+  //   );
 
-    console.log("🔒 Pending reviews set for:", {
-      riderId: ride.rider_id,
-      driverUserId: driver.user_id
-    });
+  //   console.log("🔒 Pending reviews set for:", {
+  //     riderId: ride.rider_id,
+  //     driverUserId: driver.user_id
+  //   });
 
-    return updated;
+  //   return updated;
+  // }
+
+  async completeRide({ rideId }) {
+  const ride = await RideModel.findById(rideId);
+
+  if (!ride) {
+    throw new AppError("RIDE_NOT_FOUND", 404);
   }
+
+  if (ride.status !== "started") {
+    throw new AppError("RIDE_MUST_BE_STARTED_BEFORE_COMPLETION", 400, {
+      currentStatus: ride.status
+    });
+  }
+
+  return RideModel.findByIdAndUpdate(rideId, {
+    status: "completed",
+    completed_at: new Date()
+  });
+}
 
   /**
    * Get ride details with driver info

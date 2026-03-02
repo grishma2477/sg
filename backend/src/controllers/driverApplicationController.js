@@ -624,6 +624,7 @@
 import { pool } from '../database/DBConnection.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUpload.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { LedgerService } from '../application/services/LedgerService.js';
 
 /**
  * GET /api/driver-applications/check
@@ -1255,6 +1256,11 @@ export const reviewApplication = async (req, res, next) => {
       driverId = driverExists.rows[0].id;
     }
 
+      await LedgerService.getOrCreateAccount({
+    ownerType: 'driver',
+    ownerId: driverId,
+    accountType: 'wallet'
+  });
     // 4. ✅ Create vehicle in vehicles table
     await client.query(
       `INSERT INTO vehicles (

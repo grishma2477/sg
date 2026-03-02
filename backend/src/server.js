@@ -2,6 +2,7 @@ import http from "http";
 import app from "./app.js";
 import { connectDB } from "./database/DBConnection.js";
 import { initSocket } from "./realtime/socketServer.js";
+import { LedgerService } from "./application/services/LedgerService.js";
 
 const PORT = Number(process.env.PORT) || 5000;
 
@@ -20,6 +21,7 @@ const server = http.createServer(app);
   try {
     await connectDB();
     console.log("✅ Database connected");
+    await LedgerService.initializePlatformAccounts();
 
     initSocket(server);
     console.log("✅ Socket initialized");
