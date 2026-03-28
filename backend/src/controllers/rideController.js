@@ -1248,196 +1248,311 @@
 
 
 
+import { RidePaymentService } from '../application/services/RidePaymentService.js';
 import { pool } from '../database/DBConnection.js';
+import { withTransaction } from '../infrastructure/transactions/withTransaction.js';
 import { emitToUser } from '../realtime/socketServer.js';
+import PaymentMethod from "../models/finance/payment_method/PaymentMethod.js";
+import PaymentProvider from "../models/finance/payment_method/payment_provider/PaymentProvider.js";
+import Ride from "../models/ride/Ride.js";
+import RideRequest from "../models/ride/RideRequest.js";
+import { AppError } from "../utils/AppError.js";
 
 /**
  * ✅ FIXED: Accept a ride request with Socket.io notification to rider
  * POST /api/rides/accept/:requestId
  */
+// export const acceptRideRequest = async (req, res) => {
+//   try {
+//     const { requestId } = req.params;
+//     const { fareAmount } = req.body;
+//     const userId = req.user.id;
+//     const driverId = req.driverId;
+
+//     console.log('✅ Driver accepting ride request:', requestId);
+//     console.log('Driver ID:', driverId);
+
+//     // ─────────────────────────────────────────────────────────────────────────
+//     // Get ride request details
+//     // ─────────────────────────────────────────────────────────────────────────
+//     const requestResult = await pool.query(
+//       'SELECT * FROM ride_requests WHERE id = $1 AND status = $2',
+//       [requestId, 'pending']
+//     );
+
+//     if (requestResult.rows.length === 0) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Ride request not found or already accepted'
+//       });
+//     }
+
+//     const request = requestResult.rows[0];
+
+//     // ─────────────────────────────────────────────────────────────────────────
+//     // Validate fare amount
+//     // ─────────────────────────────────────────────────────────────────────────
+//     let finalFare = fareAmount || request.estimated_fare_max || 0;
+
+//     if (request.estimated_fare_min && finalFare < request.estimated_fare_min) {
+//       return res.status(400).json({
+//         success: false,
+//         message: `Fare amount must be at least ₹${request.estimated_fare_min}`
+//       });
+//     }
+
+//     if (request.estimated_fare_max && finalFare > request.estimated_fare_max) {
+//       return res.status(400).json({
+//         success: false,
+//         message: `Fare amount cannot exceed ₹${request.estimated_fare_max}`
+//       });
+//     }
+
+//     console.log('💰 Final fare amount:', finalFare);
+
+//     // ─────────────────────────────────────────────────────────────────────────
+//     // Create ride in a transaction
+//     // ─────────────────────────────────────────────────────────────────────────
+//     const client = await pool.connect();
+
+//     try {
+//       await client.query('BEGIN');
+
+//       // Create ride
+//       const rideQuery = `
+//         INSERT INTO rides (
+//           rider_id,
+//           driver_id,
+//           fare_amount,
+//           currency,
+//           status,
+//           request_id,
+//           created_at,
+//           accepted_at
+//         ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+//         RETURNING *
+//       `;
+
+//       const rideResult = await client.query(rideQuery, [
+//         request.rider_id,
+//         driverId,
+//         finalFare,
+//         'NPR',
+//         'accepted',
+//         requestId
+//       ]);
+
+//       const ride = rideResult.rows[0];
+//       console.log('✅ Ride created:', ride.id);
+
+//       // Update ride request status
+//       await client.query(
+//         `UPDATE ride_requests 
+//          SET status = 'accepted', 
+//              matched_driver_id = $1,
+//              actual_fare = $2,
+//              updated_at = NOW()
+//          WHERE id = $3`,
+//         [driverId, finalFare, requestId]
+//       );
+
+//       console.log('✅ Ride request updated');
+
+//       // Get driver details for notification
+//       const driverInfoQuery = `
+//         SELECT 
+//           u.id as user_id,
+//           COALESCE(
+//             NULLIF(TRIM(CONCAT(up.first_name, ' ', up.last_name)), ''),
+//             SPLIT_PART(ac.email, '@', 1),
+//             'Driver'
+//           ) as driver_name,
+//           ac.phone as driver_phone,
+//           v.vehicle_type,
+//           v.make,
+//           v.model,
+//           v.license_plate
+//         FROM drivers d
+//         LEFT JOIN users u ON d.user_id = u.id
+//         LEFT JOIN user_profiles up ON u.id = up.user_id
+//         LEFT JOIN auth_credentials ac ON u.id = ac.user_id
+//         LEFT JOIN vehicles v ON d.id = v.driver_id
+//         WHERE d.id = $1
+//         LIMIT 1
+//       `;
+
+//       const driverInfo = await client.query(driverInfoQuery, [driverId]);
+//       const driver = driverInfo.rows[0] || {};
+
+//       await client.query('COMMIT');
+
+//       // ═══════════════════════════════════════════════════════════════════════
+//       // 🔥 SOCKET.IO: NOTIFY RIDER THAT DRIVER ACCEPTED THE RIDE
+//       // ═══════════════════════════════════════════════════════════════════════
+//       console.log('📢 Sending Socket notification to rider:', request.rider_id);
+
+//       emitToUser(request.rider_id, 'ride:accepted', {
+//         rideId: ride.id,
+//         requestId: requestId,
+//         status: 'accepted',
+//         message: '🎉 A driver has accepted your ride!',
+//         driver: {
+//           id: driverId,
+//           name: driver.driver_name || 'Driver',
+//           phone: driver.driver_phone || '',
+//           vehicle: driver.vehicle_type || '',
+//           vehicleModel: driver.make && driver.model ? `${driver.make} ${driver.model}` : '',
+//           licensePlate: driver.license_plate || ''
+//         },
+//         fareAmount: finalFare,
+//         pickup: request.pickup_address,
+//         dropoff: request.dropoff_address,
+//         timestamp: new Date().toISOString()
+//       });
+
+//       console.log('✅ Socket notification sent!');
+
+//       // ─────────────────────────────────────────────────────────────────────
+//       // Return success response
+//       // ─────────────────────────────────────────────────────────────────────
+//       res.status(201).json({
+//         success: true,
+//         message: 'RIDE_ACCEPTED',
+//         data: {
+//           ride_id: ride.id,
+//           fare_amount: finalFare,
+//           status: 'accepted',
+//           rider_id: request.rider_id,
+//           pickup_address: request.pickup_address,
+//           dropoff_address: request.dropoff_address,
+//           ride: ride
+//         }
+//       });
+
+//     } catch (error) {
+//       await client.query('ROLLBACK');
+//       throw error;
+//     } finally {
+//       client.release();
+//     }
+
+//   } catch (error) {
+//     console.error('❌ Error accepting ride:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'INTERNAL_SERVER_ERROR',
+//       error: error.message
+//     });
+//   }
+// };
+
+
 export const acceptRideRequest = async (req, res) => {
   try {
     const { requestId } = req.params;
-    const { fareAmount } = req.body;
-    const userId = req.user.id;
     const driverId = req.driverId;
 
-    console.log('✅ Driver accepting ride request:', requestId);
-    console.log('Driver ID:', driverId);
+    const result = await withTransaction(async (client) => {
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Get ride request details
-    // ─────────────────────────────────────────────────────────────────────────
-    const requestResult = await pool.query(
-      'SELECT * FROM ride_requests WHERE id = $1 AND status = $2',
-      [requestId, 'pending']
-    );
-
-    if (requestResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Ride request not found or already accepted'
-      });
-    }
-
-    const request = requestResult.rows[0];
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Validate fare amount
-    // ─────────────────────────────────────────────────────────────────────────
-    let finalFare = fareAmount || request.estimated_fare_max || 0;
-
-    if (request.estimated_fare_min && finalFare < request.estimated_fare_min) {
-      return res.status(400).json({
-        success: false,
-        message: `Fare amount must be at least ₹${request.estimated_fare_min}`
-      });
-    }
-
-    if (request.estimated_fare_max && finalFare > request.estimated_fare_max) {
-      return res.status(400).json({
-        success: false,
-        message: `Fare amount cannot exceed ₹${request.estimated_fare_max}`
-      });
-    }
-
-    console.log('💰 Final fare amount:', finalFare);
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Create ride in a transaction
-    // ─────────────────────────────────────────────────────────────────────────
-    const client = await pool.connect();
-
-    try {
-      await client.query('BEGIN');
-
-      // Create ride
-      const rideQuery = `
-        INSERT INTO rides (
-          rider_id,
-          driver_id,
-          fare_amount,
-          currency,
-          status,
-          request_id,
-          created_at,
-          accepted_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-        RETURNING *
-      `;
-
-      const rideResult = await client.query(rideQuery, [
-        request.rider_id,
-        driverId,
-        finalFare,
-        'NPR',
-        'accepted',
-        requestId
-      ]);
-
-      const ride = rideResult.rows[0];
-      console.log('✅ Ride created:', ride.id);
-
-      // Update ride request status
-      await client.query(
-        `UPDATE ride_requests 
-         SET status = 'accepted', 
-             matched_driver_id = $1,
-             actual_fare = $2,
-             updated_at = NOW()
-         WHERE id = $3`,
-        [driverId, finalFare, requestId]
+      const request = await RideRequest.findOne(
+        { id: requestId, status: "pending" },
+        client
       );
 
-      console.log('✅ Ride request updated');
+      if (!request) {
+        throw new AppError("REQUEST_NOT_FOUND", 404);
+      }
 
-      // Get driver details for notification
-      const driverInfoQuery = `
-        SELECT 
-          u.id as user_id,
-          COALESCE(
-            NULLIF(TRIM(CONCAT(up.first_name, ' ', up.last_name)), ''),
-            SPLIT_PART(ac.email, '@', 1),
-            'Driver'
-          ) as driver_name,
-          ac.phone as driver_phone,
-          v.vehicle_type,
-          v.make,
-          v.model,
-          v.license_plate
-        FROM drivers d
-        LEFT JOIN users u ON d.user_id = u.id
-        LEFT JOIN user_profiles up ON u.id = up.user_id
-        LEFT JOIN auth_credentials ac ON u.id = ac.user_id
-        LEFT JOIN vehicles v ON d.id = v.driver_id
-        WHERE d.id = $1
-        LIMIT 1
-      `;
+      // Use estimated_fare_max for authorization (Uber style buffer)
+      const estimatedFare = parseFloat(request.estimated_fare_max);
 
-      const driverInfo = await client.query(driverInfoQuery, [driverId]);
-      const driver = driverInfo.rows[0] || {};
+      // 1️⃣ Create ride with copied estimated values
+      const ride = await Ride.create({
+        rider_id: request.rider_id,
+        driver_id: driverId,
+        status: "accepted",
+        accepted_at: new Date(),
+        estimated_distance_km: request.estimated_distance_km,
+        estimated_duration_minutes: request.estimated_duration_minutes,
+        estimated_fare: estimatedFare
+      }, client);
 
-      await client.query('COMMIT');
-
-      // ═══════════════════════════════════════════════════════════════════════
-      // 🔥 SOCKET.IO: NOTIFY RIDER THAT DRIVER ACCEPTED THE RIDE
-      // ═══════════════════════════════════════════════════════════════════════
-      console.log('📢 Sending Socket notification to rider:', request.rider_id);
-
-      emitToUser(request.rider_id, 'ride:accepted', {
-        rideId: ride.id,
-        requestId: requestId,
-        status: 'accepted',
-        message: '🎉 A driver has accepted your ride!',
-        driver: {
-          id: driverId,
-          name: driver.driver_name || 'Driver',
-          phone: driver.driver_phone || '',
-          vehicle: driver.vehicle_type || '',
-          vehicleModel: driver.make && driver.model ? `${driver.make} ${driver.model}` : '',
-          licensePlate: driver.license_plate || ''
+      // 2️⃣ Mark request accepted
+      await RideRequest.updateOne(
+        { id: requestId },
+        {
+          status: "accepted",
+          matched_driver_id: driverId
         },
-        fareAmount: finalFare,
-        pickup: request.pickup_address,
-        dropoff: request.dropoff_address,
-        timestamp: new Date().toISOString()
+        client
+      );
+
+      // 3️⃣ Fetch rider default payment method
+      const paymentMethod = await PaymentMethod.findOne({
+        user_id: request.rider_id,
+        is_default: true,
+        is_active: true,
+        is_deleted: false
+      }, client);
+
+      if (!paymentMethod) {
+        throw new AppError("DEFAULT_PAYMENT_METHOD_NOT_SET", 400);
+      }
+
+      const provider = await PaymentProvider.findOne(
+        { id: paymentMethod.provider_id, is_active: true },
+        client
+      );
+
+      if (!provider) {
+        throw new AppError("INVALID_PAYMENT_PROVIDER", 400);
+      }
+
+      // 4️⃣ Map provider type → paymentSource
+      let paymentSource = "gateway";
+      if (provider.type === "WALLET") {
+        paymentSource = "wallet";
+      }
+
+      // 5️⃣ Authorize payment immediately (Uber behavior)
+      await RidePaymentService.authorizeRidePayment({
+        rideId: ride.id,
+        riderId: request.rider_id,
+        driverId: driverId,
+        amount: estimatedFare,
+        platformFee: estimatedFare * 0.03,
+        paymentSource
       });
 
-      console.log('✅ Socket notification sent!');
+      return {
+        ride,
+        riderId: request.rider_id
+      };
+    });
 
-      // ─────────────────────────────────────────────────────────────────────
-      // Return success response
-      // ─────────────────────────────────────────────────────────────────────
-      res.status(201).json({
-        success: true,
-        message: 'RIDE_ACCEPTED',
-        data: {
-          ride_id: ride.id,
-          fare_amount: finalFare,
-          status: 'accepted',
-          rider_id: request.rider_id,
-          pickup_address: request.pickup_address,
-          dropoff_address: request.dropoff_address,
-          ride: ride
-        }
-      });
+    // Emit after commit
+    emitToUser(result.riderId, "ride:accepted", {
+      rideId: result.ride.id,
+      status: "accepted"
+    });
 
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+    res.status(201).json({
+      success: true,
+      message: "RIDE_ACCEPTED",
+      data: result.ride
+    });
 
   } catch (error) {
-    console.error('❌ Error accepting ride:', error);
+    console.error(error);
     res.status(500).json({
       success: false,
-      message: 'INTERNAL_SERVER_ERROR',
-      error: error.message
+      message: error.message
     });
   }
 };
+
+
+
 
 /**
  * Get ride details with proper null checks

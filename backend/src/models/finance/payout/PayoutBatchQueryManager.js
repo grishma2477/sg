@@ -2,43 +2,37 @@ import { String } from "../../../utils/Constant.js";
 
 export const PayoutBatchQueryManager = {
   schema: [`
-    CREATE TABLE IF NOT EXISTS ${String.PAYOUT_ATTEMPT} (
+    CREATE TABLE IF NOT EXISTS ${String.PAYOUT_BATCH} (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
       
-      -- Link to payout request
-      payout_request_id UUID NOT NULL 
-        REFERENCES ${String.PAYOUT_REQUEST}(id) 
-        ON DELETE CASCADE,
+      -- Total amount in this batch
+      total_amount DECIMAL(12,2) NOT NULL,
       
-      -- Link to batch (if part of batch)
-      batch_id UUID 
-        REFERENCES ${String.PAYOUT_BATCH}(id),
+      -- Number of payout requests in this batch
+      request_count INTEGER DEFAULT 0,
       
-      -- Bank/payment reference
-      bank_reference TEXT,
-      provider_transaction_id TEXT,
-      
-      -- Attempt status
-      status VARCHAR(20) CHECK (
-        status IN ('initiated', 'success', 'failed')
+      -- Batch status
+      status VARCHAR(20) DEFAULT 'created' CHECK (
+        status IN ('created', 'processing', 'completed', 'failed')
       ),
       
-      -- Failure details
-      failure_reason TEXT,
-      provider_response JSONB,
+      -- Who created/approved this batch
+      created_by UUID 
+        REFERENCES ${String.USER_MODEL}(id),
       
-      attempted_at TIMESTAMPTZ DEFAULT NOW()
+      -- Batch metadata
+      notes TEXT,
+      
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      completed_at TIMESTAMPTZ
     );
   `,
   `
     -- Indexes
-    CREATE INDEX IF NOT EXISTS idx_payout_attempt_request 
-    ON ${String.PAYOUT_ATTEMPT}(payout_request_id);
+    CREATE INDEX IF NOT EXISTS idx_payout_batch_status 
+    ON ${String.PAYOUT_BATCH}(status);
     
-    CREATE INDEX IF NOT EXISTS idx_payout_attempt_batch 
-    ON ${String.PAYOUT_ATTEMPT}(batch_id);
-    
-    CREATE INDEX IF NOT EXISTS idx_payout_attempt_status 
-    ON ${String.PAYOUT_ATTEMPT}(status);
+    CREATE INDEX IF NOT EXISTS idx_payout_batch_created 
+    ON ${String.PAYOUT_BATCH}(created_at DESC);
   `]
 };

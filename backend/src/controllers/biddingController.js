@@ -733,6 +733,7 @@ export const submitBid = async (req, res) => {
     // Make driver profile mandatory before bidding
     // TODO: #2 Implement driver profile check here  
 
+
     // Get driver info
     const driverInfo = await pool.query(
       `SELECT d.id, v.vehicle_type, v.make, v.model, v.color, v.license_plate

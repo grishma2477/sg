@@ -1,5 +1,6 @@
 import { String } from "../../../utils/Constant.js";
 
+
 export const SettlementQueryManager = {
   schema: [`
     CREATE TABLE IF NOT EXISTS ${String.SETTLEMENT} (

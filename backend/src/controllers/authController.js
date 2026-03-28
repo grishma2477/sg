@@ -12,6 +12,8 @@ import UserProfile from "../models/user/user_profile/UserProfile.js"
 import { pool } from '../database/DBConnection.js';
 import KYC from "../models/user/kyc/KYC.js";
 import KYCDocument from '../models/user/kyc_document/KYCDocument.js';
+import Wallet from "../models/finance/transaction/wallet/Wallet.js";
+import { LedgerService } from './../application/services/LedgerService.js';
 /**
  * REGISTER
  * Everyone registers as a USER first
@@ -118,6 +120,17 @@ export const register = async (req, res, next) => {
     const user = await UserModel.create({
       role: role,
       status: "active"
+    });
+    await Wallet.create({
+      user_id: user.id,
+      balance: 0,
+      locked_balance: 0
+    });
+    console.log('💰 Wallet created for user');
+    await LedgerService.getOrCreateAccount({
+      ownerType: 'user',
+      ownerId: user.id,
+      accountType: 'wallet'
     });
 
     console.log(`✅ User created with ID: ${user.id}, Role: ${role}`);

@@ -27,84 +27,246 @@ export class GiftCardService {
   // PURCHASE GIFT CARD
   // ═══════════════════════════════════════════════════════════
 
+  // static async purchaseGiftCard({
+  //   userId,
+  //   amount,
+  //   message = null,
+  //   validityDays = 365,
+  //   paymentMethod = 'wallet'
+  // }) {
+  //   if (amount <= 0 || amount > 50000) {
+  //     throw new AppError('INVALID_AMOUNT', 400, { min: 1, max: 50000 });
+  //   }
+
+  //   return await withTransaction(async (client) => {
+  //     let code;
+  //     let isUnique = false;
+  //     let attempts = 0;
+
+  //     while (!isUnique && attempts < 10) {
+  //       code = this.generateGiftCardCode();
+  //       const existing = await GiftCard.findOne({ code }, client);
+  //       if (!existing) isUnique = true;
+  //       attempts++;
+  //     }
+
+  //     if (!isUnique) {
+  //       throw new AppError('CODE_GENERATION_FAILED', 500);
+  //     }
+
+  //     const wallet = await Wallet.findOne({ user_id: userId }, client);
+  //     if (!wallet) {
+  //       throw new AppError('WALLET_NOT_FOUND', 404);
+  //     }
+
+  //     const availableBalance = wallet.balance - wallet.locked_balance;
+  //     if (availableBalance < amount) {
+  //       throw new AppError('INSUFFICIENT_BALANCE', 400, {
+  //         available: availableBalance,
+  //         required: amount
+  //       });
+  //     }
+
+  //     const newBalance = parseFloat(wallet.balance) - amount;
+  //     await Wallet.updateOne(
+  //       { user_id: userId },
+  //       { balance: newBalance.toFixed(2) },
+  //       client
+  //     );
+
+  //     const validUntil = new Date();
+  //     validUntil.setDate(validUntil.getDate() + validityDays);
+
+  //     const giftCard = await GiftCard.create({
+  //       code,
+  //       purchased_by: userId,
+  //       current_owner_id: userId,
+  //       initial_balance: amount.toFixed(2),
+  //       current_balance: amount.toFixed(2),
+  //       currency: 'NPR',
+  //       valid_until: validUntil,
+  //       message
+  //     }, client);
+
+  //     await Transaction.create({
+  //       user_id: userId,
+  //       type: 'debit',
+  //       category: 'gift_card_purchase',
+  //       amount: amount.toFixed(2),
+  //       currency: 'NPR',
+  //       balance_before: wallet.balance,
+  //       balance_after: newBalance.toFixed(2),
+  //       status: 'completed',
+  //       description: `Purchased gift card ${code}`,
+  //       idempotency_key: uuidv4()
+  //     }, client);
+
+  //     console.log(`✅ Gift card purchased: ${code} - ₹${amount}`);
+
+  //     return giftCard;
+  //   });
+  // }
+
   static async purchaseGiftCard({
     userId,
     amount,
-    message = null,
+    message,
     validityDays = 365,
-    paymentMethod = 'wallet'
+    paymentMethodId,
+    idempotencyKey
   }) {
+
     if (amount <= 0 || amount > 50000) {
-      throw new AppError('INVALID_AMOUNT', 400, { min: 1, max: 50000 });
+      throw new AppError("INVALID_AMOUNT", 400);
     }
 
-    return await withTransaction(async (client) => {
-      let code;
-      let isUnique = false;
-      let attempts = 0;
+    if (!idempotencyKey) {
+      throw new AppError("IDEMPOTENCY_KEY_REQUIRED", 400);
+    }
 
-      while (!isUnique && attempts < 10) {
-        code = this.generateGiftCardCode();
-        const existing = await GiftCard.findOne({ code }, client);
-        if (!existing) isUnique = true;
-        attempts++;
-      }
+    // 🔐 Prevent duplicate requests
+    const existingTxn = await Transaction.findOne({ idempotency_key: idempotencyKey });
+    if (existingTxn) {
+      throw new AppError("DUPLICATE_REQUEST", 409);
+    }
 
-      if (!isUnique) {
-        throw new AppError('CODE_GENERATION_FAILED', 500);
-      }
+    // 1️⃣ Validate Payment Method
+    const paymentMethod = await PaymentMethod.findOne({
+      id: paymentMethodId,
+      user_id: userId,
+      is_active: true,
+      is_deleted: false
+    });
 
-      const wallet = await Wallet.findOne({ user_id: userId }, client);
-      if (!wallet) {
-        throw new AppError('WALLET_NOT_FOUND', 404);
-      }
+    if (!paymentMethod) {
+      throw new AppError("INVALID_PAYMENT_METHOD", 400);
+    }
 
-      const availableBalance = wallet.balance - wallet.locked_balance;
-      if (availableBalance < amount) {
-        throw new AppError('INSUFFICIENT_BALANCE', 400, {
-          available: availableBalance,
-          required: amount
+    // 2️⃣ Fetch Provider
+    const provider = await PaymentProvider.findOne({
+      id: paymentMethod.provider_id,
+      is_active: true
+    });
+
+    if (!provider) {
+      throw new AppError("PROVIDER_NOT_AVAILABLE", 400);
+    }
+
+    // 3️⃣ Branch by provider type
+    switch (provider.type) {
+      case "WALLET":
+        return await this.handleWalletPurchase({
+          userId,
+          amount,
+          message,
+          validityDays,
+          idempotencyKey
         });
+
+      case "CARD":
+      case "GATEWAY":
+        return await this.handleGatewayPurchase({
+          userId,
+          amount,
+          message,
+          validityDays,
+          paymentMethod,
+          provider,
+          idempotencyKey
+        });
+
+      default:
+        throw new AppError("UNSUPPORTED_PROVIDER", 400);
+    }
+  }
+
+
+  static async handleWalletPurchase({
+    userId,
+    amount,
+    message,
+    validityDays,
+    idempotencyKey
+  }) {
+
+    return await withTransaction(async (client) => {
+
+      // 🔒 Lock wallet row
+      const wallet = await Wallet.findOneForUpdate({ user_id: userId }, client);
+
+      if (!wallet) throw new AppError("WALLET_NOT_FOUND", 404);
+
+      const available = wallet.balance - wallet.locked_balance;
+
+      if (available < amount) {
+        throw new AppError("INSUFFICIENT_BALANCE", 400);
       }
 
       const newBalance = parseFloat(wallet.balance) - amount;
+
       await Wallet.updateOne(
         { user_id: userId },
         { balance: newBalance.toFixed(2) },
         client
       );
 
-      const validUntil = new Date();
-      validUntil.setDate(validUntil.getDate() + validityDays);
-
-      const giftCard = await GiftCard.create({
-        code,
-        purchased_by: userId,
-        current_owner_id: userId,
-        initial_balance: amount.toFixed(2),
-        current_balance: amount.toFixed(2),
-        currency: 'NPR',
-        valid_until: validUntil,
-        message
+      const giftCard = await this.createGiftCardRecord({
+        userId,
+        amount,
+        message,
+        validityDays
       }, client);
 
       await Transaction.create({
         user_id: userId,
-        type: 'debit',
-        category: 'gift_card_purchase',
+        type: "debit",
+        category: "gift_card_purchase",
         amount: amount.toFixed(2),
-        currency: 'NPR',
         balance_before: wallet.balance,
         balance_after: newBalance.toFixed(2),
-        status: 'completed',
-        description: `Purchased gift card ${code}`,
-        idempotency_key: uuidv4()
+        currency: "NPR",
+        status: "completed",
+        idempotency_key: idempotencyKey
       }, client);
-
-      console.log(`✅ Gift card purchased: ${code} - ₹${amount}`);
 
       return giftCard;
     });
+  }
+
+  static async handleGatewayPurchase({
+    userId,
+    amount,
+    message,
+    validityDays,
+    paymentMethod,
+    provider,
+    idempotencyKey
+  }) {
+
+    // 1️⃣ Create Pending Record FIRST
+    const pending = await PendingGiftCard.create({
+      user_id: userId,
+      payment_provider_id: provider.id,
+      payment_method_id: paymentMethod.id,
+      amount,
+      message,
+      validity_days: validityDays,
+      idempotency_key: idempotencyKey,
+      status: "pending"
+    });
+
+    // 2️⃣ Generate Payment Request
+    const paymentPayload = await GatewayService.initializePayment({
+      providerName: provider.name,
+      amount,
+      referenceId: pending.id
+    });
+
+    return {
+      requiresAction: true,
+      redirectUrl: paymentPayload.redirectUrl,
+      referenceId: pending.id
+    };
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -165,7 +327,7 @@ export class GiftCardService {
       }
 
       const redeemAmount = amount || parseFloat(giftCard.current_balance);
-      
+
       if (redeemAmount > parseFloat(giftCard.current_balance)) {
         throw new AppError('INSUFFICIENT_GIFT_CARD_BALANCE', 400, {
           available: giftCard.current_balance,
@@ -176,7 +338,7 @@ export class GiftCardService {
       const newCardBalance = parseFloat(giftCard.current_balance) - redeemAmount;
       await GiftCard.updateOne(
         { id: giftCard.id },
-        { 
+        {
           current_balance: newCardBalance.toFixed(2),
           first_redeemed_at: giftCard.first_redeemed_at || new Date()
         },
@@ -185,7 +347,7 @@ export class GiftCardService {
 
       const wallet = await Wallet.findOne({ user_id: userId }, client);
       const newWalletBalance = parseFloat(wallet.balance) + redeemAmount;
-      
+
       await Wallet.updateOne(
         { user_id: userId },
         { balance: newWalletBalance.toFixed(2) },
@@ -257,7 +419,7 @@ export class GiftCardService {
       const newCardBalance = parseFloat(giftCard.current_balance) - amount;
       await GiftCard.updateOne(
         { id: giftCard.id },
-        { 
+        {
           current_balance: newCardBalance.toFixed(2),
           first_redeemed_at: giftCard.first_redeemed_at || new Date()
         },
@@ -354,11 +516,11 @@ export class GiftCardService {
         throw new AppError('NOT_AUTHORIZED', 403);
       }
 
-      const redemptions = await GiftCardRedemption.find({ 
-        gift_card_id: giftCard.id 
+      const redemptions = await GiftCardRedemption.find({
+        gift_card_id: giftCard.id
       });
 
-      return redemptions.sort((a, b) => 
+      return redemptions.sort((a, b) =>
         new Date(b.redeemed_at) - new Date(a.redeemed_at)
       );
     } catch (error) {
@@ -382,7 +544,7 @@ export class GiftCardService {
 
       const giftCards = await GiftCard.find(query);
 
-      return giftCards.sort((a, b) => 
+      return giftCards.sort((a, b) =>
         new Date(b.purchased_at) - new Date(a.purchased_at)
       );
     } catch (error) {
@@ -406,17 +568,17 @@ export class GiftCardService {
         redeemedCards: allCards.filter(c => c.status === 'redeemed').length,
         expiredCards: allCards.filter(c => c.status === 'expired').length,
         cancelledCards: allCards.filter(c => c.status === 'cancelled').length,
-        
-        totalValueIssued: allCards.reduce((sum, c) => 
+
+        totalValueIssued: allCards.reduce((sum, c) =>
           sum + parseFloat(c.initial_balance), 0
         ),
-        totalValueRemaining: allCards.reduce((sum, c) => 
+        totalValueRemaining: allCards.reduce((sum, c) =>
           sum + parseFloat(c.current_balance), 0
         ),
-        totalValueRedeemed: allRedemptions.reduce((sum, r) => 
+        totalValueRedeemed: allRedemptions.reduce((sum, r) =>
           sum + parseFloat(r.amount_used), 0
         ),
-        
+
         totalRedemptions: allRedemptions.length,
         averageRedemptionAmount: 0
       };
@@ -425,8 +587,8 @@ export class GiftCardService {
         stats.averageRedemptionAmount = stats.totalValueRedeemed / stats.totalRedemptions;
       }
 
-      stats.redemptionRate = stats.totalValueIssued > 0 
-        ? ((stats.totalValueRedeemed / stats.totalValueIssued) * 100).toFixed(2) 
+      stats.redemptionRate = stats.totalValueIssued > 0
+        ? ((stats.totalValueRedeemed / stats.totalValueIssued) * 100).toFixed(2)
         : 0;
 
       return stats;
@@ -459,7 +621,7 @@ export class GiftCardService {
         }
       }
 
-      return redemptions.sort((a, b) => 
+      return redemptions.sort((a, b) =>
         new Date(b.redeemed_at) - new Date(a.redeemed_at)
       );
     } catch (error) {
@@ -487,10 +649,10 @@ export class GiftCardService {
 
       if (parseFloat(giftCard.current_balance) > 0 && giftCard.purchased_by) {
         const refundAmount = parseFloat(giftCard.current_balance);
-        
+
         const wallet = await Wallet.findOne({ user_id: giftCard.purchased_by }, client);
         const newBalance = parseFloat(wallet.balance) + refundAmount;
-        
+
         await Wallet.updateOne(
           { user_id: giftCard.purchased_by },
           { balance: newBalance.toFixed(2) },
@@ -515,7 +677,7 @@ export class GiftCardService {
 
       await GiftCard.updateOne(
         { id: giftCard.id },
-        { 
+        {
           status: 'cancelled',
           current_balance: 0
         },
@@ -527,4 +689,68 @@ export class GiftCardService {
       return await GiftCard.findById(giftCard.id, client);
     });
   }
+
+  static async confirmGatewayPayment(referenceId, gatewayResponse) {
+
+    return await withTransaction(async (client) => {
+
+      const pending = await PendingGiftCard.findOneForUpdate({
+        id: referenceId,
+        status: "pending"
+      }, client);
+
+      if (!pending) return;
+
+      // 1️⃣ Verify with gateway API
+      const verified = await GatewayService.verifyPayment(gatewayResponse);
+
+      if (!verified) {
+        await PendingGiftCard.updateOne(
+          { id: pending.id },
+          { status: "failed" },
+          client
+        );
+        throw new AppError("PAYMENT_VERIFICATION_FAILED", 400);
+      }
+
+      // 2️⃣ Create Gift Card
+      const giftCard = await this.createGiftCardRecord({
+        userId: pending.user_id,
+        amount: pending.amount,
+        message: pending.message,
+        validityDays: pending.validity_days
+      }, client);
+
+      // 3️⃣ Mark Pending Completed
+      await PendingGiftCard.updateOne(
+        { id: pending.id },
+        { status: "completed" },
+        client
+      );
+
+      return giftCard;
+    });
+  }
+
+  static async createGiftCardRecord(data, client) {
+
+    const code = this.generateGiftCardCode();
+
+    const validUntil = new Date();
+    validUntil.setDate(validUntil.getDate() + data.validityDays);
+
+    return await GiftCard.create({
+      code,
+      purchased_by: data.userId,
+      current_owner_id: data.userId,
+      initial_balance: data.amount.toFixed(2),
+      current_balance: data.amount.toFixed(2),
+      currency: "NPR",
+      valid_until: validUntil,
+      message: data.message
+    }, client);
+  }
+
+
 }
+

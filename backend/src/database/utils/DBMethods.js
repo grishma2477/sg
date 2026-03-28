@@ -147,6 +147,9 @@ export const executeQuery = async (tableName, populate, method, filters = {}, cl
     }
 
     queryParams = [...queryParams, ...Object.values(filters)];
+    console.log("Query Params:", queryParams);
+    console.log("Query :", query);
+
   }
 
   const db = getClient(client);

@@ -16,6 +16,10 @@ import kycRoutes from "./routes/kycRoutes.js"
 import driverApplicationRoutes from './routes/driverApplicationRoutes.js';
 import adminUserRoutes from "./routes/adminUserRoutes.js"
 import walletRoutes from "./routes/walletRoutes.js"
+import paymentRoutes from "./routes/paymentRoutes.js"
+import payoutRoutes from "./routes/payoutRoutes.js"
+import promoGiftRoutes from "./routes/promoGiftRoutes.js"
+import adminPaymentProviderRoutes from "./routes/adminPaymentProviderRoutes.js"
 const app = express();
 
 // ---------- GLOBAL MIDDLEWARE ---------- 
@@ -40,8 +44,11 @@ app.use('/api/drivers', driverRoutes)
 app.use('/api/kyc', kycRoutes);
 app.use('/api/driver-applications', driverApplicationRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/payouts', payoutRoutes);
+app.use('/api/promo-gift', promoGiftRoutes);
 
-
+app.use("/api/admin/payment-providers", adminPaymentProviderRoutes);
 
 
 

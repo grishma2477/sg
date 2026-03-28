@@ -4,38 +4,84 @@ import { GiftCardService } from "../application/services/GiftCardService.js";
 // USER ROUTES
 // ═══════════════════════════════════════════════════════════
 
+// old code for testing purposes commented out...
+// export const purchaseGiftCard = async (req, res) => {
+//   try {
+//     const userId = req.user.id;
+//     const { amount, message, validityDays, paymentMethod } = req.body;
+
+//     if (!amount) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'AMOUNT_REQUIRED'
+//       });
+//     }
+
+//     const giftCard = await GiftCardService.purchaseGiftCard({
+//       userId,
+//       amount: parseFloat(amount),
+//       message,
+//       validityDays,
+//       paymentMethod
+//     });
+
+//     res.status(201).json({
+//       success: true,
+//       message: 'GIFT_CARD_PURCHASED',
+//       data: giftCard
+//     });
+//   } catch (error) {
+//     console.error('Error in purchaseGiftCard:', error);
+//     res.status(error.statusCode || 500).json({
+//       success: false,
+//       message: error.code || 'PURCHASE_ERROR',
+//       error: error.message,
+//       details: error.details
+//     });
+//   }
+// };
+
+//newly updated code for this
 export const purchaseGiftCard = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { amount, message, validityDays, paymentMethod } = req.body;
+    const { amount, message, validityDays, paymentMethodId } = req.body;
 
-    if (!amount) {
+    if (!amount || !paymentMethodId) {
       return res.status(400).json({
         success: false,
-        message: 'AMOUNT_REQUIRED'
+        message: "AMOUNT_AND_PAYMENT_METHOD_REQUIRED"
       });
     }
 
-    const giftCard = await GiftCardService.purchaseGiftCard({
+    const result = await GiftCardService.purchaseGiftCard({
       userId,
       amount: parseFloat(amount),
       message,
       validityDays,
-      paymentMethod
+      paymentMethodId,
+      idempotencyKey: req.headers["idempotency-key"]
     });
 
-    res.status(201).json({
+    if (result.requiresAction) {
+      return res.status(200).json({
+        success: true,
+        message: "PAYMENT_PENDING",
+        data: result
+      });
+    }
+
+    return res.status(201).json({
       success: true,
-      message: 'GIFT_CARD_PURCHASED',
-      data: giftCard
+      message: "GIFT_CARD_PURCHASED",
+      data: result
     });
+
   } catch (error) {
-    console.error('Error in purchaseGiftCard:', error);
-    res.status(error.statusCode || 500).json({
+    return res.status(error.statusCode || 500).json({
       success: false,
-      message: error.code || 'PURCHASE_ERROR',
-      error: error.message,
-      details: error.details
+      message: error.code || "PURCHASE_FAILED",
+      error: error.message
     });
   }
 };
