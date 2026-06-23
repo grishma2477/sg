@@ -6,6 +6,7 @@ import RideRequestModel from "../../models/ride/RideRequest.js";
 import { pool } from "../../database/DBConnection.js";
 import { AppError } from "../../utils/AppError.js";
 import { String } from "../../utils/Constant.js";
+import { getDistanceMatrix } from "../../infrastructure/mapsClient.js";
 
 /**
  * Driver Matching Service

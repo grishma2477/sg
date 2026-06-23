@@ -102,6 +102,40 @@ export const getDistanceMatrix = async (origin, destination) => {
 };
 
 /**
+ * Batch Distance Matrix — one origin, many destinations.
+ * Used to get real road ETAs from a driver's location to multiple pickup points in one API call.
+ * @param {{ lat: number, lng: number }} origin
+ * @param {Array<{ lat: number, lng: number }>} destinations  (max 25)
+ * @returns {Array<{ distanceMeters: number, durationSeconds: number }>}
+ */
+export const getBatchDistanceMatrix = async (origin, destinations) => {
+  if (!API_KEY || destinations.length === 0) {
+    return destinations.map((dest) => {
+      const km = haversineKm(origin.lat, origin.lng, dest.lat, dest.lng) * ROAD_FACTOR;
+      return {
+        distanceMeters: Math.round(km * 1000),
+        durationSeconds: Math.round((km / AVG_SPEED_KMH) * 3600),
+      };
+    });
+  }
+
+  const response = await gmaps.distancematrix({
+    params: {
+      origins: [`${origin.lat},${origin.lng}`],
+      destinations: destinations.map((d) => `${d.lat},${d.lng}`),
+      mode: TravelMode.driving,
+      units: UnitSystem.metric,
+      key: API_KEY,
+    },
+  });
+
+  return response.data.rows[0].elements.map((el) => {
+    if (el.status !== "OK") return { distanceMeters: 0, durationSeconds: 0 };
+    return { distanceMeters: el.distance.value, durationSeconds: el.duration.value };
+  });
+};
+
+/**
  * Converts a text address to lat/lng.
  */
 export const geocodeAddress = async (address) => {
