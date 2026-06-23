@@ -23,7 +23,7 @@ import AdminAuditModel from "../models/admin/AdminAudit.js";
 import KYC from "../models/user/kyc/KYC.js";
 import KYCDocument from "../models/user/kyc_document/KYCDocument.js";
 import DriverApplication from "../models/driver_application/DriverApplication.js";
-import { DriverVerifications } from "../models/driver/driver_verifications/DriverVerifications.js";
+import  DriverVerifications  from "../models/driver/driver_verifications/DriverVerifications.js";
 import RiderSafetyStats from "../models/ride/rider_safety_stats/RiderSafetyStats.js";
 import GiftCard from "../models/finance/gift_card/GiftCard.js";
 import GiftCardRedemption from "../models/finance/gift_card_redemption/GiftCardRedemption.js";

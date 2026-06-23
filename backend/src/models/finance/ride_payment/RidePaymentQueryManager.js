@@ -89,6 +89,84 @@
 import { String } from "../../../utils/Constant.js";
 
 export const RidePaymentQueryManager = {
+<<<<<<< HEAD
+=======
+  schema: [`
+    CREATE TABLE IF NOT EXISTS ${String.RIDE_PAYMENT_MODEL} (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      
+      ride_id UUID UNIQUE NOT NULL REFERENCES ${String.RIDE_MODEL}(id) ON DELETE CASCADE,
+      
+      -- Payment parties
+      payer_id UUID NOT NULL REFERENCES ${String.USER_MODEL}(id),
+      payee_id UUID NOT NULL REFERENCES ${String.USER_MODEL}(id),
+      
+      -- Amount breakdown
+      base_fare DECIMAL(10,2) NOT NULL CHECK (base_fare > 0),
+      platform_fee DECIMAL(10,2) DEFAULT 0.00,
+      discount_amount DECIMAL(10,2) DEFAULT 0.00,
+      total_amount DECIMAL(10,2) NOT NULL CHECK (total_amount > 0),
+      
+      -- Promo/discount tracking
+      promo_code_id UUID,
+      gift_card_id UUID,
+      reward_points_used INTEGER DEFAULT 0,
+      
+      -- Payment details
+      payment_method VARCHAR(50) NOT NULL CHECK (
+        payment_method IN ('wallet', 'cash', 'card', 'bnpl', 'mixed')
+      ),
+      payment_status VARCHAR(20) DEFAULT 'pending' CHECK (
+        payment_status IN ('pending', 'authorized', 'completed', 'failed', 'refunded', 'partially_refunded')
+      ),
+      
+      -- Transaction references
+      transaction_id UUID REFERENCES ${String.TRANSACTION_MODEL}(id),
+      payment_hold_id UUID REFERENCES ${String.PAYMENT_HOLD_MODEL}(id),
+      
+      -- BNPL tracking
+      is_bnpl BOOLEAN DEFAULT FALSE,
+      bnpl_plan_id UUID,
+      
+      -- Timestamps
+      payment_initiated_at TIMESTAMPTZ DEFAULT NOW(),
+      payment_completed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `,
+  `
+    -- Indexes
+    CREATE INDEX IF NOT EXISTS idx_ride_payment_ride 
+    ON ride_payments(ride_id);
+    
+    CREATE INDEX IF NOT EXISTS idx_ride_payment_payer 
+    ON ride_payments(payer_id);
+    
+    CREATE INDEX IF NOT EXISTS idx_ride_payment_payee 
+    ON ride_payments(payee_id);
+    
+    CREATE INDEX IF NOT EXISTS idx_ride_payment_status 
+    ON ride_payments(payment_status);
+    
+    CREATE INDEX IF NOT EXISTS idx_ride_payment_method 
+    ON ride_payments(payment_method);
+    
+    CREATE INDEX IF NOT EXISTS idx_ride_payment_bnpl 
+    ON ride_payments(is_bnpl) 
+    WHERE is_bnpl = TRUE;
+  `],
+  
+  triggers: [`
+    -- Update updated_at trigger
+    CREATE OR REPLACE FUNCTION update_ride_payment_timestamp()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      NEW.updated_at = NOW();
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+>>>>>>> 5f91b815396f437d3d69a2384881c771fb608d18
 
   schema: [`
 

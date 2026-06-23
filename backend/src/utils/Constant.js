@@ -82,7 +82,7 @@ export const String = {
   VEHICLE_APPLICATION_MODEL: "vehicle_applications",
 
   // ═══════════════════════════════════════════════════
-  // RIDE TABLES
+  // RIDE TABLESS
   // ═══════════════════════════════════════════════════
   RIDE_MODEL: "rides",
   RIDE_BID_MODEL: "ride_bids",
@@ -131,6 +131,7 @@ export const String = {
   LEDGER_ENTRY: 'ledger_entry',
   PAYMENT: 'payment',
   PAYMENT_ATTEMPT: 'payment_attempts',
+  PAYOUT_ATTEMPT: 'payout_attempts',
   BNPL: 'bnpl',
   SETTLEMENT: 'settlement',
   PAYOUT_REQUEST: 'payout_requests',
@@ -140,7 +141,8 @@ export const String = {
   FINANCIAL_POINT_ACCOUNT: 'financial_point_accounts',
   IDEMPOTENCY_KEY: 'idempotency_keys',
 
-// ══════════════════════════════════════════════════
+
+  // ══════════════════════════════════════════════════
   // REFERENCE TABLES
   // ═══════════════════════════════════════════════════
   TAP_DEFINITION_MODEL: "tap_definitions",

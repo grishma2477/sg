@@ -7,4 +7,4 @@ const DriverVerifications = ModelManager.createModel(
   String.DRIVER_VERIFICATIONS_MODEL
 );
 
-export { DriverVerifications };
+export default DriverVerifications ;

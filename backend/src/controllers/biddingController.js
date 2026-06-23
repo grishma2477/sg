@@ -737,7 +737,10 @@ export const submitBid = async (req, res) => {
     // TODO: #2 Implement driver profile check here  
 
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 5f91b815396f437d3d69a2384881c771fb608d18
     // Get driver info
     // const driverInfo = await pool.query(
     //   `SELECT d.id, v.vehicle_type, v.make, v.model, v.color, v.license_plate
@@ -880,6 +883,309 @@ export const getRideRequestBids = async (req, res) => {
 };
 
 
+<<<<<<< HEAD
+=======
+//     console.log('✅ Accepting bid:', bidId);
+
+//     // Get bid details
+//     const bidResult = await pool.query(
+//       'SELECT * FROM ride_bids WHERE id = $1',
+//       [bidId]
+//     );
+
+//     if (bidResult.rows.length === 0) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Bid not found'
+//       });
+//     }
+
+//     const bid = bidResult.rows[0];
+
+//     // Get ride request details
+//     const requestResult = await pool.query(
+//       'SELECT * FROM ride_requests WHERE id = $1',
+//       [bid.ride_request_id]
+//     );
+
+//     if (requestResult.rows.length === 0) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Ride request not found'
+//       });
+//     }
+
+//     const request = requestResult.rows[0];
+
+//     // Create ride
+//     const rideQuery = `
+//       INSERT INTO rides (
+//         rider_id,
+//         driver_id,
+//         fare_amount,
+//         currency,
+//         status,
+//         created_at
+//       ) VALUES ($1, $2, $3, $4, $5, NOW())
+//       RETURNING *
+//     `;
+
+//     const rideResult = await pool.query(rideQuery, [
+//       request.rider_id,
+//       bid.driver_id,
+//       bid.bid_amount,
+//       'NPR',
+//       'accepted'
+//     ]);
+
+//     const ride = rideResult.rows[0];
+
+//     // Update bid status
+//     await pool.query(
+//       `UPDATE ride_bids 
+//        SET status = 'accepted', accepted_at = NOW()
+//        WHERE id = $1`,
+//       [bidId]
+//     );
+
+//     // Update ride request
+//     await pool.query(
+//       `UPDATE ride_requests
+//        SET status = 'accepted',
+//            matched_driver_id = $1
+//        WHERE id = $2`,
+//       [bid.driver_id, bid.ride_request_id]
+//     );
+
+//     // Reject other bids
+//     await pool.query(
+//       `UPDATE ride_bids
+//        SET status = 'rejected'
+//        WHERE ride_request_id = $1 AND id != $2`,
+//       [bid.ride_request_id, bidId]
+//     );
+
+//     console.log('✅ Bid accepted, ride created:', ride.id);
+
+//     // SEND SOCKET NOTIFICATION TO DRIVER
+//     try {
+//       // Get driver's user_id (socket is authenticated with user_id, not driver database id)
+//       const driverUserResult = await pool.query(
+//         'SELECT user_id FROM drivers WHERE id = $1',
+//         [bid.driver_id]
+//       );
+
+//       if (driverUserResult.rows.length > 0) {
+//         const driverUserId = driverUserResult.rows[0].user_id;
+
+//         console.log('');
+//         console.log('═══════════════════════════════════════════');
+//         console.log('🔔 SENDING SOCKET NOTIFICATION');
+//         console.log('═══════════════════════════════════════════');
+//         console.log('Driver Database ID:', bid.driver_id);
+//         console.log('Driver User ID (for socket):', driverUserId);
+//         console.log('Ride ID:', ride.id);
+//         console.log('Bid ID:', bidId);
+//         console.log('Fare Amount:', bid.bid_amount);
+//         console.log('═══════════════════════════════════════════');
+//         console.log('');
+
+//         // USE driverUserId (not bid.driver_id!)
+//         notifyBidAccepted(driverUserId, {
+//           rideId: ride.id,
+//           bidId: bidId,
+//           message: 'Your bid was accepted!',
+//           pickup_address: request.pickup_address,
+//           dropoff_address: request.dropoff_address,
+//           fare_amount: bid.bid_amount
+//         });
+
+//         console.log('📢 Socket notification sent successfully!');
+//       } else {
+//         console.log('⚠️ Driver user not found for driver_id:', bid.driver_id);
+//       }
+//     } catch (socketError) {
+//       console.log('⚠️ Socket notification failed:', socketError.message);
+//       console.error(socketError);
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'BID_ACCEPTED',
+//       data: {
+//         bid: bid,
+//         ride_id: ride.id
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error('❌ Error accepting bid:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'INTERNAL_SERVER_ERROR',
+//       error: error.message
+//     });
+//   }
+// };
+
+
+// // Accept a bid - COMPLETE FIXED VERSION
+// export const acceptBid = async (req, res) => {
+//   try {
+//     const { bidId } = req.params;
+//     const riderId = req.user.id;
+
+//     console.log('✅ Accepting bid:', bidId);
+
+//     // Get bid details
+//     const bidResult = await pool.query(
+//       'SELECT * FROM ride_bids WHERE id = $1',
+//       [bidId]
+//     );
+
+//     if (bidResult.rows.length === 0) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Bid not found'
+//       });
+//     }
+
+//     const bid = bidResult.rows[0];
+
+//     // Get ride request details
+//     const requestResult = await pool.query(
+//       'SELECT * FROM ride_requests WHERE id = $1',
+//       [bid.ride_request_id]
+//     );
+
+//     if (requestResult.rows.length === 0) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Ride request not found'
+//       });
+//     }
+
+//     const request = requestResult.rows[0];
+
+//     // Create ride WITH request_id to link tables
+//     const rideQuery = `
+//       INSERT INTO rides (
+//         rider_id,
+//         driver_id,
+//         request_id,
+//         fare_amount,
+//         currency,
+//         status,
+//         created_at
+//       ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+//       RETURNING *
+//     `;
+
+//     const rideResult = await pool.query(rideQuery, [
+//       request.rider_id,
+//       bid.driver_id,
+//       request.id,         // Link to ride_requests table
+//       bid.bid_amount,
+//       'NPR',
+//       'accepted'
+//     ]);
+
+//     const ride = rideResult.rows[0];
+
+//     console.log('✅ Ride created:', ride.id);
+//     console.log('Linked to request:', request.id);
+
+//     // Update bid status
+//     await pool.query(
+//       `UPDATE ride_bids 
+//        SET status = 'accepted', accepted_at = NOW()
+//        WHERE id = $1`,
+//       [bidId]
+//     );
+
+//     // Update ride request
+//     await pool.query(
+//       `UPDATE ride_requests
+//        SET status = 'accepted',
+//            matched_driver_id = $1
+//        WHERE id = $2`,
+//       [bid.driver_id, bid.ride_request_id]
+//     );
+
+//     // Reject other bids
+//     await pool.query(
+//       `UPDATE ride_bids
+//        SET status = 'rejected'
+//        WHERE ride_request_id = $1 AND id != $2`,
+//       [bid.ride_request_id, bidId]
+//     );
+
+//     // SEND SOCKET NOTIFICATION TO DRIVER
+//     try {
+//       // Get driver's user_id for socket notification
+//       const driverUserResult = await pool.query(
+//         'SELECT user_id FROM drivers WHERE id = $1',
+//         [bid.driver_id]
+//       );
+
+//       if (driverUserResult.rows.length > 0) {
+//         const driverUserId = driverUserResult.rows[0].user_id;
+
+//         console.log('');
+//         console.log('═══════════════════════════════════════════');
+//         console.log('🔔 SENDING SOCKET NOTIFICATION');
+//         console.log('═══════════════════════════════════════════');
+//         console.log('Driver Database ID:', bid.driver_id);
+//         console.log('Driver User ID:', driverUserId);
+//         console.log('Ride ID:', ride.id);
+//         console.log('Pickup:', request.pickup_address);
+//         console.log('Dropoff:', request.dropoff_address);
+//         console.log('Fare:', bid.bid_amount);
+//         console.log('═══════════════════════════════════════════');
+//         console.log('');
+
+//         // Notify using driver database ID (socket room is driver:${driverId})
+//         notifyBidAccepted(bid.driver_id, {
+//           rideId: ride.id,
+//           bidId: bidId,
+//           message: 'Your bid was accepted!',
+//           pickup_address: request.pickup_address,
+//           dropoff_address: request.dropoff_address,
+//           fare_amount: bid.bid_amount
+//         });
+
+//         console.log('📢 Socket notification sent to driver room: driver:' + bid.driver_id);
+//       } else {
+//         console.log('⚠️ Driver user not found for driver_id:', bid.driver_id);
+//       }
+//     } catch (socketError) {
+//       console.log('⚠️ Socket notification failed:', socketError.message);
+//       console.error(socketError);
+//     }
+
+//     console.log('✅ Bid acceptance complete!');
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'BID_ACCEPTED',
+//       data: {
+//         bid: bid,
+//         ride_id: ride.id
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error('❌ Error accepting bid:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'INTERNAL_SERVER_ERROR',
+//       error: error.message
+//     });
+//   }
+// };
+
+// Accept a bid - FIXED VERSION (no request_id in rides table)
+>>>>>>> 5f91b815396f437d3d69a2384881c771fb608d18
 export const acceptBid = async (req, res) => {
   const client = await pool.connect();
 
@@ -1005,6 +1311,7 @@ export const acceptBid = async (req, res) => {
 
     await client.query("COMMIT");
 
+<<<<<<< HEAD
     notifyBidAccepted(bid.driver_id, {
       rideId: ride.id,
       bidId,
@@ -1012,6 +1319,45 @@ export const acceptBid = async (req, res) => {
       dropoff_address: request.dropoff_address,
       fare_amount: bid.bid_amount
     });
+=======
+      if (driverUserResult.rows.length > 0) {
+        const driverUserId = driverUserResult.rows[0].user_id;
+
+        console.log('');
+        console.log('═══════════════════════════════════════════');
+        console.log('🔔 SENDING SOCKET NOTIFICATION');
+        console.log('═══════════════════════════════════════════');
+        console.log('Driver Database ID:', bid.driver_id);
+        console.log('Driver User ID:', driverUserId);
+        console.log('Ride ID:', ride.id);
+        console.log('Pickup:', request.pickup_address);
+        console.log('Dropoff:', request.dropoff_address);
+        console.log('Fare:', bid.bid_amount);
+        console.log('═══════════════════════════════════════════');
+        console.log('');
+
+        // Notify using driver database ID (socket room is driver:${driverId})
+        notifyBidAccepted(bid.driver_id, {
+          rideId: ride.id,
+          bidId: bidId,
+          message: 'Your bid was accepted!',
+          pickup_address: request.pickup_address,
+          dropoff_address: request.dropoff_address,
+          fare_amount: bid.bid_amount
+        });
+        console.log(" The driver id is ", driverUserId)
+
+        console.log('📢 Socket notification sent to driver room: driver:' + bid.driver_id);
+      } else {
+        console.log('⚠️ Driver user not found for driver_id:', bid.driver_id);
+      }
+    } catch (socketError) {
+      console.log('⚠️ Socket notification failed:', socketError.message);
+      console.error(socketError);
+    }
+
+    console.log('✅ Bid acceptance complete!');
+>>>>>>> 5f91b815396f437d3d69a2384881c771fb608d18
 
     res.status(200).json({
       success: true,
