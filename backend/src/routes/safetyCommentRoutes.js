@@ -1,5 +1,6 @@
 import express from "express";
-import { verifyuser, requireRole } from "../middleware/auth.js";
+import { verifyuser } from "../middleware/auth.js";
+import { requireRole } from "../middleware/requireRole.js";
 import {
   addSafetyComment,
   getReviewComments,

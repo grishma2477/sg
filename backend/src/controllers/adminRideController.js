@@ -17,7 +17,7 @@ export const createRide = async (req, res, next) => {
 
     res.status(201).json(ApiResponse.success(ride, "RIDE_CREATED"));
   } catch (err) {
-    return(err);
+    next(err);
   }
 };
 

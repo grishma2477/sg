@@ -1,0 +1,334 @@
+{
+  "info": {
+    "_postman_id": "2e6d3774-9ecf-4b0a-8a1d-0f7dbda90101",
+    "name": "SG Backend 01 - Auth KYC Driver Application",
+    "description": "Health, auth, KYC, and driver application routes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/"
+      }
+    },
+    {
+      "name": "Register Rider",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"first_name\": \"Rest\",\n  \"last_name\": \"Rider\",\n  \"email\": \"{{riderEmail}}\",\n  \"password\": \"{{riderPassword}}\",\n  \"phone_number\": \"9800000001\",\n  \"role\": \"rider\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/register"
+      }
+    },
+    {
+      "name": "Register Driver",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"first_name\": \"Rest\",\n  \"last_name\": \"Driver\",\n  \"email\": \"{{driverEmail}}\",\n  \"password\": \"{{driverPassword}}\",\n  \"phone_number\": \"9800000002\",\n  \"role\": \"driver\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/register"
+      }
+    },
+    {
+      "name": "Login Admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.token) pm.environment.set('adminToken', json.token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Login Rider",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.token) pm.environment.set('riderToken', json.token);",
+              "if (json.userId) pm.environment.set('riderUserId', json.userId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{riderEmail}}\",\n  \"password\": \"{{riderPassword}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Login Driver",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.token) pm.environment.set('driverToken', json.token);",
+              "if (json.userId) pm.environment.set('driverUserId', json.userId);",
+              "if (json.driverId) pm.environment.set('driverDriverId', json.driverId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{driverEmail}}\",\n  \"password\": \"{{driverPassword}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Get Rider KYC Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/kyc/status"
+      }
+    },
+    {
+      "name": "Submit Rider KYC",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "firstName", "value": "Rest", "type": "text" },
+            { "key": "lastName", "value": "Rider", "type": "text" },
+            { "key": "dateOfBirth", "value": "1998-05-11", "type": "text" },
+            { "key": "address", "value": "Kathmandu Metropolitan City, Nepal", "type": "text" },
+            { "key": "phoneNumber", "value": "9800000001", "type": "text" },
+            { "key": "email", "value": "{{riderEmail}}", "type": "text" },
+            { "key": "gender", "value": "male", "type": "text" },
+            { "key": "nationalIdentityNumber", "value": "RIDER-REST-0001", "type": "text" },
+            { "key": "bloodGroup", "value": "O+", "type": "text" },
+            { "key": "documentType", "value": "citizenship", "type": "text" },
+            { "key": "documentNumber", "value": "RID-DOC-0001", "type": "text" },
+            { "key": "issuedDate", "value": "2017-04-13", "type": "text" },
+            { "key": "expiryDate", "value": "2037-04-13", "type": "text" },
+            { "key": "profilePhoto", "type": "file", "src": "C:\\Users\\Lenovo\\Documents\\github files\\New Sg\\sg\\backend\\rest\\_fixtures\\person.svg" },
+            { "key": "documentFront", "type": "file", "src": "C:\\Users\\Lenovo\\Documents\\github files\\New Sg\\sg\\backend\\rest\\_fixtures\\document.svg" },
+            { "key": "documentBack", "type": "file", "src": "C:\\Users\\Lenovo\\Documents\\github files\\New Sg\\sg\\backend\\rest\\_fixtures\\document.svg" }
+          ]
+        },
+        "url": "{{baseUrl}}/api/kyc/complete"
+      }
+    },
+    {
+      "name": "Submit Driver KYC",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "firstName", "value": "Rest", "type": "text" },
+            { "key": "lastName", "value": "Driver", "type": "text" },
+            { "key": "dateOfBirth", "value": "1994-02-21", "type": "text" },
+            { "key": "address", "value": "Lalitpur Metropolitan City, Nepal", "type": "text" },
+            { "key": "phoneNumber", "value": "9800000002", "type": "text" },
+            { "key": "email", "value": "{{driverEmail}}", "type": "text" },
+            { "key": "gender", "value": "male", "type": "text" },
+            { "key": "nationalIdentityNumber", "value": "DRIVER-REST-0001", "type": "text" },
+            { "key": "bloodGroup", "value": "A+", "type": "text" },
+            { "key": "documentType", "value": "license", "type": "text" },
+            { "key": "documentNumber", "value": "DRV-DOC-0001", "type": "text" },
+            { "key": "issuedDate", "value": "2016-01-10", "type": "text" },
+            { "key": "expiryDate", "value": "2032-01-10", "type": "text" },
+            { "key": "profilePhoto", "type": "file", "src": "C:\\Users\\Lenovo\\Documents\\github files\\New Sg\\sg\\backend\\rest\\_fixtures\\person.svg" },
+            { "key": "documentFront", "type": "file", "src": "C:\\Users\\Lenovo\\Documents\\github files\\New Sg\\sg\\backend\\rest\\_fixtures\\document.svg" },
+            { "key": "documentBack", "type": "file", "src": "C:\\Users\\Lenovo\\Documents\\github files\\New Sg\\sg\\backend\\rest\\_fixtures\\document.svg" }
+          ]
+        },
+        "url": "{{baseUrl}}/api/kyc/complete"
+      }
+    },
+    {
+      "name": "List Pending KYC",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/kyc/pending"
+      }
+    },
+    {
+      "name": "Get Driver KYC Details",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/kyc/{{driverUserId}}"
+      }
+    },
+    {
+      "name": "Verify Driver KYC",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"approved\": true,\n  \"remarks\": \"Driver KYC approved by Postman\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/kyc/verify/{{driverUserId}}"
+      }
+    },
+    {
+      "name": "Check Driver Application",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/driver-applications/check"
+      }
+    },
+    {
+      "name": "Submit Driver Application",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.applicationId) pm.environment.set('driverApplicationId', json.data.applicationId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "licenseNumber", "value": "LIC-REST-0001", "type": "text" },
+            { "key": "licenseType", "value": "professional", "type": "text" },
+            { "key": "vehicleType", "value": "car", "type": "text" },
+            { "key": "vehicleCategory", "value": "sedan", "type": "text" },
+            { "key": "vehicleMake", "value": "Toyota", "type": "text" },
+            { "key": "vehicleModel", "value": "Yaris", "type": "text" },
+            { "key": "vehicleYear", "value": "2020", "type": "text" },
+            { "key": "vehicleColor", "value": "white", "type": "text" },
+            { "key": "vehiclePlateNumber", "value": "BA-12-PA-1234", "type": "text" },
+            { "key": "registrationNumber", "value": "REG-REST-0001", "type": "text" },
+            { "key": "insurancePolicyNumber", "value": "INS-REST-0001", "type": "text" },
+            { "key": "bankAccountNumber", "value": "12345678901234", "type": "text" },
+            { "key": "bankName", "value": "Nabil Bank", "type": "text" },
+            { "key": "bankBranch", "value": "Pulchowk", "type": "text" },
+            { "key": "accountHolderName", "value": "Rest Driver", "type": "text" },
+            { "key": "taxIdNumber", "value": "PAN-REST-0001", "type": "text" },
+            { "key": "paymentMethodPreference", "value": "bank_transfer", "type": "text" },
+            { "key": "licenseFront", "type": "file", "src": "C:\\Users\\Lenovo\\Documents\\github files\\New Sg\\sg\\backend\\rest\\_fixtures\\document.svg" },
+            { "key": "registrationUrl", "type": "file", "src": "C:\\Users\\Lenovo\\Documents\\github files\\New Sg\\sg\\backend\\rest\\_fixtures\\document.svg" },
+            { "key": "insuranceUrl", "type": "file", "src": "C:\\Users\\Lenovo\\Documents\\github files\\New Sg\\sg\\backend\\rest\\_fixtures\\document.svg" },
+            { "key": "photoFront", "type": "file", "src": "C:\\Users\\Lenovo\\Documents\\github files\\New Sg\\sg\\backend\\rest\\_fixtures\\vehicle.svg" }
+          ]
+        },
+        "url": "{{baseUrl}}/api/driver-applications/submit"
+      }
+    },
+    {
+      "name": "List Pending Driver Applications",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/driver-applications/pending"
+      }
+    },
+    {
+      "name": "Get Driver Application Details",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/driver-applications/{{driverApplicationId}}"
+      }
+    },
+    {
+      "name": "Approve Driver Application",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"approved\": true,\n  \"remarks\": \"Driver application approved by Postman\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/driver-applications/{{driverApplicationId}}/review"
+      }
+    }
+  ]
+}

@@ -1213,7 +1213,7 @@ const DriverDashboard = ({ auth, onLogout }) => {
                     ESTIMATED FARE RANGE
                   </div>
                   <div className="font-bold" style={{ fontSize: '1.25rem', color: '#10B981' }}>
-                    ₹{request.estimated_fare_min} - ₹{request.estimated_fare_max}
+                    NPR {request.estimated_total}
                   </div>
                 </div>
 

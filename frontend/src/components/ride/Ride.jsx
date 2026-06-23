@@ -198,7 +198,7 @@ const RiderDashboard = ({ auth, setView }) => {
                   <div className="flex items-center gap-1">
                     <DollarSign size={16} color="#94A3B8" />
                     <span className="text-dim" style={{fontSize: '0.875rem'}}>
-                      ₹{request.estimated_fare_min} - ₹{request.estimated_fare_max}
+                     NPR {request.total}
                     </span>
                   </div>
                 </div>

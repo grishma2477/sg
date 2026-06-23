@@ -359,4 +359,38 @@ export class PaymentService {
       throw new AppError("UNSUPPORTED_PAYMENT_SOURCE", 400);
     });
   }
+
+  static async handleGatewayWebhook({
+    gatewayTransactionId,
+    status
+  }) {
+    const payment = await Payment.findOne({
+      external_reference: gatewayTransactionId
+    });
+
+    if (!payment) {
+      throw new AppError("PAYMENT_NOT_FOUND", 404);
+    }
+
+    await Payment.updateOne(
+      { id: payment.id },
+      { status, updated_at: new Date() }
+    );
+
+    return { message: "WEBHOOK_UPDATED" };
+  }
+
+  static async getPaymentDetails(paymentId, userId) {
+    const payment = await Payment.findOne({ id: paymentId });
+
+    if (!payment) {
+      throw new AppError("PAYMENT_NOT_FOUND", 404);
+    }
+
+    if (payment.payer_id !== userId && payment.payee_id !== userId) {
+      throw new AppError("UNAUTHORIZED", 403);
+    }
+
+    return payment;
+  }
 }

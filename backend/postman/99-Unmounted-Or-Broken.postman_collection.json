@@ -1,0 +1,314 @@
+{
+  "info": {
+    "_postman_id": "0efcdd8e-6ea7-4c8a-9031-6626cae0a0e8",
+    "name": "SG Backend 99 - Unmounted Or Broken",
+    "description": "Routes that exist in code but are not mounted in src/app.js, plus mounted routes that are currently broken because of backend code issues. Safety comment URLs assume a base mount of /api/safety-comments if you wire that router later.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Login Admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.token) pm.environment.set('adminToken', json.token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Login Rider",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.token) pm.environment.set('riderToken', json.token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{riderEmail}}\",\n  \"password\": \"{{riderPassword}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Login Driver",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.token) pm.environment.set('driverToken', json.token);",
+              "if (json.driverId) pm.environment.set('driverDriverId', json.driverId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{driverEmail}}\",\n  \"password\": \"{{driverPassword}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Broken Mounted - Get Payment Methods",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/payments/methods"
+      }
+    },
+    {
+      "name": "Broken Mounted - Get Nearby Drivers",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/ride-requests/drivers/nearby?lat=27.7172&lng=85.324&radius=5"
+      }
+    },
+    {
+      "name": "Broken Mounted - Admin Payment Providers List",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/payment-providers"
+      }
+    },
+    {
+      "name": "Broken Mounted - Admin Payment Provider Create",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Broken Admin Provider\",\n  \"type\": \"wallet\",\n  \"config\": {\n    \"mode\": \"sandbox\"\n  }\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/admin/payment-providers"
+      }
+    },
+    {
+      "name": "Broken Mounted - Admin Payment Provider Update",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Broken Admin Provider Updated\",\n  \"config\": {\n    \"mode\": \"production\"\n  }\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/admin/payment-providers/{{paymentProviderId}}"
+      }
+    },
+    {
+      "name": "Broken Mounted - Admin Payment Provider Deactivate",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/payment-providers/{{paymentProviderId}}/deactivate"
+      }
+    },
+    {
+      "name": "Unmounted - Get Driver Verification Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/drivers/verification-status"
+      }
+    },
+    {
+      "name": "Unmounted - Create Driver Profile",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/drivers/create-profile"
+      }
+    },
+    {
+      "name": "Unmounted - Get Driver Profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/drivers/profile"
+      }
+    },
+    {
+      "name": "Unmounted - Get All Driver Badges",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/drivers/badges"
+      }
+    },
+    {
+      "name": "Unmounted - Get Driver Badges",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/drivers/{{driverDriverId}}/badges"
+      }
+    },
+    {
+      "name": "Unmounted - Update Driver Badges",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"confirmed_identity\": true,\n  \"portrait_picture_check\": true,\n  \"driver_license_verified\": true,\n  \"authorized_driver\": true,\n  \"vehicle_inspected\": true\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/admin/drivers/{{driverDriverId}}/badges"
+      }
+    },
+    {
+      "name": "Unmounted - Reset Driver Badges",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/drivers/{{driverDriverId}}/badges/reset"
+      }
+    },
+    {
+      "name": "Unmounted - Add Safety Comment",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.id) pm.environment.set('commentId', json.data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"commentText\": \"Unsafe braking and sudden turns.\",\n  \"safetyCategory\": \"driving_behavior\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/safety-comments/reviews/{{reviewId}}/comments"
+      }
+    },
+    {
+      "name": "Unmounted - Get Review Comments",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/safety-comments/reviews/{{reviewId}}/comments"
+      }
+    },
+    {
+      "name": "Unmounted - Review Safety Comment",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"reviewed\",\n  \"adminAction\": \"noted\",\n  \"adminNotes\": \"Checked by Postman\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/safety-comments/comments/{{commentId}}/review"
+      }
+    },
+    {
+      "name": "Unmounted - Get Pending Safety Reviews",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/safety-comments/pending"
+      }
+    },
+    {
+      "name": "Unmounted - Get Safety Comment Statistics",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/safety-comments/statistics"
+      }
+    }
+  ]
+}

@@ -1,0 +1,345 @@
+@baseUrl = {{baseUrl}}
+@fixedRideKey = rest-fixed-request-001
+@acceptFixedRideKey = rest-fixed-accept-001
+@startFixedRideKey = rest-fixed-start-001
+@completeFixedRideKey = rest-fixed-complete-001
+@cancelRideKey = rest-fixed-cancel-001
+@biddingRideKey = rest-bidding-request-001
+@providerTokenRider = rest-rider-flow-token-001
+
+### Login Admin
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
+}
+
+###
+
+### Login Rider
+# @name loginRider
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{riderEmail}}",
+  "password": "{{riderPassword}}"
+}
+
+###
+
+### Login Driver
+# @name loginDriver
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{driverEmail}}",
+  "password": "{{driverPassword}}"
+}
+
+###
+
+### Admin Create Payment Provider For Test Flow
+# @name createRideFlowProvider
+POST {{baseUrl}}/api/payments/providers
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "name": "{{paymentProviderName}} Ride Flow",
+  "type": "{{paymentProviderType}}",
+  "config": {
+    "mode": "sandbox",
+    "source": "rest-suite"
+  }
+}
+
+###
+
+### Rider Add Payment Method
+# @name addRiderMethod
+POST {{baseUrl}}/api/payments/methods
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "providerId": "{{createRideFlowProvider.response.body.$.data.id}}",
+  "providerToken": "{{providerTokenRider}}",
+  "accountIdentifier": "rider-rest-wallet"
+}
+
+###
+
+### Rider Set Default Payment Method
+PATCH {{baseUrl}}/api/payments/methods/{{addRiderMethod.response.body.$.data.id}}/default
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Driver Current Status
+GET {{baseUrl}}/api/drivers/status
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+
+###
+
+### Driver Toggle Status
+POST {{baseUrl}}/api/drivers/toggle-status
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+
+###
+
+### Driver Update Location
+POST {{baseUrl}}/api/ride-requests/drivers/location
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "lat": 27.7172,
+  "lng": 85.324
+}
+
+###
+
+### Create Fixed-Price Ride Request
+# @name createFixedRideRequest
+POST {{baseUrl}}/api/ride-requests
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Idempotency-Key: {{fixedRideKey}}
+Content-Type: application/json
+
+{
+  "pickupLocation": {
+    "coordinates": [85.324, 27.7172]
+  },
+  "pickupAddress": "New Baneshwor, Kathmandu",
+  "dropoffLocation": {
+    "coordinates": [85.332, 27.7017]
+  },
+  "dropoffAddress": "Jawalakhel, Lalitpur",
+  "pricingMode": "fixed",
+  "vehiclePreference": "sedan",
+  "passengerCount": 1,
+  "luggageCount": 0,
+  "stops": [
+    {
+      "address": "Maitighar, Kathmandu",
+      "location": {
+        "coordinates": [85.3235, 27.7097]
+      },
+      "maxWaitSeconds": 180
+    }
+  ]
+}
+
+###
+
+### Rider List Own Ride Requests
+GET {{baseUrl}}/api/ride-requests
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Rider Get Fixed Ride Request Details
+GET {{baseUrl}}/api/ride-requests/{{createFixedRideRequest.response.body.$.data.id}}
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Driver Accept Fixed Ride Request
+# @name acceptFixedRide
+POST {{baseUrl}}/api/rides/accept/{{createFixedRideRequest.response.body.$.data.id}}
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+Idempotency-Key: {{acceptFixedRideKey}}
+Content-Type: application/json
+
+{}
+
+###
+
+### Get Fixed Ride Details
+GET {{baseUrl}}/api/rides/{{acceptFixedRide.response.body.$.data.id}}
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+
+###
+
+### Start Fixed Ride
+POST {{baseUrl}}/api/rides/{{acceptFixedRide.response.body.$.data.id}}/start
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+Idempotency-Key: {{startFixedRideKey}}
+
+###
+
+### Complete Fixed Ride
+POST {{baseUrl}}/api/rides/{{acceptFixedRide.response.body.$.data.id}}/complete
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+Idempotency-Key: {{completeFixedRideKey}}
+
+###
+
+### Rider Submit Review For Driver
+POST {{baseUrl}}/api/reviews
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "rideSummary": {
+    "rideId": "{{acceptFixedRide.response.body.$.data.id}}",
+    "riderId": "{{loginRider.response.body.$.userId}}",
+    "driverId": "{{loginDriver.response.body.$.driverId}}",
+    "status": "completed",
+    "isPaid": true
+  },
+  "rating": {
+    "stars": 5
+  },
+  "taps": [
+    {
+      "key": "FELT_SAFE",
+      "category": "positive"
+    },
+    {
+      "key": "COMMUNICATION",
+      "category": "positive"
+    }
+  ]
+}
+
+###
+
+### Driver Submit Review For Rider
+POST {{baseUrl}}/api/reviews
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "rideSummary": {
+    "rideId": "{{acceptFixedRide.response.body.$.data.id}}",
+    "riderId": "{{loginRider.response.body.$.userId}}",
+    "driverId": "{{loginDriver.response.body.$.driverId}}",
+    "status": "completed",
+    "isPaid": true
+  },
+  "rating": {
+    "stars": 4
+  },
+  "taps": [
+    {
+      "key": "POLITE",
+      "category": "positive"
+    }
+  ]
+}
+
+###
+
+### Create Another Fixed Ride Request For Cancel Flow
+# @name createCancelableRideRequest
+POST {{baseUrl}}/api/ride-requests
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Idempotency-Key: rest-fixed-request-002
+Content-Type: application/json
+
+{
+  "pickupLocation": {
+    "coordinates": [85.31, 27.72]
+  },
+  "pickupAddress": "Koteshwor, Kathmandu",
+  "dropoffLocation": {
+    "coordinates": [85.301, 27.694]
+  },
+  "dropoffAddress": "Satdobato, Lalitpur",
+  "pricingMode": "fixed",
+  "vehiclePreference": "sedan",
+  "passengerCount": 1,
+  "luggageCount": 0
+}
+
+###
+
+### Driver Accept Cancelable Ride
+# @name acceptCancelableRide
+POST {{baseUrl}}/api/rides/accept/{{createCancelableRideRequest.response.body.$.data.id}}
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+Idempotency-Key: rest-fixed-accept-002
+Content-Type: application/json
+
+{}
+
+###
+
+### Rider Cancel Ride
+POST {{baseUrl}}/api/rides/{{acceptCancelableRide.response.body.$.data.id}}/cancel
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Idempotency-Key: {{cancelRideKey}}
+Content-Type: application/json
+
+{
+  "reason": "REST suite cancellation check"
+}
+
+###
+
+### Create Bidding Ride Request
+# @name createBiddingRideRequest
+POST {{baseUrl}}/api/ride-requests
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Idempotency-Key: {{biddingRideKey}}
+Content-Type: application/json
+
+{
+  "pickupLocation": {
+    "coordinates": [85.315, 27.712]
+  },
+  "pickupAddress": "Putalisadak, Kathmandu",
+  "dropoffLocation": {
+    "coordinates": [85.299, 27.671]
+  },
+  "dropoffAddress": "Balkumari, Lalitpur",
+  "pricingMode": "bidding",
+  "vehiclePreference": "sedan",
+  "passengerCount": 2,
+  "luggageCount": 1
+}
+
+###
+
+### Driver Browse Nearby Bidding Requests
+GET {{baseUrl}}/api/ride-requests/nearby
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+
+###
+
+### Driver Submit Bid
+# @name submitBid
+POST {{baseUrl}}/api/bidding/requests/{{createBiddingRideRequest.response.body.$.data.id}}/submit
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "bidAmount": 650,
+  "estimatedArrivalMinutes": 7,
+  "driverMessage": "Can arrive quickly"
+}
+
+###
+
+### Rider Get Bids For Request
+GET {{baseUrl}}/api/bidding/requests/{{createBiddingRideRequest.response.body.$.data.id}}/bids
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Rider Accept Bid
+# @name acceptBid
+POST {{baseUrl}}/api/bidding/bids/{{submitBid.response.body.$.data.id}}/accept
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Get Ride Details For Accepted Bid Ride
+GET {{baseUrl}}/api/rides/{{acceptBid.response.body.$.data.ride_id}}
+Authorization: Bearer {{loginDriver.response.body.$.token}}

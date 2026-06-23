@@ -43,6 +43,11 @@ import PayoutRequest from "../models/finance/payout/PayoutRequest.js";
 import PayoutBatch from "../models/finance/payout/PayoutBatch.js";
 import PayoutAttempt from './../models/finance/payout/PayoutAttempt.js';
 import PendingGiftCard from "../models/finance/gift_card/pending_gift_card/PendingGiftCard.js";
+import DisputeCase from "../models/dispute/DisputeCase.js";
+import DisputeMessage from "../models/dispute/DisputeMessage.js";
+import DisputeEvidence from "../models/dispute/DisputeEvidence.js";
+import DisputeResolution from "../models/dispute/DisputeResolution.js";
+import IdempotencyKey from "../models/idempotency/IdempotencyKey.js";
 
 // Add every model here once.
 export const MODELS = [
@@ -55,11 +60,13 @@ export const MODELS = [
     Driver,
     DriverVerifications,
     VehicleApplication,
+
+    RideRequest,
     Ride,
     RideLocation,
-    RideRequest,
     RideStop,
     RideBid,
+
     DriverLocation,
     DriverRestriction,
     RiderSafetyStats,
@@ -75,22 +82,29 @@ export const MODELS = [
     Wallet,
     Transaction,
     BNPLAccount,
+    IdempotencyKey,
 
-    
+
     Pricing,
     PendingGiftCard,
     GiftCard,
     GiftCardRedemption,
-    
+
     PromoCode,
     PromoRedemption,
     PaymentHold,
     RidePayment,
 
-// payment and payouts
+    // payment and payouts
     Payment,
     PaymentAttempt,
     Settlement,
+
+    DisputeCase,
+    DisputeMessage,
+    DisputeEvidence,
+    DisputeResolution,
+
     PayoutRequest,
     PayoutBatch,
     PayoutAttempt,

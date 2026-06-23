@@ -10,8 +10,6 @@ import { Constant } from "../utils/Constant.js";
 import UserProfile from "../models/user/user_profile/UserProfile.js"
 
 import { pool } from '../database/DBConnection.js';
-import KYC from "../models/user/kyc/KYC.js";
-import KYCDocument from '../models/user/kyc_document/KYCDocument.js';
 import Wallet from "../models/finance/transaction/wallet/Wallet.js";
 import { LedgerService } from './../application/services/LedgerService.js';
 /**
@@ -90,13 +88,10 @@ export const register = async (req, res, next) => {
   console.log("📝 Registration started...");
 
   try {
-    const { 
-      first_name, 
-      last_name, 
-      email, 
-      password, 
-      phone_number,
-      role = "rider" // Default to rider, but accept driver from frontend
+    const {
+      email,
+      password,
+      role = "rider"
     } = req.body;
 
     console.log(`👤 Registering as: ${role}`);
@@ -146,27 +141,8 @@ export const register = async (req, res, next) => {
 
     console.log('✅ Auth credentials created');
 
-    // 4️⃣ Create minimal KYC record (placeholders - will be completed in KYC page)
-    await KYC.create({
-      user_id: user.id,
-      first_name: first_name || '',
-      last_name: last_name || '',
-      phone_number: phone_number || '',
-      email: email,
-      // Placeholders (will be updated in KYC completion):
-      date_of_birth: '2000-01-01',
-      address: 'To be updated',
-      profile_url: 'https://via.placeholder.com/150',
-      gender: 'male',
-      national_identity_number: `TEMP-${user.id.substring(0, 8)}`,
-      blood_group: 'O+'
-    });
-
-    console.log('✅ Minimal KYC record created (to be completed later)');
-    
-    // ❌ DO NOT CREATE USER PROFILE HERE
-    // user_profiles will be created/updated during KYC completion
-    // Because your user_profiles table has NOT NULL columns that we don't have data for yet
+    // KYC is NOT created here — user submits it via POST /api/kyc/complete
+    // Login handles the case where no KYC row exists (isKycComplete = false)
 
     console.log('✅ Registration completed successfully');
 
@@ -261,8 +237,8 @@ export const login = async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { id: user.id, role: user.role },
-      process.env.ACCESS_TOKEN_SECRET_KEY || 'your-secret-key',
-      { expiresIn: '24h' }
+      process.env.ACCESS_TOKEN_SECRET_KEY,
+      { expiresIn: process.env.ACCESS_TOKEN_EXPIRATION_TIME || '24h' }
     );
 
     // If driver, get driver database ID

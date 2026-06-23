@@ -34,10 +34,11 @@ import {
   getNearbyRideRequests,
   updateDriverLocation
 } from "../controllers/rideRequestController.js";
+import { idempotency } from "../middleware/idempotency.js";
 
 const router = express.Router();
 
-router.post("/", verifyuser, createRideRequest);
+router.post("/", verifyuser, idempotency, createRideRequest);
 
 // Get nearby requests (MUST come before /:id route)
 router.get('/nearby', verifyuser, getNearbyRideRequests);

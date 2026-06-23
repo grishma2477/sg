@@ -1,0 +1,418 @@
+{
+  "info": {
+    "name": "SG Backend — Sprint 0 Complete",
+    "description": "Sprint 0: All broken bugs fixed. All endpoints that were ⚠️/❌ are now ✅. Also includes 4 newly mounted route groups.\n\nFixes applied:\n1. auth.js — jwt.verify() wrapped in try-catch (returns 401 JSON on bad token)\n2. authController — JWT secret fallback removed; KYC sentinel data removed from register\n3. adminPaymentProviderRoutes — verifyuser added before requireRole\n4. server.js — startup env var validation (ACCESS_TOKEN_SECRET_KEY, REFRESH_TOKEN_SECRET_KEY, DATABASE_URL)\n5. driverLocationController — pool import added (getNearbyDrivers now works)\n6. PaymentProviderService — pool import added\n7. Constant.js — REQUEST_EXPIRY_MINUTES: 5 and PLATFORM_FEE_PERCENTAGE: 20 added\n8. PaymentService — getPaymentDetails(paymentId, userId) implemented\n9. PaymentMethodService — getUserPaymentMethods() and deletePaymentMethod() re-implemented\n10. driverApplicationController — driverId scoping bug fixed (const shadow removed)\n11. adminRideController — return(err) → next(err) in createRide catch\n12. paymentRoutes — duplicate GET /:paymentId removed\n13. safetyCommentRoutes — requireRole import fixed to requireRole.js\n14. app.js — driverProfileRoutes, driverVerificationRoutes, adminBadgeRoutes, safetyCommentRoutes mounted",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "sg-sprint-0-2026-06-24"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000", "type": "string" },
+    { "key": "riderToken", "value": "", "type": "string" },
+    { "key": "driverToken", "value": "", "type": "string" },
+    { "key": "adminToken", "value": "", "type": "string" },
+    { "key": "rideRequestId", "value": "1", "type": "string" },
+    { "key": "rideId", "value": "1", "type": "string" },
+    { "key": "bidId", "value": "1", "type": "string" },
+    { "key": "userId", "value": "1", "type": "string" },
+    { "key": "driverId", "value": "1", "type": "string" },
+    { "key": "paymentMethodId", "value": "1", "type": "string" },
+    { "key": "payoutRequestId", "value": "1", "type": "string" },
+    { "key": "promoCode", "value": "WELCOME10", "type": "string" },
+    { "key": "giftCardCode", "value": "GC-XXXX-XXXX", "type": "string" },
+    { "key": "reviewId", "value": "1", "type": "string" },
+    { "key": "paymentId", "value": "1", "type": "string" },
+    { "key": "providerId", "value": "1", "type": "string" },
+    { "key": "applicationId", "value": "1", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "01 — Auth",
+      "item": [
+        {
+          "name": "Register Rider",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"rider@test.com\",\n  \"password\": \"Password123!\",\n  \"role\": \"rider\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Register Driver",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"driver@test.com\",\n  \"password\": \"Password123!\",\n  \"role\": \"driver\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Register Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@test.com\",\n  \"password\": \"Password123!\",\n  \"role\": \"admin\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Login Rider",
+          "event": [{ "listen": "test", "script": { "exec": ["const r = pm.response.json();\nif (r.data?.token) pm.collectionVariables.set('riderToken', 'Bearer ' + r.data.token);"], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"rider@test.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login Driver",
+          "event": [{ "listen": "test", "script": { "exec": ["const r = pm.response.json();\nif (r.data?.token) pm.collectionVariables.set('driverToken', 'Bearer ' + r.data.token);"], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"driver@test.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login Admin",
+          "event": [{ "listen": "test", "script": { "exec": ["const r = pm.response.json();\nif (r.data?.token) pm.collectionVariables.set('adminToken', 'Bearer ' + r.data.token);"], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@test.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 — KYC",
+      "item": [
+        {
+          "name": "Get KYC Status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/kyc/status", "host": ["{{baseUrl}}"], "path": ["api", "kyc", "status"] }
+          }
+        },
+        {
+          "name": "Complete KYC",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date_of_birth\": \"1995-05-15\",\n  \"address\": \"Kathmandu, Nepal\",\n  \"gender\": \"male\",\n  \"blood_group\": \"A+\",\n  \"id_type\": \"citizenship\",\n  \"id_number\": \"123-456-789\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/kyc/complete", "host": ["{{baseUrl}}"], "path": ["api", "kyc", "complete"] }
+          }
+        },
+        {
+          "name": "Admin — Verify KYC (approve)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"approved\",\n  \"notes\": \"All documents verified\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/kyc/verify/{{userId}}", "host": ["{{baseUrl}}"], "path": ["api", "kyc", "verify", "{{userId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 — Driver Application",
+      "item": [
+        {
+          "name": "Check Application Status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{driverToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/driver-applications/check", "host": ["{{baseUrl}}"], "path": ["api", "driver-applications", "check"] }
+          }
+        },
+        {
+          "name": "Submit Driver Application",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{driverToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"license_number\": \"DL-12345-2020\",\n  \"license_expiry\": \"2027-12-31\",\n  \"vehicle_make\": \"Toyota\",\n  \"vehicle_model\": \"Corolla\",\n  \"vehicle_year\": 2020,\n  \"vehicle_color\": \"White\",\n  \"vehicle_plate\": \"BA-1-234-CHA\",\n  \"vehicle_type\": \"car\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/driver-applications/submit", "host": ["{{baseUrl}}"], "path": ["api", "driver-applications", "submit"] }
+          }
+        },
+        {
+          "name": "Admin — Get Pending Applications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/driver-applications/pending", "host": ["{{baseUrl}}"], "path": ["api", "driver-applications", "pending"] }
+          }
+        },
+        {
+          "name": "Admin — Review Application (approve) [FIXED: driverId scope]",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"approved\": true,\n  \"remarks\": \"All documents verified, driver approved\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/driver-applications/{{applicationId}}/review", "host": ["{{baseUrl}}"], "path": ["api", "driver-applications", "{{applicationId}}", "review"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 — Driver Status & Location",
+      "item": [
+        {
+          "name": "Toggle Driver Online",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{driverToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"is_online\": true,\n  \"latitude\": 27.7172,\n  \"longitude\": 85.3240\n}" },
+            "url": { "raw": "{{baseUrl}}/api/drivers/toggle-status", "host": ["{{baseUrl}}"], "path": ["api", "drivers", "toggle-status"] }
+          }
+        },
+        {
+          "name": "Update Driver Location [FIXED: uses rideRequestController]",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{driverToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"latitude\": 27.7200,\n  \"longitude\": 85.3250\n}" },
+            "url": { "raw": "{{baseUrl}}/api/ride-requests/drivers/location", "host": ["{{baseUrl}}"], "path": ["api", "ride-requests", "drivers", "location"] }
+          }
+        },
+        {
+          "name": "Get Nearby Drivers [FIXED: pool import added]",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/ride-requests/drivers/nearby?latitude=27.7172&longitude=85.3240&radius=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ride-requests", "drivers", "nearby"],
+              "query": [{ "key": "latitude", "value": "27.7172" }, { "key": "longitude", "value": "85.3240" }, { "key": "radius", "value": "5" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 — Driver Profile (NEW)",
+      "item": [
+        {
+          "name": "Create Driver Profile",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{driverToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"bio\": \"Experienced driver in Kathmandu\",\n  \"preferred_areas\": [\"Thamel\", \"Baneshwor\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/api/drivers/create-profile", "host": ["{{baseUrl}}"], "path": ["api", "drivers", "create-profile"] }
+          }
+        },
+        {
+          "name": "Get Driver Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{driverToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/drivers/profile", "host": ["{{baseUrl}}"], "path": ["api", "drivers", "profile"] }
+          }
+        },
+        {
+          "name": "Get Driver Verification Status + Badges",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{driverToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/drivers/verification-status", "host": ["{{baseUrl}}"], "path": ["api", "drivers", "verification-status"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 — Payments [FIXED]",
+      "item": [
+        {
+          "name": "Get Payment Details [FIXED: getPaymentDetails implemented]",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/payments/{{paymentId}}", "host": ["{{baseUrl}}"], "path": ["api", "payments", "{{paymentId}}"] }
+          }
+        },
+        {
+          "name": "Get Wallet Balance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/payments/balance", "host": ["{{baseUrl}}"], "path": ["api", "payments", "balance"] }
+          }
+        },
+        {
+          "name": "Get Account History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/payments/history", "host": ["{{baseUrl}}"], "path": ["api", "payments", "history"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 — Payment Methods [FIXED]",
+      "item": [
+        {
+          "name": "Add Payment Method",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"esewa\",\n  \"account_identifier\": \"9800000001\",\n  \"display_name\": \"My eSewa\",\n  \"is_default\": true\n}" },
+            "url": { "raw": "{{baseUrl}}/api/payments/methods", "host": ["{{baseUrl}}"], "path": ["api", "payments", "methods"] }
+          }
+        },
+        {
+          "name": "Get User Payment Methods [FIXED: re-implemented]",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/payments/methods", "host": ["{{baseUrl}}"], "path": ["api", "payments", "methods"] }
+          }
+        },
+        {
+          "name": "Set Default Payment Method",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": { "raw": "{{baseUrl}}/api/payments/methods/{{paymentMethodId}}/default", "host": ["{{baseUrl}}"], "path": ["api", "payments", "methods", "{{paymentMethodId}}", "default"] }
+          }
+        },
+        {
+          "name": "Delete Payment Method [FIXED: re-implemented]",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/payments/methods/{{paymentMethodId}}", "host": ["{{baseUrl}}"], "path": ["api", "payments", "methods", "{{paymentMethodId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 — Admin: Payment Providers [FIXED auth]",
+      "item": [
+        {
+          "name": "Create Provider [FIXED: verifyuser added]",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Khalti\",\n  \"code\": \"khalti\",\n  \"type\": \"mobile_wallet\",\n  \"config\": { \"public_key\": \"test_public_key\", \"base_url\": \"https://a.khalti.com\" },\n  \"is_active\": true\n}" },
+            "url": { "raw": "{{baseUrl}}/api/admin/payment-providers", "host": ["{{baseUrl}}"], "path": ["api", "admin", "payment-providers"] }
+          }
+        },
+        {
+          "name": "Get All Providers [FIXED: verifyuser added]",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/payment-providers", "host": ["{{baseUrl}}"], "path": ["api", "admin", "payment-providers"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 — Admin: Badge Management (NEW)",
+      "item": [
+        {
+          "name": "Get All Drivers With Badges",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/drivers/badges", "host": ["{{baseUrl}}"], "path": ["api", "admin", "drivers", "badges"] }
+          }
+        },
+        {
+          "name": "Get Single Driver Badges",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/drivers/{{driverId}}/badges", "host": ["{{baseUrl}}"], "path": ["api", "admin", "drivers", "{{driverId}}", "badges"] }
+          }
+        },
+        {
+          "name": "Update Driver Badges",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "{{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"confirmed_identity\": true,\n  \"driver_license_verified\": true,\n  \"vehicle_inspection_passed\": true,\n  \"background_check_passed\": false\n}" },
+            "url": { "raw": "{{baseUrl}}/api/admin/drivers/{{driverId}}/badges", "host": ["{{baseUrl}}"], "path": ["api", "admin", "drivers", "{{driverId}}", "badges"] }
+          }
+        },
+        {
+          "name": "Reset Driver Badges",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Re-verification required\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/admin/drivers/{{driverId}}/badges/reset", "host": ["{{baseUrl}}"], "path": ["api", "admin", "drivers", "{{driverId}}", "badges", "reset"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 — Safety Comments (NEW)",
+      "item": [
+        {
+          "name": "Add Safety Comment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"comment\": \"Driver was driving recklessly\",\n  \"severity\": \"high\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/safety-comments/reviews/{{reviewId}}/comments", "host": ["{{baseUrl}}"], "path": ["api", "safety-comments", "reviews", "{{reviewId}}", "comments"] }
+          }
+        },
+        {
+          "name": "Get Comments on Review",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/safety-comments/reviews/{{reviewId}}/comments", "host": ["{{baseUrl}}"], "path": ["api", "safety-comments", "reviews", "{{reviewId}}", "comments"] }
+          }
+        },
+        {
+          "name": "Admin — Pending Safety Reviews",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/safety-comments/pending", "host": ["{{baseUrl}}"], "path": ["api", "safety-comments", "pending"] }
+          }
+        },
+        {
+          "name": "Admin — Safety Comment Statistics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/safety-comments/statistics", "host": ["{{baseUrl}}"], "path": ["api", "safety-comments", "statistics"] }
+          }
+        }
+      ]
+    }
+  ]
+}

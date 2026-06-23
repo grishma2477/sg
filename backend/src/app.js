@@ -19,7 +19,12 @@ import walletRoutes from "./routes/walletRoutes.js"
 import paymentRoutes from "./routes/paymentRoutes.js"
 import payoutRoutes from "./routes/payoutRoutes.js"
 import promoGiftRoutes from "./routes/promoGiftRoutes.js"
-import adminPaymentProviderRoutes from "./routes/adminPaymentProviderRoutes.js"
+import adminPaymentProviderRoutes from "./routes/adminPaymentProviderRoutes.js";
+import driverLocationRoutes from "./routes/driverLocationRoutes.js";
+import driverProfileRoutes from "./routes/driverProfileRoutes.js";
+import driverVerificationRoutes from "./routes/driverRoutes.js";
+import adminBadgeRoutes from "./routes/adminBadgeRoutes.js";
+import safetyCommentRoutes from "./routes/safetyCommentRoutes.js";
 const app = express();
 
 // ---------- GLOBAL MIDDLEWARE ---------- 
@@ -47,8 +52,12 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/payouts', payoutRoutes);
 app.use('/api/promo-gift', promoGiftRoutes);
-
+app.use('/api/ride-requests/drivers', driverLocationRoutes);
 app.use("/api/admin/payment-providers", adminPaymentProviderRoutes);
+app.use('/api/drivers', driverProfileRoutes);
+app.use('/api/drivers', driverVerificationRoutes);
+app.use('/api/admin', adminBadgeRoutes);
+app.use('/api/safety-comments', safetyCommentRoutes);
 
 
 

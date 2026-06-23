@@ -5,10 +5,19 @@ import {
   getPaymentDetails,
   handleGatewayWebhook,
   getAccountHistory,
-  createPaymentProvider
+  createPaymentProvider,
+
 } from '../controllers/paymentController.js';
-import { PaymentMethodService } from '../application/services/PaymentMethodService.js';
+
+import {
+    addPaymentMethod,
+  getUserPaymentMethods,
+  setDefaultPaymentMethod,
+  deletePaymentMethod
+} from "../controllers/paymentMethodController.js";
+
 import { requireRole } from './../middleware/requireRole.js';
+import { getUserProviders } from '../controllers/adminPaymentProviderController.js';
 
 const router = express.Router();
 
@@ -16,12 +25,11 @@ const router = express.Router();
 // cREATING PAYMENT PROVIDERS ROUTES
 // ═══════════════════════════════════════════════════════════
 
-router.post("/providers", auth, requireRole("admin"), createPaymentProvider);
-
+router.post('/providers', auth, requireRole("admin"), createPaymentProvider);
+router.get('/providers', auth, getUserProviders);
 // ═══════════════════════════════════════════════════════════
 // WALLET & BALANCE ROUTES
-// ═══════════════════════════════════════════════════════════
-
+// ══════════════════════════════════════════
 // Get wallet balance
 router.get('/balance', auth, getWalletBalance);
 
@@ -46,8 +54,11 @@ router.post('/webhook/gateway', handleGatewayWebhook);
 // ═══════════════════════════════════════════════════════════
 // PAYMENT METHOD ROUTES
 // ═══════════════════════════════════════════════════════════
+router.post('/methods', auth, addPaymentMethod);
+router.get('/methods', auth, getUserPaymentMethods);
+router.patch('/methods/:methodId/default', auth, setDefaultPaymentMethod);
+router.delete('/methods/:methodId', auth, deletePaymentMethod);
 
-router.post("/methods", auth, PaymentMethodService.addPaymentMethod);
 // router.get("/methods", auth, getMyPaymentMethods);
 // router.post("/methods/:methodId/verify", auth, verifyPaymentMethod);
 

@@ -1,0 +1,394 @@
+@baseUrl = {{baseUrl}}
+@topupKey = rest-wallet-topup-001
+@withdrawKey = rest-wallet-withdraw-001
+@transferKey = rest-wallet-transfer-001
+@riderProviderToken = rest-rider-wallet-token-001
+@spareProviderToken = rest-rider-wallet-token-002
+@driverProviderToken = rest-driver-wallet-token-001
+
+### Login Admin
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
+}
+
+###
+
+### Login Rider
+# @name loginRider
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{riderEmail}}",
+  "password": "{{riderPassword}}"
+}
+
+###
+
+### Login Driver
+# @name loginDriver
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{driverEmail}}",
+  "password": "{{driverPassword}}"
+}
+
+###
+
+### Admin Create Payment Provider For Wallet Tests
+# @name createWalletProvider
+POST {{baseUrl}}/api/payments/providers
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "name": "{{paymentProviderName}} Wallet Tests",
+  "type": "{{paymentProviderType}}",
+  "config": {
+    "mode": "sandbox",
+    "source": "wallet-suite"
+  }
+}
+
+###
+
+### Rider Add Primary Payment Method
+# @name addPrimaryRiderMethod
+POST {{baseUrl}}/api/payments/methods
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "providerId": "{{createWalletProvider.response.body.$.data.id}}",
+  "providerToken": "{{riderProviderToken}}",
+  "accountIdentifier": "rider-wallet-primary"
+}
+
+###
+
+### Rider Set Primary Payment Method As Default
+PATCH {{baseUrl}}/api/payments/methods/{{addPrimaryRiderMethod.response.body.$.data.id}}/default
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Rider Add Spare Payment Method
+# @name addSpareRiderMethod
+POST {{baseUrl}}/api/payments/methods
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "providerId": "{{createWalletProvider.response.body.$.data.id}}",
+  "providerToken": "{{spareProviderToken}}",
+  "accountIdentifier": "rider-wallet-spare"
+}
+
+###
+
+### Delete Spare Payment Method
+DELETE {{baseUrl}}/api/payments/methods/{{addSpareRiderMethod.response.body.$.data.id}}
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Rider Wallet Balance Before Changes
+GET {{baseUrl}}/api/wallet/balance
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Rider Payment Ledger Balance
+GET {{baseUrl}}/api/payments/balance
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Rider Payment Ledger History
+GET {{baseUrl}}/api/payments/history?limit=20
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Top Up Rider Wallet
+POST {{baseUrl}}/api/wallet/topup
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Idempotency-Key: {{topupKey}}
+Content-Type: application/json
+
+{
+  "amount": 500,
+  "paymentMethod": "khalti",
+  "paymentGateway": "KHALTI",
+  "gatewayTransactionId": "TOPUP-REST-001",
+  "metadata": {
+    "source": "rest-suite"
+  }
+}
+
+###
+
+### Transfer Rider Funds To Driver
+POST {{baseUrl}}/api/wallet/transfer
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Idempotency-Key: {{transferKey}}
+Content-Type: application/json
+
+{
+  "toUserId": "{{loginDriver.response.body.$.userId}}",
+  "amount": 50,
+  "description": "REST suite wallet transfer",
+  "metadata": {
+    "source": "rest-suite"
+  }
+}
+
+###
+
+### Withdraw Rider Wallet Funds
+POST {{baseUrl}}/api/wallet/withdraw
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Idempotency-Key: {{withdrawKey}}
+Content-Type: application/json
+
+{
+  "amount": 25,
+  "bankDetails": {
+    "accountNumber": "12345678901234",
+    "bankName": "Nabil Bank",
+    "accountHolder": "{{riderFirstName}} {{riderLastName}}"
+  },
+  "metadata": {
+    "source": "rest-suite"
+  }
+}
+
+###
+
+### Rider Wallet Transactions
+GET {{baseUrl}}/api/wallet/transactions?limit=20&offset=0
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Admin Lock Rider Wallet
+POST {{baseUrl}}/api/wallet/admin/{{loginRider.response.body.$.userId}}/lock
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "reason": "REST suite lock check"
+}
+
+###
+
+### Admin Unlock Rider Wallet
+POST {{baseUrl}}/api/wallet/admin/{{loginRider.response.body.$.userId}}/unlock
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Create Promo Code
+# @name createPromoCode
+POST {{baseUrl}}/api/promo-gift/admin/promo/create
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "code": "REST50OFF",
+  "description": "REST suite promo code",
+  "discountType": "percentage",
+  "discountValue": 10,
+  "maxDiscountAmount": 50,
+  "minRideAmount": 100,
+  "totalUsageLimit": 25,
+  "usagePerUserLimit": 1,
+  "validFrom": "2026-01-01T00:00:00.000Z",
+  "validUntil": "2027-01-01T00:00:00.000Z"
+}
+
+###
+
+### Rider Validate Promo Code
+POST {{baseUrl}}/api/promo-gift/promo/validate
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "code": "REST50OFF",
+  "rideAmount": 450
+}
+
+###
+
+### Rider Get Promo Code
+GET {{baseUrl}}/api/promo-gift/promo/REST50OFF
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Rider Promo History
+GET {{baseUrl}}/api/promo-gift/promo-history
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Admin List Promo Codes
+GET {{baseUrl}}/api/promo-gift/admin/promo/list?page=1&limit=20
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Update Promo Code
+PUT {{baseUrl}}/api/promo-gift/admin/promo/REST50OFF/update
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "description": "Updated by REST suite",
+  "maxDiscountAmount": 75
+}
+
+###
+
+### Admin Promo Stats
+GET {{baseUrl}}/api/promo-gift/admin/promo/stats
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Promo Redemptions
+GET {{baseUrl}}/api/promo-gift/admin/promo/redemptions?page=1&limit=20
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Deactivate Promo Code
+POST {{baseUrl}}/api/promo-gift/admin/promo/REST50OFF/deactivate
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Purchase Gift Card For Redemption
+# @name purchaseRedeemCard
+POST {{baseUrl}}/api/promo-gift/gift-card/purchase
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Idempotency-Key: rest-gift-purchase-001
+Content-Type: application/json
+
+{
+  "amount": 200,
+  "message": "Redeem me",
+  "validityDays": 30,
+  "paymentMethodId": "{{addPrimaryRiderMethod.response.body.$.data.id}}"
+}
+
+###
+
+### Check Redeem Gift Card Balance
+GET {{baseUrl}}/api/promo-gift/gift-card/{{purchaseRedeemCard.response.body.$.data.code}}/balance
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Redeem Gift Card To Wallet
+POST {{baseUrl}}/api/promo-gift/gift-card/redeem
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "code": "{{purchaseRedeemCard.response.body.$.data.code}}",
+  "amount": 100
+}
+
+###
+
+### Redemption History For Redeemed Card
+GET {{baseUrl}}/api/promo-gift/gift-card/{{purchaseRedeemCard.response.body.$.data.code}}/history
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Purchase Gift Card For Transfer
+# @name purchaseTransferCard
+POST {{baseUrl}}/api/promo-gift/gift-card/purchase
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Idempotency-Key: rest-gift-purchase-002
+Content-Type: application/json
+
+{
+  "amount": 150,
+  "message": "Transfer me",
+  "validityDays": 30,
+  "paymentMethodId": "{{addPrimaryRiderMethod.response.body.$.data.id}}"
+}
+
+###
+
+### Transfer Gift Card To Driver
+POST {{baseUrl}}/api/promo-gift/gift-card/transfer
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "code": "{{purchaseTransferCard.response.body.$.data.code}}",
+  "toUserId": "{{loginDriver.response.body.$.userId}}"
+}
+
+###
+
+### Purchase Gift Card For Admin Cancel
+# @name purchaseCancelCard
+POST {{baseUrl}}/api/promo-gift/gift-card/purchase
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Idempotency-Key: rest-gift-purchase-003
+Content-Type: application/json
+
+{
+  "amount": 175,
+  "message": "Cancel me",
+  "validityDays": 30,
+  "paymentMethodId": "{{addPrimaryRiderMethod.response.body.$.data.id}}"
+}
+
+###
+
+### Rider Gift Cards
+GET {{baseUrl}}/api/promo-gift/gift-cards
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Admin List All Gift Cards
+GET {{baseUrl}}/api/promo-gift/admin/gift-cards/list?page=1&limit=20
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Gift Card Stats
+GET {{baseUrl}}/api/promo-gift/admin/gift-cards/stats
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Gift Card Redemptions
+GET {{baseUrl}}/api/promo-gift/admin/gift-cards/redemptions?page=1&limit=20
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Cancel Gift Card
+POST {{baseUrl}}/api/promo-gift/admin/gift-card/{{purchaseCancelCard.response.body.$.data.code}}/cancel
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "reason": "REST suite admin cancel check"
+}

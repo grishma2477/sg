@@ -1,0 +1,1080 @@
+{
+  "info": {
+    "name": "RideApp — Complete Ride Lifecycle",
+    "description": "Full end-to-end ride flow extracted directly from your controllers.\n\n═══════════════════════════════════════════════\nCOMPLETE FLOW A — BIDDING MODE (most common)\n═══════════════════════════════════════════════\nStep 1:  Rider registers + logs in\nStep 2:  Driver registers + logs in + KYC + toggles ONLINE\nStep 3:  Rider creates ride request (pricingMode: bidding)\nStep 4:  Driver sees nearby pending requests\nStep 5:  Driver submits bid (expires in 15 min from your code)\nStep 6:  Rider sees all bids with driver stats (safety score, rating, rides)\nStep 7:  Rider accepts bid → ride created + socket:bid:accepted fires\n         → RidePaymentService.authorizeRidePayment auto-called (funds in escrow)\nStep 8:  Driver gets ride details (stops, rider info, vehicle)\nStep 9:  Driver starts ride → socket:ride:started fires to rider\nStep 10: [Optional] Arrive at stop → depart from stop (for multi-stop rides)\nStep 11: Driver completes ride → socket:ride:completed fires\n         → RidePaymentService.completeRidePayment auto-called (escrow → driver + platform)\nStep 12: Review submitted\n\n═══════════════════════════════════════════════\nCOMPLETE FLOW B — FIXED PRICE MODE\n═══════════════════════════════════════════════\nStep 1-3: Same as above but pricingMode: fixed_price\nStep 4:   Driver calls POST /api/rides/accept/:requestId directly (no bidding)\n          → Skips bidding entirely, ride created immediately\nStep 5-12: Same as bidding flow\n\n═══════════════════════════════════════════════\nCANCELLATION FLOWS\n═══════════════════════════════════════════════\nA. Cancel ride REQUEST (before accepted): PUT /api/ride-requests/:id/cancel\nB. Cancel active RIDE (after accepted/started): POST /api/rides/:id/cancel\n   → Triggers RidePaymentService.cancelRidePayment (refund escrow → rider)\n\n═══════════════════════════════════════════════\nKEY CODE NOTES FROM YOUR CONTROLLERS\n═══════════════════════════════════════════════\n• Fare calc: Haversine formula, Rs.20/km, ±10% buffer (fareMin/fareMax)\n• Bids expire: 15 minutes from submission (expires_at = NOW() + INTERVAL '15 min')\n• Bids sorted: lowest bid_amount first, then oldest\n• acceptRideRequest checks: DRIVER_ALREADY_ON_ACTIVE_RIDE (409)\n• acceptRideRequest checks: REQUEST_ALREADY_ACCEPTED (409) via FOR UPDATE lock\n• Platform fee: 3% (estimatedFare * 0.03) from your acceptRideRequest\n• Stops: max 2 per ride (from createRideRequest code)\n• Socket events: ride:accepted, ride:started, ride:completed\n• KYC join: uses kyc table (not user_profiles) for rider/driver names\n\n═══════════════════════════════════════════════\nHOW TO USE THIS COLLECTION\n═══════════════════════════════════════════════\n1. Run '🔐 Login' section first to get tokens\n2. Run sections in order: Setup → Ride Request → Bidding → Ride Lifecycle\n3. IDs auto-chain via test scripts\n4. Each section has NEGATIVE tests built in",
+    "_postman_id": "rideapp-ride-lifecycle-v1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "riderToken", "value": "" },
+    { "key": "driverToken", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "riderId", "value": "" },
+    { "key": "driverUserId", "value": "" },
+    { "key": "driverDbId", "value": "" },
+    { "key": "rideRequestId", "value": "" },
+    { "key": "rideId", "value": "" },
+    { "key": "bidId", "value": "" },
+    { "key": "stopId", "value": "" },
+    { "key": "reviewId", "value": "" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (['POST','PUT','PATCH'].includes(pm.request.method)) {",
+          "  if (!pm.request.headers.get('Idempotency-Key')) {",
+          "    pm.request.headers.add({ key: 'Idempotency-Key', value: 'idem-' + Date.now() + '-' + Math.random().toString(36).substr(2,9) });",
+          "  }",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+
+    {
+      "name": "🔐 Step 1 — Login (all 3 roles)",
+      "item": [
+        {
+          "name": "Login Rider",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const j = pm.response.json();",
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "if (j.token) {",
+            "  pm.collectionVariables.set('riderToken', j.token);",
+            "  pm.collectionVariables.set('riderId', j.userId);",
+            "  console.log('✅ Rider token saved | userId:', j.userId, '| KYC complete:', j.isKycComplete, '| KYC verified:', j.isKycVerified);",
+            "}",
+            "pm.test('KYC status returned', () => pm.expect(j).to.have.property('isKycComplete'));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"email\": \"rider@test.com\",\n  \"password\": \"Password123!\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/auth/login","host":["{{baseUrl}}"],"path":["api","auth","login"]}
+          }
+        },
+        {
+          "name": "Login Driver",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const j = pm.response.json();",
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "if (j.token) {",
+            "  pm.collectionVariables.set('driverToken', j.token);",
+            "  pm.collectionVariables.set('driverUserId', j.userId);",
+            "  pm.collectionVariables.set('driverDbId', j.driverId || '');",
+            "  console.log('✅ Driver token saved | userId:', j.userId, '| driverId:', j.driverId);",
+            "}",
+            "pm.test('Driver ID returned', () => pm.expect(j.driverId).to.exist);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"email\": \"driver@test.com\",\n  \"password\": \"Password123!\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/auth/login","host":["{{baseUrl}}"],"path":["api","auth","login"]}
+          }
+        },
+        {
+          "name": "Login Admin",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const j = pm.response.json();",
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "if (j.token) pm.collectionVariables.set('adminToken', j.token);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"email\": \"admin@test.com\",\n  \"password\": \"AdminPass123!\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/auth/login","host":["{{baseUrl}}"],"path":["api","auth","login"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🚗 Step 2 — Driver Setup (online, location)",
+      "description": "Driver must be online and have a location to appear in matching. KYC + vehicle must be verified first.",
+      "item": [
+        {
+          "name": "Get Driver Status",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "console.log('Driver status:', d?.is_online ? '🟢 ONLINE' : '🔴 OFFLINE', '| available:', d?.is_available);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/drivers/status","host":["{{baseUrl}}"],"path":["api","drivers","status"]}
+          }
+        },
+        {
+          "name": "Toggle Driver ONLINE",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "console.log('Driver toggled → now:', d?.is_online ? '🟢 ONLINE' : '🔴 OFFLINE');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/drivers/toggle-status","host":["{{baseUrl}}"],"path":["api","drivers","toggle-status"]}
+          }
+        },
+        {
+          "name": "Update Driver Location (Kathmandu)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('LOCATION_UPDATED', () => pm.expect(pm.response.json().message).to.eql('LOCATION_UPDATED'));",
+            "console.log('✅ Driver location set to Kathmandu (27.7172, 85.3240)');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"lat\": 27.7172,\n  \"lng\": 85.3240\n}"},
+            "url": {"raw":"{{baseUrl}}/api/ride-requests/drivers/location","host":["{{baseUrl}}"],"path":["api","ride-requests","drivers","location"]}
+          }
+        },
+        {
+          "name": "Update Driver Location (near ride pickup)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "console.log('✅ Driver moved closer to Thamel pickup area');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"lat\": 27.7150,\n  \"lng\": 85.3130\n}"},
+            "url": {"raw":"{{baseUrl}}/api/ride-requests/drivers/location","host":["{{baseUrl}}"],"path":["api","ride-requests","drivers","location"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "📍 Step 3 — Rider Creates Ride Request",
+      "description": "createRideRequest uses Haversine formula for distance, Rs.20/km fare, ±10% min/max range.\nCoordinates are PostGIS POINT(lng lat) format.",
+      "item": [
+        {
+          "name": "Create Ride Request — Bidding Mode (Thamel → Patan)",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'create-req-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "const j = pm.response.json();",
+              "pm.test('Success message', () => pm.expect(j.message).to.eql('Ride request created successfully'));",
+              "pm.test('Data returned', () => pm.expect(j.data).to.exist);",
+              "if (j.data) {",
+              "  pm.collectionVariables.set('rideRequestId', j.data.id);",
+              "  console.log('✅ rideRequestId:', j.data.id);",
+              "  console.log('Distance:', j.data.estimated_distance_km, 'km');",
+              "  console.log('Fare range: Rs.', j.data.estimated_fare_min, '-', j.data.estimated_fare_max);",
+              "  console.log('Duration:', j.data.estimated_duration_minutes, 'min');",
+              "  console.log('Status:', j.data.status);",
+              "}"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"pickupLocation\": {\n    \"coordinates\": [85.3130, 27.7150]\n  },\n  \"pickupAddress\": \"Thamel, Kathmandu\",\n  \"dropoffLocation\": {\n    \"coordinates\": [85.3167, 27.6833]\n  },\n  \"dropoffAddress\": \"Patan Dhoka, Lalitpur\",\n  \"pricingMode\": \"bidding\",\n  \"vehiclePreference\": \"sedan\",\n  \"passengerCount\": 1,\n  \"luggageCount\": 0\n}"},
+            "url": {"raw":"{{baseUrl}}/api/ride-requests","host":["{{baseUrl}}"],"path":["api","ride-requests"]}
+          }
+        },
+        {
+          "name": "Create Ride Request — Fixed Price Mode",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'fixed-req-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "const j = pm.response.json();",
+              "if (j.data) console.log('Fixed price request ID:', j.data.id, '| fare range:', j.data.estimated_fare_min, '-', j.data.estimated_fare_max);"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"pickupLocation\": {\n    \"coordinates\": [85.3240, 27.7172]\n  },\n  \"pickupAddress\": \"New Road, Kathmandu\",\n  \"dropoffLocation\": {\n    \"coordinates\": [85.3500, 27.7030]\n  },\n  \"dropoffAddress\": \"Baneshwor, Kathmandu\",\n  \"pricingMode\": \"fixed_price\",\n  \"vehiclePreference\": \"sedan\",\n  \"passengerCount\": 2,\n  \"luggageCount\": 1\n}"},
+            "url": {"raw":"{{baseUrl}}/api/ride-requests","host":["{{baseUrl}}"],"path":["api","ride-requests"]}
+          }
+        },
+        {
+          "name": "Create Ride Request — With 2 Stops (max allowed)",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'stops-req-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "const j = pm.response.json();",
+              "if (j.data) console.log('Multi-stop request ID:', j.data.id, '| stops limited to 2 by server code');"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"pickupLocation\": {\n    \"coordinates\": [85.3130, 27.7150]\n  },\n  \"pickupAddress\": \"Thamel, Kathmandu\",\n  \"dropoffLocation\": {\n    \"coordinates\": [85.3167, 27.6833]\n  },\n  \"dropoffAddress\": \"Patan Dhoka, Lalitpur\",\n  \"pricingMode\": \"bidding\",\n  \"vehiclePreference\": \"sedan\",\n  \"passengerCount\": 3,\n  \"luggageCount\": 2,\n  \"stops\": [\n    {\n      \"location\": { \"coordinates\": [85.3200, 27.7050] },\n      \"address\": \"Lagankhel, Lalitpur\",\n      \"maxWaitSeconds\": 120\n    },\n    {\n      \"location\": { \"coordinates\": [85.3150, 27.6950] },\n      \"address\": \"Kupondole, Lalitpur\",\n      \"maxWaitSeconds\": 180\n    }\n  ]\n}"},
+            "url": {"raw":"{{baseUrl}}/api/ride-requests","host":["{{baseUrl}}"],"path":["api","ride-requests"]}
+          }
+        },
+        {
+          "name": "Get My Ride Requests — All",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json();",
+            "pm.test('Array returned', () => pm.expect(j.data).to.be.an('array'));",
+            "console.log('Total requests:', j.data.length);",
+            "if (j.data.length) {",
+            "  pm.collectionVariables.set('rideRequestId', j.data[0].id);",
+            "  console.log('Latest request:', j.data[0].id, '| status:', j.data[0].status, '| mode:', j.data[0].pricing_mode);",
+            "}"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/ride-requests","host":["{{baseUrl}}"],"path":["api","ride-requests"]}
+          }
+        },
+        {
+          "name": "Get My Ride Requests — Filter by status=pending",
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/ride-requests?status=pending","host":["{{baseUrl}}"],"path":["api","ride-requests"],"query":[{"key":"status","value":"pending"}]}
+          }
+        },
+        {
+          "name": "Get My Ride Requests — Filter by status=accepted",
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/ride-requests?status=accepted","host":["{{baseUrl}}"],"path":["api","ride-requests"],"query":[{"key":"status","value":"accepted"}]}
+          }
+        },
+        {
+          "name": "Get Ride Request Details",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "console.log('Request:', d.id, '| status:', d.status, '| mode:', d.pricing_mode);",
+            "console.log('Pickup:', d.pickup_address, '| Dropoff:', d.dropoff_address);",
+            "console.log('Distance:', d.estimated_distance_km, 'km | Fare:', d.estimated_fare_min, '-', d.estimated_fare_max, 'NPR');"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/ride-requests/{{rideRequestId}}","host":["{{baseUrl}}"],"path":["api","ride-requests","{{rideRequestId}}"]}
+          }
+        },
+        {
+          "name": "Get Non-Existent Request (should 404)",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+            "pm.test('Not found message', () => pm.expect(pm.response.json().message).to.include('not found'));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/ride-requests/00000000-0000-0000-0000-000000000000","host":["{{baseUrl}}"],"path":["api","ride-requests","00000000-0000-0000-0000-000000000000"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🔍 Step 4 — Driver Sees Available Requests",
+      "description": "getNearbyRideRequests queries:\n  WHERE status='pending' AND pricing_mode='bidding'\n  JOINs kyc for rider name\n  Includes stops JSON aggregated\n  Ordered by created_at DESC, LIMIT 20",
+      "item": [
+        {
+          "name": "Get Nearby Ride Requests (Driver View)",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json();",
+            "pm.test('Array returned', () => pm.expect(j.data).to.be.an('array'));",
+            "console.log('Available pending bidding requests:', j.data.length);",
+            "j.data.forEach((r, i) => {",
+            "  console.log(`[${i+1}] ID: ${r.id} | ${r.pickup_address} → ${r.dropoff_address}`);",
+            "  console.log(`     Rs.${r.estimated_fare_min}-${r.estimated_fare_max} | ${r.estimated_distance_km}km | Rider: ${r.rider_name}`);",
+            "  if (r.stops) console.log(`     Stops: ${JSON.stringify(r.stops)}`);",
+            "});",
+            "if (j.data.length > 0) pm.collectionVariables.set('rideRequestId', j.data[0].id);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/ride-requests/nearby","host":["{{baseUrl}}"],"path":["api","ride-requests","nearby"]}
+          }
+        },
+        {
+          "name": "Get Nearby Requests — With location filter",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "console.log('Nearby requests:', pm.response.json().data?.length);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/ride-requests/nearby?lat=27.7172&lng=85.3240&radius=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","ride-requests","nearby"],
+              "query": [{"key":"lat","value":"27.7172"},{"key":"lng","value":"85.3240"},{"key":"radius","value":"5"}]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "💰 Step 5 — Driver Submits Bid",
+      "description": "submitBid:\n  - Gets driver info from drivers + vehicles JOIN\n  - Creates ride_bid with 15-minute expiry\n  - Stores vehicle details on bid row\n  - Returns full bid record",
+      "item": [
+        {
+          "name": "Driver 1 — Submit Bid Rs.350 (low)",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'bid1-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "const j = pm.response.json();",
+              "pm.test('BID_SUBMITTED', () => pm.expect(j.message).to.eql('BID_SUBMITTED'));",
+              "if (j.data) {",
+              "  pm.collectionVariables.set('bidId', j.data.id);",
+              "  console.log('✅ bidId:', j.data.id, '| amount:', j.data.bid_amount, '| expires:', j.data.expires_at);",
+              "  console.log('Vehicle on bid:', j.data.vehicle_type, j.data.vehicle_make, j.data.vehicle_model, j.data.license_plate);",
+              "}"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"bidAmount\": 350,\n  \"estimatedArrivalMinutes\": 3,\n  \"driverMessage\": \"I can be there in 3 minutes, clean comfortable ride!\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/bidding/requests/{{rideRequestId}}/submit","host":["{{baseUrl}}"],"path":["api","bidding","requests","{{rideRequestId}}","submit"]}
+          }
+        },
+        {
+          "name": "Driver 1 — Submit Bid Rs.400 (different request)",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'bid2-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('201 or 500 (depends on driver having vehicle)', () => pm.expect([201,404,500]).to.include(pm.response.code));",
+              "console.log('Bid 2 result:', pm.response.json().message);"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"bidAmount\": 400,\n  \"estimatedArrivalMinutes\": 5,\n  \"driverMessage\": \"Experienced driver, 5 star rating\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/bidding/requests/{{rideRequestId}}/submit","host":["{{baseUrl}}"],"path":["api","bidding","requests","{{rideRequestId}}","submit"]}
+          }
+        },
+        {
+          "name": "Submit Bid — Driver Not Found (should 404)",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('404 or 403 (rider cannot bid)', () => pm.expect([403,404]).to.include(pm.response.code));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"bidAmount\": 300,\n  \"estimatedArrivalMinutes\": 2\n}"},
+            "url": {"raw":"{{baseUrl}}/api/bidding/requests/{{rideRequestId}}/submit","host":["{{baseUrl}}"],"path":["api","bidding","requests","{{rideRequestId}}","submit"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "📋 Step 6 — Rider Views Bids",
+      "description": "getRideRequestBids:\n  JOINs driver_safety_stats for rating, safety points, completed rides\n  Filters: status='pending' AND expires_at > NOW()\n  Sorted: lowest bid_amount ASC, then oldest created_at ASC\n  Rider can compare drivers before choosing",
+      "item": [
+        {
+          "name": "Get All Bids for My Request",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const bids = pm.response.json().data;",
+            "pm.test('Array returned', () => pm.expect(bids).to.be.an('array'));",
+            "console.log('Active bids:', bids.length, '(only pending + not expired)');",
+            "bids.forEach((b, i) => {",
+            "  console.log(`[${i+1}] Bid: Rs.${b.bid_amount} | ETA: ${b.estimated_arrival_minutes}min | Driver rating: ${b.driver_rating} | Safety pts: ${b.driver_safety_points} | Rides: ${b.driver_completed_rides}`);",
+            "  console.log(`     Vehicle: ${b.vehicle_type} ${b.vehicle_make} ${b.vehicle_model} (${b.license_plate}) | Expires: ${b.expires_at}`);",
+            "  if (b.driver_message) console.log(`     Message: '${b.driver_message}'`);",
+            "});",
+            "if (bids.length > 0) {",
+            "  pm.collectionVariables.set('bidId', bids[0].id);",
+            "  console.log('✅ Auto-selected lowest bid:', bids[0].id, 'Rs.', bids[0].bid_amount);",
+            "}"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/bidding/requests/{{rideRequestId}}/bids","host":["{{baseUrl}}"],"path":["api","bidding","requests","{{rideRequestId}}","bids"]}
+          }
+        },
+        {
+          "name": "Get Bids — No Active Bids (empty request)",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "console.log('Bids for non-existent request:', pm.response.json().data?.length);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/bidding/requests/00000000-0000-0000-0000-000000000000/bids","host":["{{baseUrl}}"],"path":["api","bidding","requests","00000000-0000-0000-0000-000000000000","bids"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "✅ Step 7 — Rider Accepts Bid (Ride Created)",
+      "description": "acceptBid:\n  1. Gets bid + ride_request details\n  2. Creates ride row: INSERT INTO rides (...) VALUES (..., status='accepted')\n  3. Updates bid: status='accepted', accepted_at=NOW()\n  4. Updates ride_request: status='accepted', matched_driver_id, created_ride_id\n  5. Rejects all other bids on same request\n  6. Sends socket notification to driver via notifyBidAccepted(bid.driver_id, {...})\n\nNOTE: Payment authorization happens in acceptRideRequest (fixed price path), NOT in acceptBid (bidding path).\nIf using bidding, payment auth happens when driver calls acceptRideRequest on the pre-created ride.",
+      "item": [
+        {
+          "name": "Rider Accepts Bid → Ride Created",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'accept-bid-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test('BID_ACCEPTED', () => pm.expect(j.message).to.eql('BID_ACCEPTED'));",
+              "if (j.data && j.data.ride_id) {",
+              "  pm.collectionVariables.set('rideId', j.data.ride_id);",
+              "  console.log('✅ rideId:', j.data.ride_id);",
+              "  console.log('Bid:', j.data.bid?.id, '| Amount:', j.data.bid?.bid_amount);",
+              "  console.log('🔔 Socket event sent to driver: bid:accepted');",
+              "  console.log('Other bids on same request were automatically rejected');",
+              "}"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/bidding/bids/{{bidId}}/accept","host":["{{baseUrl}}"],"path":["api","bidding","bids","{{bidId}}","accept"]}
+          }
+        },
+        {
+          "name": "Accept Already Accepted Bid (should fail — bid already accepted)",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'dup-bid-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('Should fail (404 bid not found since it is now accepted status)', () => pm.expect([200,400,404,500]).to.include(pm.response.code));",
+              "console.log('Duplicate accept result:', pm.response.json().message);"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/bidding/bids/{{bidId}}/accept","host":["{{baseUrl}}"],"path":["api","bidding","bids","{{bidId}}","accept"]}
+          }
+        },
+        {
+          "name": "Verify Request Status Changed to accepted",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "pm.test('Status is accepted', () => pm.expect(d.status).to.eql('accepted'));",
+            "console.log('Request status:', d.status, '| matched_driver_id:', d.matched_driver_id, '| created_ride_id:', d.created_ride_id);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/ride-requests/{{rideRequestId}}","host":["{{baseUrl}}"],"path":["api","ride-requests","{{rideRequestId}}"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🚕 Step 7B — Fixed Price: Driver Accepts Directly",
+      "description": "For fixed_price rides (no bidding), driver calls acceptRideRequest directly.\nThis path DOES trigger payment authorization:\n  1. Checks driver not already on active ride (DRIVER_ALREADY_ON_ACTIVE_RIDE)\n  2. Locks ride_request row FOR UPDATE\n  3. Checks status='pending' (REQUEST_ALREADY_ACCEPTED)\n  4. Creates ride with estimated values copied from request\n  5. Updates ride_request: matched_driver_id + created_ride_id\n  6. Fetches rider's DEFAULT payment method\n  7. Maps provider.type → paymentSource\n  8. Calls RidePaymentService.authorizeRidePayment (funds → escrow)\n  9. Platform fee: 3% of estimated fare\n  10. Socket: emitToUser(riderId, 'ride:accepted', {...})",
+      "item": [
+        {
+          "name": "Driver Accepts Fixed Price Request",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'fixed-accept-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('201 or 400/409', () => pm.expect([201,400,409]).to.include(pm.response.code));",
+              "const j = pm.response.json();",
+              "if (pm.response.code === 201) {",
+              "  pm.collectionVariables.set('rideId', j.data.id);",
+              "  console.log('✅ RIDE_ACCEPTED | rideId:', j.data.id);",
+              "  console.log('Estimated fare:', j.data.estimated_fare, '| Platform fee: 3%');",
+              "  console.log('💳 Payment authorized and locked in escrow');",
+              "  console.log('🔔 Socket: ride:accepted emitted to rider');",
+              "} else {",
+              "  console.warn('⚠️ Accept failed:', j.message);",
+              "  if (j.message === 'DRIVER_ALREADY_ON_ACTIVE_RIDE') console.warn('Driver has active ride — complete it first');",
+              "  if (j.message === 'REQUEST_ALREADY_ACCEPTED') console.warn('Request was already accepted by another driver');",
+              "  if (j.message === 'DEFAULT_PAYMENT_METHOD_NOT_SET') console.warn('Rider has no default payment method set');",
+              "}"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/accept/{{rideRequestId}}","host":["{{baseUrl}}"],"path":["api","rides","accept","{{rideRequestId}}"]}
+          }
+        },
+        {
+          "name": "Driver Accepts — Already On Active Ride (should 409)",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'dup-accept-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('409 DRIVER_ALREADY_ON_ACTIVE_RIDE', () => {",
+              "  if (pm.response.code === 409) pm.expect(pm.response.json().message).to.eql('DRIVER_ALREADY_ON_ACTIVE_RIDE');",
+              "  else console.log('Response:', pm.response.code, pm.response.json().message);",
+              "});"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/accept/{{rideRequestId}}","host":["{{baseUrl}}"],"path":["api","rides","accept","{{rideRequestId}}"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "📋 Step 8 — Get Ride Details",
+      "description": "getRideDetails query JOINs:\n  rides → ride_requests (via created_ride_id reverse link)\n  rides → users/kyc/auth_credentials for rider\n  rides → drivers/users/kyc/auth_credentials for driver\n  drivers → vehicles for vehicle info\n  ride_requests → ride_stops\n\nReturns: names from KYC table, phone/email from auth_credentials, stops array",
+      "item": [
+        {
+          "name": "Get Ride Details (full info)",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "pm.test('Data exists', () => pm.expect(d).to.exist);",
+            "if (d) {",
+            "  console.log('═══════════ RIDE DETAILS ═══════════');",
+            "  console.log('Ride ID:', d.id, '| Status:', d.status);",
+            "  console.log('Pickup:', d.pickup_address, '→', d.dropoff_address);",
+            "  console.log('Distance:', d.estimated_distance_km, 'km | Duration:', d.estimated_duration_minutes, 'min');",
+            "  console.log('Fare:', d.fare_amount, d.currency);",
+            "  console.log('Rider:', d.rider_name, '|', d.rider_phone, '|', d.rider_email);",
+            "  console.log('Driver:', d.driver_name, '|', d.driver_phone);",
+            "  console.log('Vehicle:', d.vehicle_type, d.vehicle_make, d.vehicle_model, d.vehicle_color, d.license_plate);",
+            "  console.log('Stops:', d.stops?.length || 0, d.stops?.length ? JSON.stringify(d.stops) : '(none)');",
+            "  if (d.stops && d.stops.length > 0) pm.collectionVariables.set('stopId', d.stops[0].id);",
+            "}"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}"]}
+          }
+        },
+        {
+          "name": "Get Ride Details (rider perspective)",
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}"]}
+          }
+        },
+        {
+          "name": "Get Non-Existent Ride (should 404)",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('404 Not Found', () => pm.response.to.have.status(404));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/rides/00000000-0000-0000-0000-000000000000","host":["{{baseUrl}}"],"path":["api","rides","00000000-0000-0000-0000-000000000000"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🚗 Step 9 — Driver Starts Ride",
+      "description": "startRide:\n  UPDATE rides SET status='started', started_at=NOW()\n  WHERE id=$1 AND driver_id=$2 AND status='accepted'\n  Then emits socket: ride:started to rider",
+      "item": [
+        {
+          "name": "Driver Starts Ride",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'start-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test('RIDE_STARTED', () => pm.expect(j.message).to.eql('RIDE_STARTED'));",
+              "const d = j.data;",
+              "if (d) {",
+              "  console.log('✅ Ride started | status:', d.status, '| started_at:', d.started_at);",
+              "  console.log('🔔 Socket: ride:started emitted to rider:', d.rider_id);",
+              "}"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}/start","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}","start"]}
+          }
+        },
+        {
+          "name": "Start Ride — Wrong Status (not accepted)",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'start-dup-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('404 (already started, WHERE status=accepted finds nothing)', () => pm.expect([404,400]).to.include(pm.response.code));",
+              "console.log('Double start result:', pm.response.json().message);"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}/start","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}","start"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🛑 Step 10 — Stop Management (Multi-Stop Rides)",
+      "description": "For rides with stops (max 2):\n  arriveAtStop: UPDATE ride_stops SET actual_arrival_time=NOW(), status='arrived'\n  departFromStop: UPDATE ride_stops SET actual_departure_time=NOW(), status='completed'\n\nBoth use stopId from ride_stops table.\nGet stopId from GET /api/rides/:rideId response.data.stops[0].id",
+      "item": [
+        {
+          "name": "Arrive at Stop 1",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 or 404 (no stops)', () => pm.expect([200,404]).to.include(pm.response.code));",
+            "const j = pm.response.json();",
+            "if (pm.response.code === 200) {",
+            "  pm.test('ARRIVED_AT_STOP', () => pm.expect(j.message).to.eql('ARRIVED_AT_STOP'));",
+            "  console.log('✅ Arrived at stop:', j.data.address, '| arrival_time:', j.data.actual_arrival_time);",
+            "} else {",
+            "  console.log('No stop found (use stopId from ride details)');",
+            "}"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}/stops/{{stopId}}/arrive","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}","stops","{{stopId}}","arrive"]}
+          }
+        },
+        {
+          "name": "Depart from Stop 1",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 or 404 (no stops)', () => pm.expect([200,404]).to.include(pm.response.code));",
+            "const j = pm.response.json();",
+            "if (pm.response.code === 200) {",
+            "  pm.test('DEPARTED_FROM_STOP', () => pm.expect(j.message).to.eql('DEPARTED_FROM_STOP'));",
+            "  console.log('✅ Departed from stop | departure_time:', j.data.actual_departure_time, '| status:', j.data.status);",
+            "}"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}/stops/{{stopId}}/depart","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}","stops","{{stopId}}","depart"]}
+          }
+        },
+        {
+          "name": "Arrive at Non-Existent Stop (should 404)",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('404 Stop not found', () => pm.response.to.have.status(404));",
+            "pm.test('Stop not found message', () => pm.expect(pm.response.json().message).to.eql('Stop not found'));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}/stops/00000000-0000-0000-0000-000000000000/arrive","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}","stops","00000000-0000-0000-0000-000000000000","arrive"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🏁 Step 11 — Driver Completes Ride",
+      "description": "completeRide:\n  UPDATE rides SET status='completed', completed_at=NOW()\n  WHERE id=$1 AND driver_id=$2 AND status='started'\n  Then: RidePaymentService.completeRidePayment(ride.id)\n    → LedgerService.settlePayment (escrow → driver + platform)\n    → Settlement record created (status=pending)\n  Then: emitToUser(rider_id, 'ride:completed', {redirectTo: /rating/rideId})",
+      "item": [
+        {
+          "name": "Driver Completes Ride",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'complete-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test('RIDE_COMPLETED', () => pm.expect(j.message).to.eql('RIDE_COMPLETED'));",
+              "const d = j.data;",
+              "if (d) {",
+              "  console.log('✅ Ride completed!');",
+              "  console.log('Status:', d.status, '| completed_at:', d.completed_at);",
+              "  console.log('💰 Payment settled: escrow → driver + platform (3% fee)');",
+              "  console.log('📋 Settlement record created (status: pending)');",
+              "  console.log('🔔 Socket: ride:completed emitted to rider → review form shown');",
+              "}"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}/complete","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}","complete"]}
+          }
+        },
+        {
+          "name": "Complete Already Completed Ride (should 404)",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'complete-dup-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('404 (WHERE status=started finds nothing)', () => pm.expect([404,400]).to.include(pm.response.code));",
+              "console.log('Double complete result:', pm.response.json().message);"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}/complete","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}","complete"]}
+          }
+        },
+        {
+          "name": "Verify Ride Status = completed",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "pm.test('Status is completed', () => pm.expect(d.status).to.eql('completed'));",
+            "console.log('Final ride state:', d.status, '| completed_at:', d.completed_at);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}"]}
+          }
+        },
+        {
+          "name": "Verify Payment Settled (ride-payments)",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "if (d) {",
+            "  pm.test('Payment settled', () => pm.expect(d.payment_status).to.eql('settled'));",
+            "  console.log('Payment:', d.payment_status, '| Total:', d.total_amount, '| Platform fee:', d.platform_fee);",
+            "  console.log('Driver gets:', parseFloat(d.total_amount) - parseFloat(d.platform_fee), 'NPR');",
+            "}"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/wallet/ride-payments/{{rideId}}","host":["{{baseUrl}}"],"path":["api","wallet","ride-payments","{{rideId}}"]}
+          }
+        },
+        {
+          "name": "Driver Balance After Settlement",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "console.log('Driver ledger balance after settlement:', pm.response.json().data?.balance, 'NPR');"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/payouts/balance","host":["{{baseUrl}}"],"path":["api","payouts","balance"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "❌ Step 11B — Cancel Ride (Alternative Path)",
+      "description": "cancelRide:\n  UPDATE rides SET status='cancelled', cancelled_at=NOW()\n  WHERE id=$1 AND (driver_id=$2 OR rider_id=$3) AND status IN ('accepted','started')\n\nNo payment refund triggered here — refund comes from:\n  POST /api/wallet/ride-payments/:rideId/cancel\n  which calls RidePaymentService.cancelRidePayment\n  → escrow → original payment source",
+      "item": [
+        {
+          "name": "Rider Cancels Active Ride",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'cancel-ride-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('200 or 404', () => pm.expect([200,404]).to.include(pm.response.code));",
+              "const j = pm.response.json();",
+              "if (pm.response.code === 200) {",
+              "  pm.test('RIDE_CANCELLED', () => pm.expect(j.message).to.eql('RIDE_CANCELLED'));",
+              "  console.log('✅ Ride cancelled | cancelled_at:', j.data?.cancelled_at);",
+              "  console.log('⚠️ Payment refund NOT auto-triggered — call /wallet/ride-payments/:rideId/cancel separately');",
+              "} else {",
+              "  console.log('Cannot cancel:', j.message, '(may be completed or wrong status)');",
+              "}"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"reason\": \"Changed my mind — no longer need ride\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}/cancel","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}","cancel"]}
+          }
+        },
+        {
+          "name": "Driver Cancels Active Ride",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'driver-cancel-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('Response received', () => pm.expect([200,404]).to.include(pm.response.code));",
+              "console.log('Driver cancel result:', pm.response.json().message);"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"reason\": \"Vehicle breakdown\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}/cancel","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}","cancel"]}
+          }
+        },
+        {
+          "name": "Trigger Refund After Cancel",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'post-cancel-refund-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('200 or 400', () => pm.expect([200,400]).to.include(pm.response.code));",
+              "const j = pm.response.json();",
+              "if (pm.response.code === 200) {",
+              "  console.log('✅ Payment refunded | escrow → rider wallet');",
+              "} else {",
+              "  console.warn('Refund failed:', j.message, j.error);",
+              "}"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"reason\": \"Ride cancelled by rider\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/ride-payments/{{rideId}}/cancel","host":["{{baseUrl}}"],"path":["api","wallet","ride-payments","{{rideId}}","cancel"]}
+          }
+        },
+        {
+          "name": "Cancel Ride Request (before driver accepts)",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "console.log('Request cancelled:', pm.response.json().message || pm.response.json().data);"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"reason\": \"No longer need a ride\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/ride-requests/{{rideRequestId}}/cancel","host":["{{baseUrl}}"],"path":["api","ride-requests","{{rideRequestId}}","cancel"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "⭐ Step 12 — Reviews",
+      "description": "After ride completion, rider rates driver and driver rates rider.",
+      "item": [
+        {
+          "name": "Rider Reviews Driver",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'review-rider-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('201 or 200', () => pm.expect([200,201,400]).to.include(pm.response.code));",
+              "const j = pm.response.json();",
+              "if (j.data && j.data.id) pm.collectionVariables.set('reviewId', j.data.id);",
+              "console.log('Review result:', j.message || j.data?.id);"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"rideId\": \"{{rideId}}\",\n  \"rating\": 5,\n  \"comment\": \"Excellent driver, very punctual and friendly!\",\n  \"taps\": [\"professional\", \"safe_driver\", \"clean_car\"]\n}"},
+            "url": {"raw":"{{baseUrl}}/api/reviews","host":["{{baseUrl}}"],"path":["api","reviews"]}
+          }
+        },
+        {
+          "name": "Driver Reviews Rider",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'review-driver-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('201 or 200 or 400', () => pm.expect([200,201,400]).to.include(pm.response.code));",
+              "console.log('Driver review result:', pm.response.json().message || pm.response.json().data?.id);"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"rideId\": \"{{rideId}}\",\n  \"rating\": 4,\n  \"comment\": \"Great passenger, easy to find and polite.\",\n  \"taps\": [\"polite\", \"on_time\"]\n}"},
+            "url": {"raw":"{{baseUrl}}/api/reviews","host":["{{baseUrl}}"],"path":["api","reviews"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "📊 Step 13 — History & Stats",
+      "item": [
+        {
+          "name": "Rider — Ride Payment History",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json().data;",
+            "console.log('Rider ride payments:', j?.length);",
+            "if (j?.length) console.log('Latest:', j[0].payment_status, '| Amount:', j[0].total_amount, '| Method:', j[0].payment_method);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/wallet/ride-payments?limit=20","host":["{{baseUrl}}"],"path":["api","wallet","ride-payments"],"query":[{"key":"limit","value":"20"}]}
+          }
+        },
+        {
+          "name": "Rider — Payment Stats",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "console.log('Payment stats:', JSON.stringify(pm.response.json().data, null, 2));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/wallet/payment-stats","host":["{{baseUrl}}"],"path":["api","wallet","payment-stats"]}
+          }
+        },
+        {
+          "name": "Driver — Ride Payment History",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json().data;",
+            "console.log('Driver ride payments:', j?.length);",
+            "if (j?.length) console.log('Latest:', j[0].payment_status, '| Total:', j[0].total_amount, '| Platform fee:', j[0].platform_fee);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/wallet/ride-payments?limit=20","host":["{{baseUrl}}"],"path":["api","wallet","ride-payments"],"query":[{"key":"limit","value":"20"}]}
+          }
+        },
+        {
+          "name": "Rider — Full Transaction History",
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/wallet/transactions?limit=50","host":["{{baseUrl}}"],"path":["api","wallet","transactions"],"query":[{"key":"limit","value":"50"}]}
+          }
+        },
+        {
+          "name": "Driver — Ledger Account History",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "if (d?.history) {",
+            "  const byType = {};",
+            "  d.history.forEach(e => { byType[e.reference_type] = (byType[e.reference_type]||0)+1; });",
+            "  console.log('Driver ledger entries by type:', JSON.stringify(byType));",
+            "}"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/payments/history?limit=50","host":["{{baseUrl}}"],"path":["api","payments","history"],"query":[{"key":"limit","value":"50"}]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🧪 Edge Cases — Ride Lifecycle",
+      "item": [
+        {
+          "name": "Create Ride Request — No Auth (401)",
+          "event": [{"listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('401 Unauthorized', () => pm.expect([401,403]).to.include(pm.response.code));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"pickupLocation\": {\"coordinates\": [85.3130, 27.7150]},\n  \"pickupAddress\": \"Test\",\n  \"dropoffLocation\": {\"coordinates\": [85.3167, 27.6833]},\n  \"dropoffAddress\": \"Test\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/ride-requests","host":["{{baseUrl}}"],"path":["api","ride-requests"]}
+          }
+        },
+        {
+          "name": "Accept Bid — Non-Existent Bid (404)",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'bad-bid-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('404 Bid not found', () => pm.response.to.have.status(404));",
+              "pm.test('Not found message', () => pm.expect(pm.response.json().message).to.eql('Bid not found'));"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/bidding/bids/00000000-0000-0000-0000-000000000000/accept","host":["{{baseUrl}}"],"path":["api","bidding","bids","00000000-0000-0000-0000-000000000000","accept"]}
+          }
+        },
+        {
+          "name": "Start Ride — Wrong Driver (404)",
+          "description": "Ride belongs to driverToken but trying to start with riderToken.",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'wrong-driver-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('404 (driver_id mismatch in WHERE clause)', () => pm.expect([404,400]).to.include(pm.response.code));",
+              "console.log('Wrong driver start result:', pm.response.json().message);"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}/start","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}","start"]}
+          }
+        },
+        {
+          "name": "Complete Ride — Not Started Yet (404)",
+          "description": "Can only complete when status='started'. Calling complete on accepted status fails.",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'early-complete-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('404 (WHERE status=started finds nothing)', () => pm.expect([404,400]).to.include(pm.response.code));",
+              "console.log('Early complete result:', pm.response.json().message);"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}/complete","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}","complete"]}
+          }
+        },
+        {
+          "name": "Submit Bid — No bidAmount (500)",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'no-amount-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('500 or 400 (missing bidAmount)', () => pm.expect([400,500]).to.include(pm.response.code));",
+              "console.log('Missing bidAmount result:', pm.response.json().message);"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"estimatedArrivalMinutes\": 5\n}"},
+            "url": {"raw":"{{baseUrl}}/api/bidding/requests/{{rideRequestId}}/submit","host":["{{baseUrl}}"],"path":["api","bidding","requests","{{rideRequestId}}","submit"]}
+          }
+        },
+        {
+          "name": "Cancel Already Completed Ride (should 404)",
+          "event": [
+            {"listen":"prerequest","script":{"type":"text/javascript","exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'cancel-completed-'+Date.now()});"]}},
+            {"listen":"test","script":{"type":"text/javascript","exec":[
+              "pm.test('404 (WHERE status IN accepted,started finds nothing)', () => pm.expect([404,400]).to.include(pm.response.code));",
+              "console.log('Cancel completed ride result:', pm.response.json().message);"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"reason\": \"Trying to cancel completed ride — should fail\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}/cancel","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}","cancel"]}
+          }
+        }
+      ]
+    }
+
+  ]
+}

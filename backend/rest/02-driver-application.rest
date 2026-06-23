@@ -1,0 +1,450 @@
+@baseUrl = {{baseUrl}}
+@kycBoundary = DriverKycBoundary
+@appBoundary = DriverApplicationBoundary
+
+### Login Admin
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
+}
+
+###
+
+### Login Driver
+# @name loginDriver
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{driverEmail}}",
+  "password": "{{driverPassword}}"
+}
+
+###
+
+### Driver KYC Status Before Submit
+GET {{baseUrl}}/api/kyc/status
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+
+###
+
+### Submit Driver KYC
+POST {{baseUrl}}/api/kyc/complete
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+Content-Type: multipart/form-data; boundary={{kycBoundary}}
+
+--{{kycBoundary}}
+Content-Disposition: form-data; name="firstName"
+
+{{driverFirstName}}
+--{{kycBoundary}}
+Content-Disposition: form-data; name="lastName"
+
+{{driverLastName}}
+--{{kycBoundary}}
+Content-Disposition: form-data; name="dateOfBirth"
+
+1994-02-21
+--{{kycBoundary}}
+Content-Disposition: form-data; name="address"
+
+Lalitpur Metropolitan City, Nepal
+--{{kycBoundary}}
+Content-Disposition: form-data; name="phoneNumber"
+
+{{driverPhone}}
+--{{kycBoundary}}
+Content-Disposition: form-data; name="email"
+
+{{driverEmail}}
+--{{kycBoundary}}
+Content-Disposition: form-data; name="gender"
+
+male
+--{{kycBoundary}}
+Content-Disposition: form-data; name="nationalIdentityNumber"
+
+DRIVER-REST-0001
+--{{kycBoundary}}
+Content-Disposition: form-data; name="bloodGroup"
+
+A+
+--{{kycBoundary}}
+Content-Disposition: form-data; name="documentType"
+
+license
+--{{kycBoundary}}
+Content-Disposition: form-data; name="documentNumber"
+
+DRV-DOC-0001
+--{{kycBoundary}}
+Content-Disposition: form-data; name="issuedDate"
+
+2016-01-10
+--{{kycBoundary}}
+Content-Disposition: form-data; name="expiryDate"
+
+2032-01-10
+--{{kycBoundary}}
+Content-Disposition: form-data; name="profilePhoto"; filename="person.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/person.svg
+--{{kycBoundary}}
+Content-Disposition: form-data; name="documentFront"; filename="document-front.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/document.svg
+--{{kycBoundary}}
+Content-Disposition: form-data; name="documentBack"; filename="document-back.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/document.svg
+--{{kycBoundary}}--
+
+###
+
+### Check Driver Application Before Submit
+GET {{baseUrl}}/api/driver-applications/check
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+
+###
+
+### Submit Driver Application
+# @name submitDriverApplication
+POST {{baseUrl}}/api/driver-applications/submit
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+Content-Type: multipart/form-data; boundary={{appBoundary}}
+
+--{{appBoundary}}
+Content-Disposition: form-data; name="licenseNumber"
+
+LIC-REST-0001
+--{{appBoundary}}
+Content-Disposition: form-data; name="licenseType"
+
+professional
+--{{appBoundary}}
+Content-Disposition: form-data; name="licenseCategory"
+
+B
+--{{appBoundary}}
+Content-Disposition: form-data; name="licenseIssuedDate"
+
+2018-03-15
+--{{appBoundary}}
+Content-Disposition: form-data; name="licenseExpiryDate"
+
+2030-03-15
+--{{appBoundary}}
+Content-Disposition: form-data; name="licenseRenewedDate"
+
+2024-03-15
+--{{appBoundary}}
+Content-Disposition: form-data; name="issuingAuthority"
+
+Department of Transport
+--{{appBoundary}}
+Content-Disposition: form-data; name="yearsOfExperience"
+
+6
+--{{appBoundary}}
+Content-Disposition: form-data; name="vehicleType"
+
+car
+--{{appBoundary}}
+Content-Disposition: form-data; name="vehicleCategory"
+
+sedan
+--{{appBoundary}}
+Content-Disposition: form-data; name="vehicleMake"
+
+Toyota
+--{{appBoundary}}
+Content-Disposition: form-data; name="vehicleModel"
+
+Yaris
+--{{appBoundary}}
+Content-Disposition: form-data; name="vehicleYear"
+
+2020
+--{{appBoundary}}
+Content-Disposition: form-data; name="vehicleColor"
+
+white
+--{{appBoundary}}
+Content-Disposition: form-data; name="vehiclePlateNumber"
+
+BA-12-PA-1234
+--{{appBoundary}}
+Content-Disposition: form-data; name="vin"
+
+VINREST0000000001
+--{{appBoundary}}
+Content-Disposition: form-data; name="cc"
+
+1498
+--{{appBoundary}}
+Content-Disposition: form-data; name="transmissionType"
+
+automatic
+--{{appBoundary}}
+Content-Disposition: form-data; name="fuelType"
+
+petrol
+--{{appBoundary}}
+Content-Disposition: form-data; name="seatCapacity"
+
+4
+--{{appBoundary}}
+Content-Disposition: form-data; name="hasAc"
+
+true
+--{{appBoundary}}
+Content-Disposition: form-data; name="registrationNumber"
+
+REG-REST-0001
+--{{appBoundary}}
+Content-Disposition: form-data; name="registrationExpiryDate"
+
+2031-04-01
+--{{appBoundary}}
+Content-Disposition: form-data; name="blueBookNumber"
+
+BLUE-REST-0001
+--{{appBoundary}}
+Content-Disposition: form-data; name="blueBookExpiryDate"
+
+2031-04-01
+--{{appBoundary}}
+Content-Disposition: form-data; name="blueBookRenewedDate"
+
+2025-04-01
+--{{appBoundary}}
+Content-Disposition: form-data; name="insurancePolicyNumber"
+
+INS-REST-0001
+--{{appBoundary}}
+Content-Disposition: form-data; name="insuranceExpiryDate"
+
+2027-08-01
+--{{appBoundary}}
+Content-Disposition: form-data; name="fitnessExpiryDate"
+
+2027-08-01
+--{{appBoundary}}
+Content-Disposition: form-data; name="emissionExpiryDate"
+
+2027-08-01
+--{{appBoundary}}
+Content-Disposition: form-data; name="hasDashcam"
+
+true
+--{{appBoundary}}
+Content-Disposition: form-data; name="hasMusic"
+
+true
+--{{appBoundary}}
+Content-Disposition: form-data; name="hasWater"
+
+true
+--{{appBoundary}}
+Content-Disposition: form-data; name="hasCharger"
+
+true
+--{{appBoundary}}
+Content-Disposition: form-data; name="isPetFriendly"
+
+false
+--{{appBoundary}}
+Content-Disposition: form-data; name="isWheelchairAccessible"
+
+false
+--{{appBoundary}}
+Content-Disposition: form-data; name="backgroundCheckStatus"
+
+pending
+--{{appBoundary}}
+Content-Disposition: form-data; name="criminalRecordCheckStatus"
+
+pending
+--{{appBoundary}}
+Content-Disposition: form-data; name="drivingHistoryCheckStatus"
+
+pending
+--{{appBoundary}}
+Content-Disposition: form-data; name="driverTrainingCompleted"
+
+true
+--{{appBoundary}}
+Content-Disposition: form-data; name="trainingDate"
+
+2025-12-10
+--{{appBoundary}}
+Content-Disposition: form-data; name="safetyQuizScore"
+
+92
+--{{appBoundary}}
+Content-Disposition: form-data; name="emergencyContactName"
+
+REST Emergency Contact
+--{{appBoundary}}
+Content-Disposition: form-data; name="emergencyContactNumber"
+
+9800000099
+--{{appBoundary}}
+Content-Disposition: form-data; name="preferredWorkingAreas"
+
+{"Kathmandu","Lalitpur"}
+--{{appBoundary}}
+Content-Disposition: form-data; name="preferredWorkingHours"
+
+06:00-18:00
+--{{appBoundary}}
+Content-Disposition: form-data; name="languagesSpoken"
+
+{"Nepali","English"}
+--{{appBoundary}}
+Content-Disposition: form-data; name="bankAccountNumber"
+
+12345678901234
+--{{appBoundary}}
+Content-Disposition: form-data; name="bankName"
+
+Nabil Bank
+--{{appBoundary}}
+Content-Disposition: form-data; name="bankBranch"
+
+Pulchowk
+--{{appBoundary}}
+Content-Disposition: form-data; name="accountHolderName"
+
+{{driverFirstName}} {{driverLastName}}
+--{{appBoundary}}
+Content-Disposition: form-data; name="taxIdNumber"
+
+PAN-REST-0001
+--{{appBoundary}}
+Content-Disposition: form-data; name="paymentMethodPreference"
+
+bank_transfer
+--{{appBoundary}}
+Content-Disposition: form-data; name="licenseFront"; filename="license-front.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/document.svg
+--{{appBoundary}}
+Content-Disposition: form-data; name="licenseBack"; filename="license-back.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/document.svg
+--{{appBoundary}}
+Content-Disposition: form-data; name="registrationUrl"; filename="registration.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/document.svg
+--{{appBoundary}}
+Content-Disposition: form-data; name="blueBookUrl"; filename="blue-book.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/document.svg
+--{{appBoundary}}
+Content-Disposition: form-data; name="insuranceUrl"; filename="insurance.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/document.svg
+--{{appBoundary}}
+Content-Disposition: form-data; name="fitnessCertificateUrl"; filename="fitness.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/document.svg
+--{{appBoundary}}
+Content-Disposition: form-data; name="emissionCertificateUrl"; filename="emission.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/document.svg
+--{{appBoundary}}
+Content-Disposition: form-data; name="photoFront"; filename="vehicle-front.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/vehicle.svg
+--{{appBoundary}}
+Content-Disposition: form-data; name="photoBack"; filename="vehicle-back.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/vehicle.svg
+--{{appBoundary}}
+Content-Disposition: form-data; name="photoLeft"; filename="vehicle-left.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/vehicle.svg
+--{{appBoundary}}
+Content-Disposition: form-data; name="photoRight"; filename="vehicle-right.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/vehicle.svg
+--{{appBoundary}}--
+
+###
+
+### Admin List Pending Applications
+GET {{baseUrl}}/api/driver-applications/pending
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Get Application Details
+GET {{baseUrl}}/api/driver-applications/{{submitDriverApplication.response.body.$.data.applicationId}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Verify Driver KYC
+POST {{baseUrl}}/api/kyc/verify/{{loginDriver.response.body.$.userId}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "approved": true,
+  "remarks": "Driver KYC approved by REST suite"
+}
+
+###
+
+### Admin Approve Driver Application
+POST {{baseUrl}}/api/driver-applications/{{submitDriverApplication.response.body.$.data.applicationId}}/review
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "approved": true,
+  "remarks": "Driver application approved by REST suite"
+}
+
+###
+
+### Login Driver Again To Refresh driverId
+# @name loginDriverApproved
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{driverEmail}}",
+  "password": "{{driverPassword}}"
+}
+
+###
+
+### Driver KYC Status After Approval
+GET {{baseUrl}}/api/kyc/status
+Authorization: Bearer {{loginDriverApproved.response.body.$.token}}
+
+###
+
+### Driver Application Status After Approval
+GET {{baseUrl}}/api/driver-applications/check
+Authorization: Bearer {{loginDriverApproved.response.body.$.token}}

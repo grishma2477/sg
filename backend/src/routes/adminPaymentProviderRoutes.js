@@ -1,4 +1,5 @@
 import express from "express";
+import { verifyuser } from "../middleware/auth.js";
 import { requireRole } from "../middleware/requireRole.js";
 import {
   createProvider,
@@ -9,6 +10,7 @@ import {
 
 const router = express.Router();
 
+router.use(verifyuser);
 router.use(requireRole("admin"));
 
 router.post("/", createProvider);

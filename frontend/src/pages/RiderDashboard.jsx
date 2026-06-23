@@ -1364,7 +1364,7 @@ const RiderDashboard = ({ auth, onLogout }) => {
                         EST. FARE
                       </div>
                       <div className="font-bold" style={{ color: '#10B981' }}>
-                        ₹{request.estimated_fare_min} - ₹{request.estimated_fare_max}
+                        NPR {request.estimated_total}
                       </div>
                     </div>
                   </div>

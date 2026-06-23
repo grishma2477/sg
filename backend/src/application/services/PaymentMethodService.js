@@ -125,6 +125,7 @@ import { AppError } from "../../utils/AppError.js";
 export class PaymentMethodService {
 
   static async addPaymentMethod(data) {
+    console.log("AddPaymentMethod payload:", data);
 
     return await withTransaction(async (client) => {
 
@@ -191,5 +192,33 @@ export class PaymentMethodService {
 
       return { message: "DEFAULT_PAYMENT_METHOD_SET" };
     });
+  }
+
+  static async getUserPaymentMethods(userId) {
+    const methods = await PaymentMethod.find({
+      user_id: userId,
+      is_deleted: false,
+      is_active: true
+    });
+    return methods;
+  }
+
+  static async deletePaymentMethod(methodId, userId) {
+    const method = await PaymentMethod.findOne({
+      id: methodId,
+      user_id: userId,
+      is_deleted: false
+    });
+
+    if (!method) {
+      throw new AppError("PAYMENT_METHOD_NOT_FOUND", 404);
+    }
+
+    await PaymentMethod.updateOne(
+      { id: methodId },
+      { is_deleted: true }
+    );
+
+    return { message: "PAYMENT_METHOD_DELETED" };
   }
 }

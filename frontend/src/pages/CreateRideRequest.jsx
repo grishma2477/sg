@@ -7,7 +7,7 @@
 //   const [loading, setLoading] = useState(false);
 //   const [pricingMode, setPricingMode] = useState('bidding');
 //   const [showStops, setShowStops] = useState(false);
-  
+
 //   const [formData, setFormData] = useState({
 //     pickup: { lat: '', lng: '', address: '' },
 //     dropoff: { lat: '', lng: '', address: '' },
@@ -52,7 +52,7 @@
 //   // Mock location search (Replace with real geocoding API like Google Maps or Mapbox)
 //   const searchLocation = async (query) => {
 //     if (!query || query.length < 3) return [];
-    
+
 //     // Mock data - replace with actual API call
 //     const mockPlaces = [
 //       { address: 'Kalanki, Kathmandu', lat: 27.6942, lng: 85.2803 },
@@ -65,7 +65,7 @@
 //       { address: 'Pashupatinath Temple', lat: 27.7106, lng: 85.3486 }
 //     ];
 
-//     return mockPlaces.filter(place => 
+//     return mockPlaces.filter(place =>
 //       place.address.toLowerCase().includes(query.toLowerCase())
 //     );
 //   };
@@ -697,40 +697,48 @@
 
 // export default CreateRideRequest;
 
-
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MapPin, Plus, X, Navigation, DollarSign, Users, Package, CreditCard } from 'lucide-react';
-
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  MapPin,
+  Plus,
+  X,
+  Navigation,
+  DollarSign,
+  Users,
+  Package,
+  CreditCard,
+} from "lucide-react";
+import { API_URL, createIdempotencyKey } from "../api/apiClient";
 
 const CreateRideRequest = ({ auth }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [pricingMode, setPricingMode] = useState('bidding');
+  const [pricingMode, setPricingMode] = useState("bidding");
   const [showStops, setShowStops] = useState(false);
-  
+
   const [formData, setFormData] = useState({
-    pickup: { lat: '', lng: '', address: '' },
-    dropoff: { lat: '', lng: '', address: '' },
+    pickup: { lat: "", lng: "", address: "" },
+    dropoff: { lat: "", lng: "", address: "" },
     stops: [],
-    vehiclePreference: 'bike',
+    vehiclePreference: "bike",
     passengerCount: 1,
     luggageCount: 0,
-    paymentMethod: 'cash',
+    paymentMethod: "cash",
     requiresWheelchairAccessible: false,
     requiresPetFriendly: false,
     requiresChildSeat: false,
-    specialInstructions: ''
+    specialInstructions: "",
   });
 
   const [newStop, setNewStop] = useState({
-    lat: '',
-    lng: '',
-    address: '',
-    contactName: '',
-    contactPhone: '',
-    notes: '',
-    maxWaitSeconds: 120
+    lat: "",
+    lng: "",
+    address: "",
+    contactName: "",
+    contactPhone: "",
+    notes: "",
+    maxWaitSeconds: 120,
   });
 
   // Location autocomplete states
@@ -748,7 +756,9 @@ const CreateRideRequest = ({ auth }) => {
   useEffect(() => {
     // Initialize Google Maps services
     if (window.google && window.google.maps) {
-      setAutocompleteService(new window.google.maps.places.AutocompleteService());
+      setAutocompleteService(
+        new window.google.maps.places.AutocompleteService(),
+      );
       setGeocoder(new window.google.maps.Geocoder());
     }
   }, []);
@@ -759,7 +769,7 @@ const CreateRideRequest = ({ auth }) => {
     sedan: { maxPassengers: 4, maxLuggage: 3 },
     suv: { maxPassengers: 6, maxLuggage: 5 },
     luxury: { maxPassengers: 4, maxLuggage: 3 },
-    van: { maxPassengers: 8, maxLuggage: 6 }
+    van: { maxPassengers: 8, maxLuggage: 6 },
   };
 
   // Search location using Google Places API
@@ -772,15 +782,18 @@ const CreateRideRequest = ({ auth }) => {
     autocompleteService.getPlacePredictions(
       {
         input: query,
-        componentRestrictions: { country: 'np' }, // Restrict to Nepal, change as needed
+        componentRestrictions: { country: "np" }, // Restrict to Nepal, change as needed
       },
       (predictions, status) => {
-        if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+        if (
+          status === window.google.maps.places.PlacesServiceStatus.OK &&
+          predictions
+        ) {
           callback(predictions);
         } else {
           callback([]);
         }
-      }
+      },
     );
   };
 
@@ -789,19 +802,22 @@ const CreateRideRequest = ({ auth }) => {
     if (!geocoder) return;
 
     geocoder.geocode({ placeId: placeId }, (results, status) => {
-      if (status === 'OK' && results[0]) {
+      if (status === "OK" && results[0]) {
         const location = results[0].geometry.location;
         callback({
           lat: location.lat(),
           lng: location.lng(),
-          address: results[0].formatted_address
+          address: results[0].formatted_address,
         });
       }
     });
   };
 
   const handlePickupSearch = (value) => {
-    setFormData({...formData, pickup: {...formData.pickup, address: value}});
+    setFormData({
+      ...formData,
+      pickup: { ...formData.pickup, address: value },
+    });
     if (value.length >= 3) {
       searchLocation(value, (predictions) => {
         setPickupSuggestions(predictions);
@@ -813,7 +829,10 @@ const CreateRideRequest = ({ auth }) => {
   };
 
   const handleDropoffSearch = (value) => {
-    setFormData({...formData, dropoff: {...formData.dropoff, address: value}});
+    setFormData({
+      ...formData,
+      dropoff: { ...formData.dropoff, address: value },
+    });
     if (value.length >= 3) {
       searchLocation(value, (predictions) => {
         setDropoffSuggestions(predictions);
@@ -825,7 +844,7 @@ const CreateRideRequest = ({ auth }) => {
   };
 
   const handleStopSearch = (value) => {
-    setNewStop({...newStop, address: value});
+    setNewStop({ ...newStop, address: value });
     if (value.length >= 3) {
       searchLocation(value, (predictions) => {
         setStopSuggestions(predictions);
@@ -840,7 +859,7 @@ const CreateRideRequest = ({ auth }) => {
     getPlaceDetails(prediction.place_id, (place) => {
       setFormData({
         ...formData,
-        pickup: place
+        pickup: place,
       });
       setShowPickupSuggestions(false);
     });
@@ -850,7 +869,7 @@ const CreateRideRequest = ({ auth }) => {
     getPlaceDetails(prediction.place_id, (place) => {
       setFormData({
         ...formData,
-        dropoff: place
+        dropoff: place,
       });
       setShowDropoffSuggestions(false);
     });
@@ -862,7 +881,7 @@ const CreateRideRequest = ({ auth }) => {
         ...newStop,
         lat: place.lat,
         lng: place.lng,
-        address: place.address
+        address: place.address,
       });
       setShowStopSuggestions(false);
     });
@@ -872,26 +891,26 @@ const CreateRideRequest = ({ auth }) => {
     if (newStop.address && newStop.lat && newStop.lng) {
       setFormData({
         ...formData,
-        stops: [...formData.stops, {...newStop}]
+        stops: [...formData.stops, { ...newStop }],
       });
       setNewStop({
-        lat: '',
-        lng: '',
-        address: '',
-        contactName: '',
-        contactPhone: '',
-        notes: '',
-        maxWaitSeconds: 120
+        lat: "",
+        lng: "",
+        address: "",
+        contactName: "",
+        contactPhone: "",
+        notes: "",
+        maxWaitSeconds: 120,
       });
     } else {
-      alert('Please select a location from suggestions');
+      alert("Please select a location from suggestions");
     }
   };
 
   const removeStop = (index) => {
     setFormData({
       ...formData,
-      stops: formData.stops.filter((_, i) => i !== index)
+      stops: formData.stops.filter((_, i) => i !== index),
     });
   };
 
@@ -901,7 +920,7 @@ const CreateRideRequest = ({ auth }) => {
       ...formData,
       vehiclePreference: vehicle,
       passengerCount: Math.min(formData.passengerCount, limits.maxPassengers),
-      luggageCount: Math.min(formData.luggageCount, limits.maxLuggage)
+      luggageCount: Math.min(formData.luggageCount, limits.maxLuggage),
     });
   };
 
@@ -909,7 +928,7 @@ const CreateRideRequest = ({ auth }) => {
     e.preventDefault();
 
     if (!formData.pickup.lat || !formData.dropoff.lat) {
-      alert('Please select pickup and dropoff locations from suggestions');
+      alert("Please select pickup and dropoff locations from suggestions");
       return;
     }
 
@@ -918,25 +937,25 @@ const CreateRideRequest = ({ auth }) => {
     try {
       const requestBody = {
         pickupLocation: {
-          type: 'Point',
-          coordinates: [formData.pickup.lng, formData.pickup.lat]
+          type: "Point",
+          coordinates: [formData.pickup.lng, formData.pickup.lat],
         },
         pickupAddress: formData.pickup.address,
         dropoffLocation: {
-          type: 'Point',
-          coordinates: [formData.dropoff.lng, formData.dropoff.lat]
+          type: "Point",
+          coordinates: [formData.dropoff.lng, formData.dropoff.lat],
         },
         dropoffAddress: formData.dropoff.address,
-        stops: formData.stops.map(stop => ({
+        stops: formData.stops.map((stop) => ({
           location: {
-            type: 'Point',
-            coordinates: [stop.lng, stop.lat]
+            type: "Point",
+            coordinates: [stop.lng, stop.lat],
           },
           address: stop.address,
           contactName: stop.contactName || null,
           contactPhone: stop.contactPhone || null,
           notes: stop.notes || null,
-          maxWaitSeconds: stop.maxWaitSeconds || 120
+          maxWaitSeconds: stop.maxWaitSeconds || 120,
         })),
         pricingMode,
         vehiclePreference: formData.vehiclePreference,
@@ -946,42 +965,42 @@ const CreateRideRequest = ({ auth }) => {
         requiresWheelchairAccessible: formData.requiresWheelchairAccessible,
         requiresPetFriendly: formData.requiresPetFriendly,
         requiresChildSeat: formData.requiresChildSeat,
-        specialInstructions: formData.specialInstructions || null
+        specialInstructions: formData.specialInstructions || null,
       };
 
-      console.log('📤 Sending request:', requestBody);
+      console.log("📤 Sending request:", requestBody);
 
-      const response = await fetch('http://localhost:5000/api/ride-requests', {
-        method: 'POST',
+      const response = await fetch(`${API_URL}/api/ride-requests`, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${auth.token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.token}`,
+          "Idempotency-Key": createIdempotencyKey("ride-request"),
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
       });
-
       const data = await response.json();
 
       if (response.ok) {
-        alert('Ride request created successfully!');
-        if (pricingMode === 'bidding') {
+        alert("Ride request created successfully!");
+        if (pricingMode === "bidding") {
           navigate(`/rider/view-bids/${data.data.id}`);
         } else {
-          navigate('/rider/dashboard');
+          navigate("/rider/dashboard");
         }
       } else {
-        alert(data.message || 'Failed to create ride request');
+        alert(data.message || "Failed to create ride request");
       }
     } catch (error) {
-      console.error('Error:', error);
-      alert('Error: ' + error.message);
+      console.error("Error:", error);
+      alert("Error: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="p-4" style={{paddingBottom: '5rem'}}>
+    <div className="p-4" style={{ paddingBottom: "5rem" }}>
       <div className="header">
         <h1 className="header-title">New Ride</h1>
         <p className="text-dim mt-1">Plan your journey with us</p>
@@ -994,16 +1013,16 @@ const CreateRideRequest = ({ auth }) => {
           <div className="flex gap-2">
             <button
               type="button"
-              className={`btn flex-1 ${pricingMode === 'fixed' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setPricingMode('fixed')}
+              className={`btn flex-1 ${pricingMode === "fixed" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setPricingMode("fixed")}
             >
               <DollarSign size={20} />
               Fixed Price
             </button>
             <button
               type="button"
-              className={`btn flex-1 ${pricingMode === 'bidding' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setPricingMode('bidding')}
+              className={`btn flex-1 ${pricingMode === "bidding" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setPricingMode("bidding")}
             >
               <Navigation size={20} />
               Let Drivers Bid
@@ -1016,64 +1035,85 @@ const CreateRideRequest = ({ auth }) => {
           <h3 className="font-bold mb-3">Route</h3>
 
           {/* Pickup */}
-          <div className="mb-3" style={{position: 'relative'}}>
-            <label className="text-dim mb-1" style={{fontSize: '0.875rem', display: 'block'}}>
+          <div className="mb-3" style={{ position: "relative" }}>
+            <label
+              className="text-dim mb-1"
+              style={{ fontSize: "0.875rem", display: "block" }}
+            >
               Pickup Location
             </label>
-            <div style={{position: 'relative'}}>
-              <div style={{
-                position: 'absolute',
-                left: '1rem',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: '#10B981'
-              }}></div>
+            <div style={{ position: "relative" }}>
+              <div
+                style={{
+                  position: "absolute",
+                  left: "1rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  background: "#10B981",
+                }}
+              ></div>
               <input
                 type="text"
                 className="input"
                 placeholder="Search pickup location..."
-                style={{paddingLeft: '3rem'}}
+                style={{ paddingLeft: "3rem" }}
                 value={formData.pickup.address}
                 onChange={(e) => handlePickupSearch(e.target.value)}
-                onFocus={() => formData.pickup.address.length >= 3 && setShowPickupSuggestions(true)}
+                onFocus={() =>
+                  formData.pickup.address.length >= 3 &&
+                  setShowPickupSuggestions(true)
+                }
                 required
               />
             </div>
             {showPickupSuggestions && pickupSuggestions.length > 0 && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                background: '#1E293B',
-                border: '1px solid rgba(148, 163, 184, 0.2)',
-                borderRadius: '8px',
-                marginTop: '0.5rem',
-                maxHeight: '200px',
-                overflowY: 'auto',
-                zIndex: 10,
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)'
-              }}>
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  right: 0,
+                  background: "#1E293B",
+                  border: "1px solid rgba(148, 163, 184, 0.2)",
+                  borderRadius: "8px",
+                  marginTop: "0.5rem",
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                  zIndex: 10,
+                  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.3)",
+                }}
+              >
                 {pickupSuggestions.map((prediction, idx) => (
                   <div
                     key={prediction.place_id}
                     onClick={() => selectPickupLocation(prediction)}
                     style={{
-                      padding: '0.75rem 1rem',
-                      cursor: 'pointer',
-                      borderBottom: idx < pickupSuggestions.length - 1 ? '1px solid rgba(148, 163, 184, 0.1)' : 'none'
+                      padding: "0.75rem 1rem",
+                      cursor: "pointer",
+                      borderBottom:
+                        idx < pickupSuggestions.length - 1
+                          ? "1px solid rgba(148, 163, 184, 0.1)"
+                          : "none",
                     }}
-                    onMouseEnter={(e) => e.target.style.background = 'rgba(16, 185, 129, 0.1)'}
-                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                    onMouseEnter={(e) =>
+                      (e.target.style.background = "rgba(16, 185, 129, 0.1)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.target.style.background = "transparent")
+                    }
                   >
                     <div className="flex items-center gap-2">
                       <MapPin size={16} color="#10B981" />
                       <div>
-                        <div style={{fontSize: '0.875rem'}}>{prediction.structured_formatting.main_text}</div>
-                        <div style={{fontSize: '0.75rem', color: '#94A3B8'}}>{prediction.structured_formatting.secondary_text}</div>
+                        <div style={{ fontSize: "0.875rem" }}>
+                          {prediction.structured_formatting.main_text}
+                        </div>
+                        <div style={{ fontSize: "0.75rem", color: "#94A3B8" }}>
+                          {prediction.structured_formatting.secondary_text}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1098,29 +1138,43 @@ const CreateRideRequest = ({ auth }) => {
           {showStops && (
             <>
               {formData.stops.map((stop, index) => (
-                <div key={index} className="mb-3" style={{position: 'relative'}}>
-                  <div style={{
-                    position: 'absolute',
-                    left: '1rem',
-                    top: '1rem',
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: '#F59E0B',
-                    zIndex: 2
-                  }}></div>
-                  <div style={{
-                    background: 'rgba(245, 158, 11, 0.1)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    borderRadius: '12px',
-                    padding: '1rem',
-                    paddingLeft: '3rem'
-                  }}>
+                <div
+                  key={index}
+                  className="mb-3"
+                  style={{ position: "relative" }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: "1rem",
+                      top: "1rem",
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      background: "#F59E0B",
+                      zIndex: 2,
+                    }}
+                  ></div>
+                  <div
+                    style={{
+                      background: "rgba(245, 158, 11, 0.1)",
+                      border: "1px solid rgba(245, 158, 11, 0.3)",
+                      borderRadius: "12px",
+                      padding: "1rem",
+                      paddingLeft: "3rem",
+                    }}
+                  >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="font-bold">{stop.address}</div>
                         {stop.notes && (
-                          <div className="text-dim" style={{fontSize: '0.875rem', marginTop: '0.25rem'}}>
+                          <div
+                            className="text-dim"
+                            style={{
+                              fontSize: "0.875rem",
+                              marginTop: "0.25rem",
+                            }}
+                          >
                             {stop.notes}
                           </div>
                         )}
@@ -1128,7 +1182,12 @@ const CreateRideRequest = ({ auth }) => {
                       <button
                         type="button"
                         onClick={() => removeStop(index)}
-                        style={{background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444'}}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "#EF4444",
+                        }}
                       >
                         <X size={20} />
                       </button>
@@ -1138,54 +1197,89 @@ const CreateRideRequest = ({ auth }) => {
               ))}
 
               {/* Add Stop Form */}
-              <div className="mb-3" style={{background: 'rgba(148, 163, 184, 0.05)', padding: '1rem', borderRadius: '12px', position: 'relative'}}>
+              <div
+                className="mb-3"
+                style={{
+                  background: "rgba(148, 163, 184, 0.05)",
+                  padding: "1rem",
+                  borderRadius: "12px",
+                  position: "relative",
+                }}
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <Plus size={20} color="#F59E0B" />
-                  <span className="font-bold" style={{color: '#F59E0B'}}>Add Stop</span>
+                  <span className="font-bold" style={{ color: "#F59E0B" }}>
+                    Add Stop
+                  </span>
                 </div>
-                <div style={{position: 'relative'}}>
+                <div style={{ position: "relative" }}>
                   <input
                     type="text"
                     className="input mb-2"
                     placeholder="Search stop location..."
                     value={newStop.address}
                     onChange={(e) => handleStopSearch(e.target.value)}
-                    onFocus={() => newStop.address.length >= 3 && setShowStopSuggestions(true)}
-                    style={{fontSize: '0.875rem'}}
+                    onFocus={() =>
+                      newStop.address.length >= 3 &&
+                      setShowStopSuggestions(true)
+                    }
+                    style={{ fontSize: "0.875rem" }}
                   />
                   {showStopSuggestions && stopSuggestions.length > 0 && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      right: 0,
-                      background: '#1E293B',
-                      border: '1px solid rgba(148, 163, 184, 0.2)',
-                      borderRadius: '8px',
-                      marginTop: '-0.5rem',
-                      marginBottom: '0.5rem',
-                      maxHeight: '150px',
-                      overflowY: 'auto',
-                      zIndex: 10,
-                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)'
-                    }}>
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        right: 0,
+                        background: "#1E293B",
+                        border: "1px solid rgba(148, 163, 184, 0.2)",
+                        borderRadius: "8px",
+                        marginTop: "-0.5rem",
+                        marginBottom: "0.5rem",
+                        maxHeight: "150px",
+                        overflowY: "auto",
+                        zIndex: 10,
+                        boxShadow: "0 4px 6px rgba(0, 0, 0, 0.3)",
+                      }}
+                    >
                       {stopSuggestions.map((prediction, idx) => (
                         <div
                           key={prediction.place_id}
                           onClick={() => selectStopLocation(prediction)}
                           style={{
-                            padding: '0.75rem 1rem',
-                            cursor: 'pointer',
-                            borderBottom: idx < stopSuggestions.length - 1 ? '1px solid rgba(148, 163, 184, 0.1)' : 'none'
+                            padding: "0.75rem 1rem",
+                            cursor: "pointer",
+                            borderBottom:
+                              idx < stopSuggestions.length - 1
+                                ? "1px solid rgba(148, 163, 184, 0.1)"
+                                : "none",
                           }}
-                          onMouseEnter={(e) => e.target.style.background = 'rgba(245, 158, 11, 0.1)'}
-                          onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                          onMouseEnter={(e) =>
+                            (e.target.style.background =
+                              "rgba(245, 158, 11, 0.1)")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.target.style.background = "transparent")
+                          }
                         >
                           <div className="flex items-center gap-2">
                             <MapPin size={16} color="#F59E0B" />
                             <div>
-                              <div style={{fontSize: '0.875rem'}}>{prediction.structured_formatting.main_text}</div>
-                              <div style={{fontSize: '0.75rem', color: '#94A3B8'}}>{prediction.structured_formatting.secondary_text}</div>
+                              <div style={{ fontSize: "0.875rem" }}>
+                                {prediction.structured_formatting.main_text}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: "0.75rem",
+                                  color: "#94A3B8",
+                                }}
+                              >
+                                {
+                                  prediction.structured_formatting
+                                    .secondary_text
+                                }
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1198,14 +1292,16 @@ const CreateRideRequest = ({ auth }) => {
                   className="input mb-2"
                   placeholder="Notes (optional)"
                   value={newStop.notes}
-                  onChange={(e) => setNewStop({...newStop, notes: e.target.value})}
-                  style={{fontSize: '0.875rem'}}
+                  onChange={(e) =>
+                    setNewStop({ ...newStop, notes: e.target.value })
+                  }
+                  style={{ fontSize: "0.875rem" }}
                 />
                 <button
                   type="button"
                   className="btn btn-primary w-full"
                   onClick={addStop}
-                  style={{padding: '0.75rem', fontSize: '0.875rem'}}
+                  style={{ padding: "0.75rem", fontSize: "0.875rem" }}
                 >
                   <Plus size={16} />
                   Add This Stop
@@ -1215,64 +1311,85 @@ const CreateRideRequest = ({ auth }) => {
           )}
 
           {/* Dropoff */}
-          <div style={{position: 'relative'}}>
-            <label className="text-dim mb-1" style={{fontSize: '0.875rem', display: 'block'}}>
+          <div style={{ position: "relative" }}>
+            <label
+              className="text-dim mb-1"
+              style={{ fontSize: "0.875rem", display: "block" }}
+            >
               Dropoff Location
             </label>
-            <div style={{position: 'relative'}}>
-              <div style={{
-                position: 'absolute',
-                left: '1rem',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: '#EF4444'
-              }}></div>
+            <div style={{ position: "relative" }}>
+              <div
+                style={{
+                  position: "absolute",
+                  left: "1rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  background: "#EF4444",
+                }}
+              ></div>
               <input
                 type="text"
                 className="input"
                 placeholder="Search dropoff location..."
-                style={{paddingLeft: '3rem'}}
+                style={{ paddingLeft: "3rem" }}
                 value={formData.dropoff.address}
                 onChange={(e) => handleDropoffSearch(e.target.value)}
-                onFocus={() => formData.dropoff.address.length >= 3 && setShowDropoffSuggestions(true)}
+                onFocus={() =>
+                  formData.dropoff.address.length >= 3 &&
+                  setShowDropoffSuggestions(true)
+                }
                 required
               />
             </div>
             {showDropoffSuggestions && dropoffSuggestions.length > 0 && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                background: '#1E293B',
-                border: '1px solid rgba(148, 163, 184, 0.2)',
-                borderRadius: '8px',
-                marginTop: '0.5rem',
-                maxHeight: '200px',
-                overflowY: 'auto',
-                zIndex: 10,
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)'
-              }}>
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  right: 0,
+                  background: "#1E293B",
+                  border: "1px solid rgba(148, 163, 184, 0.2)",
+                  borderRadius: "8px",
+                  marginTop: "0.5rem",
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                  zIndex: 10,
+                  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.3)",
+                }}
+              >
                 {dropoffSuggestions.map((prediction, idx) => (
                   <div
                     key={prediction.place_id}
                     onClick={() => selectDropoffLocation(prediction)}
                     style={{
-                      padding: '0.75rem 1rem',
-                      cursor: 'pointer',
-                      borderBottom: idx < dropoffSuggestions.length - 1 ? '1px solid rgba(148, 163, 184, 0.1)' : 'none'
+                      padding: "0.75rem 1rem",
+                      cursor: "pointer",
+                      borderBottom:
+                        idx < dropoffSuggestions.length - 1
+                          ? "1px solid rgba(148, 163, 184, 0.1)"
+                          : "none",
                     }}
-                    onMouseEnter={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.1)'}
-                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                    onMouseEnter={(e) =>
+                      (e.target.style.background = "rgba(239, 68, 68, 0.1)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.target.style.background = "transparent")
+                    }
                   >
                     <div className="flex items-center gap-2">
                       <MapPin size={16} color="#EF4444" />
                       <div>
-                        <div style={{fontSize: '0.875rem'}}>{prediction.structured_formatting.main_text}</div>
-                        <div style={{fontSize: '0.75rem', color: '#94A3B8'}}>{prediction.structured_formatting.secondary_text}</div>
+                        <div style={{ fontSize: "0.875rem" }}>
+                          {prediction.structured_formatting.main_text}
+                        </div>
+                        <div style={{ fontSize: "0.75rem", color: "#94A3B8" }}>
+                          {prediction.structured_formatting.secondary_text}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1287,7 +1404,10 @@ const CreateRideRequest = ({ auth }) => {
           <h3 className="font-bold mb-3">Ride Details</h3>
 
           <div className="mb-3">
-            <label className="text-dim mb-1" style={{fontSize: '0.875rem', display: 'block'}}>
+            <label
+              className="text-dim mb-1"
+              style={{ fontSize: "0.875rem", display: "block" }}
+            >
               Vehicle Type
             </label>
             <select
@@ -1305,37 +1425,71 @@ const CreateRideRequest = ({ auth }) => {
 
           <div className="flex gap-2 mb-3">
             <div className="flex-1">
-              <label className="text-dim mb-1" style={{fontSize: '0.875rem', display: 'block'}}>
+              <label
+                className="text-dim mb-1"
+                style={{ fontSize: "0.875rem", display: "block" }}
+              >
                 Passengers
               </label>
-              <div style={{position: 'relative'}}>
-                <Users size={20} style={{position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8'}} />
+              <div style={{ position: "relative" }}>
+                <Users
+                  size={20}
+                  style={{
+                    position: "absolute",
+                    left: "1rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#94A3B8",
+                  }}
+                />
                 <input
                   type="number"
                   className="input"
                   min="1"
                   max={vehicleLimits[formData.vehiclePreference].maxPassengers}
-                  style={{paddingLeft: '3rem'}}
+                  style={{ paddingLeft: "3rem" }}
                   value={formData.passengerCount}
-                  onChange={(e) => setFormData({...formData, passengerCount: parseInt(e.target.value)})}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      passengerCount: parseInt(e.target.value),
+                    })
+                  }
                 />
               </div>
             </div>
 
             <div className="flex-1">
-              <label className="text-dim mb-1" style={{fontSize: '0.875rem', display: 'block'}}>
+              <label
+                className="text-dim mb-1"
+                style={{ fontSize: "0.875rem", display: "block" }}
+              >
                 Luggage
               </label>
-              <div style={{position: 'relative'}}>
-                <Package size={20} style={{position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8'}} />
+              <div style={{ position: "relative" }}>
+                <Package
+                  size={20}
+                  style={{
+                    position: "absolute",
+                    left: "1rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#94A3B8",
+                  }}
+                />
                 <input
                   type="number"
                   className="input"
                   min="0"
                   max={vehicleLimits[formData.vehiclePreference].maxLuggage}
-                  style={{paddingLeft: '3rem'}}
+                  style={{ paddingLeft: "3rem" }}
                   value={formData.luggageCount}
-                  onChange={(e) => setFormData({...formData, luggageCount: parseInt(e.target.value)})}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      luggageCount: parseInt(e.target.value),
+                    })
+                  }
                 />
               </div>
             </div>
@@ -1343,16 +1497,30 @@ const CreateRideRequest = ({ auth }) => {
 
           {/* Payment Method */}
           <div className="mb-3">
-            <label className="text-dim mb-1" style={{fontSize: '0.875rem', display: 'block'}}>
+            <label
+              className="text-dim mb-1"
+              style={{ fontSize: "0.875rem", display: "block" }}
+            >
               Payment Method
             </label>
-            <div style={{position: 'relative'}}>
-              <CreditCard size={20} style={{position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8'}} />
+            <div style={{ position: "relative" }}>
+              <CreditCard
+                size={20}
+                style={{
+                  position: "absolute",
+                  left: "1rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "#94A3B8",
+                }}
+              />
               <select
                 className="input"
-                style={{paddingLeft: '3rem'}}
+                style={{ paddingLeft: "3rem" }}
                 value={formData.paymentMethod}
-                onChange={(e) => setFormData({...formData, paymentMethod: e.target.value})}
+                onChange={(e) =>
+                  setFormData({ ...formData, paymentMethod: e.target.value })
+                }
               >
                 <option value="cash">Cash</option>
                 <option value="card">Credit/Debit Card</option>
@@ -1362,39 +1530,78 @@ const CreateRideRequest = ({ auth }) => {
           </div>
 
           {/* Special Requirements */}
-          {formData.vehiclePreference !== 'bike' && (
+          {formData.vehiclePreference !== "bike" && (
             <>
               <div className="mb-2">
-                <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.5rem'}}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    cursor: "pointer",
+                    padding: "0.5rem",
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={formData.requiresWheelchairAccessible}
-                    onChange={(e) => setFormData({...formData, requiresWheelchairAccessible: e.target.checked})}
-                    style={{width: '20px', height: '20px'}}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        requiresWheelchairAccessible: e.target.checked,
+                      })
+                    }
+                    style={{ width: "20px", height: "20px" }}
                   />
                   <span>Wheelchair Accessible</span>
                 </label>
               </div>
 
               <div className="mb-2">
-                <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.5rem'}}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    cursor: "pointer",
+                    padding: "0.5rem",
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={formData.requiresPetFriendly}
-                    onChange={(e) => setFormData({...formData, requiresPetFriendly: e.target.checked})}
-                    style={{width: '20px', height: '20px'}}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        requiresPetFriendly: e.target.checked,
+                      })
+                    }
+                    style={{ width: "20px", height: "20px" }}
                   />
                   <span>Pet Friendly</span>
                 </label>
               </div>
 
               <div className="mb-3">
-                <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.5rem'}}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    cursor: "pointer",
+                    padding: "0.5rem",
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={formData.requiresChildSeat}
-                    onChange={(e) => setFormData({...formData, requiresChildSeat: e.target.checked})}
-                    style={{width: '20px', height: '20px'}}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        requiresChildSeat: e.target.checked,
+                      })
+                    }
+                    style={{ width: "20px", height: "20px" }}
                   />
                   <span>Child Seat Required</span>
                 </label>
@@ -1403,7 +1610,10 @@ const CreateRideRequest = ({ auth }) => {
           )}
 
           <div>
-            <label className="text-dim mb-1" style={{fontSize: '0.875rem', display: 'block'}}>
+            <label
+              className="text-dim mb-1"
+              style={{ fontSize: "0.875rem", display: "block" }}
+            >
               Special Instructions
             </label>
             <textarea
@@ -1411,7 +1621,12 @@ const CreateRideRequest = ({ auth }) => {
               rows="3"
               placeholder="Any special requests or notes for the driver..."
               value={formData.specialInstructions}
-              onChange={(e) => setFormData({...formData, specialInstructions: e.target.value})}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  specialInstructions: e.target.value,
+                })
+              }
             ></textarea>
           </div>
         </div>
@@ -1421,14 +1636,14 @@ const CreateRideRequest = ({ auth }) => {
           type="submit"
           className="btn btn-primary w-full"
           disabled={loading}
-          style={{padding: '1.25rem', fontSize: '1.125rem'}}
+          style={{ padding: "1.25rem", fontSize: "1.125rem" }}
         >
           {loading ? (
             <span className="loading"></span>
           ) : (
             <>
               <Navigation size={24} />
-              {pricingMode === 'bidding' ? 'Request Bids' : 'Confirm Ride'}
+              {pricingMode === "bidding" ? "Request Bids" : "Confirm Ride"}
             </>
           )}
         </button>
@@ -1436,7 +1651,7 @@ const CreateRideRequest = ({ auth }) => {
         <button
           type="button"
           className="btn btn-secondary w-full mt-2"
-          onClick={() => navigate('/rider/dashboard')}
+          onClick={() => navigate("/rider/dashboard")}
         >
           Cancel
         </button>

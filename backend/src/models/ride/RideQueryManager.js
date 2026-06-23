@@ -1,27 +1,74 @@
+
+
+
 // import { String } from "../../utils/Constant.js";
 
 // export const RideQueryManager = {
-//   createRideTableQuery: `
-//     CREATE TABLE IF NOT EXISTS ${String.RIDE_MODEL} (
-//       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
-//       rider_id UUID NOT NULL REFERENCES ${String.USER_MODEL}(id),
-//       driver_id UUID REFERENCES ${String.DRIVER_MODEL}(id),
-//       vehicle_id UUID REFERENCES ${String.VEHICLE_MODEL}(id),
+// schema: [`
 
-//       status VARCHAR(20) NOT NULL,
+// CREATE TABLE IF NOT EXISTS ${String.RIDE_MODEL} (
 
-//       requested_at TIMESTAMPTZ DEFAULT NOW(),
-//       accepted_at TIMESTAMPTZ,
-//       started_at TIMESTAMPTZ,
-//       completed_at TIMESTAMPTZ,
+//   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
-//       created_at TIMESTAMPTZ DEFAULT NOW()
-//     );
-//   `,
+//   -- link to ride request
+//   ride_request_id UUID NOT NULL
+//   REFERENCES ${String.RIDE_REQUEST_MODEL}(id),
 
-//   createRideTableQueryIndex:`
-//   -- Rider history
+//   rider_id UUID NOT NULL
+//   REFERENCES ${String.USER_MODEL}(id),
+
+//   driver_id UUID
+//   REFERENCES ${String.DRIVER_MODEL}(id),
+
+//   vehicle_id UUID
+//   REFERENCES ${String.VEHICLE_APPLICATION_MODEL}(id),
+
+//   status VARCHAR(20) NOT NULL DEFAULT 'requested' CHECK (
+//     status IN (
+//       'requested',
+//       'accepted',
+//       'started',
+//       'completed',
+//       'cancelled',
+//       'disputed'
+//     )
+//   ),
+
+//   -- Lifecycle timestamps
+//   requested_at TIMESTAMPTZ DEFAULT NOW(),
+//   accepted_at TIMESTAMPTZ,
+//   started_at TIMESTAMPTZ,
+//   completed_at TIMESTAMPTZ,
+
+//   cancelled_at TIMESTAMPTZ,
+//   cancelled_by UUID,
+//   cancellation_reason TEXT,
+
+//   -- Estimated metrics
+//   estimated_distance_km NUMERIC(8,2),
+//   estimated_duration_minutes INTEGER,
+//   estimated_fare NUMERIC(10,2),
+
+//   -- Actual metrics
+//   actual_distance_km NUMERIC(8,2),
+//   actual_duration_minutes INTEGER,
+//   final_fare NUMERIC(10,2),
+
+//   -- Admin flags
+//   forced_by_admin BOOLEAN DEFAULT FALSE,
+//   deleted BOOLEAN DEFAULT FALSE,
+
+//   created_at TIMESTAMPTZ DEFAULT NOW(),
+//   updated_at TIMESTAMPTZ DEFAULT NOW()
+
+// );
+
+// `,
+
+// `
+
+// -- Rider history
 // CREATE INDEX IF NOT EXISTS idx_rides_rider
 // ON rides (rider_id);
 
@@ -29,77 +76,113 @@
 // CREATE INDEX IF NOT EXISTS idx_rides_driver
 // ON rides (driver_id);
 
-// -- Matching / lifecycle queries
+// -- Ride request linkage
+// CREATE INDEX IF NOT EXISTS idx_rides_request
+// ON rides (ride_request_id);
+
+// -- Lifecycle status
 // CREATE INDEX IF NOT EXISTS idx_rides_status
 // ON rides (status);
 
-// -- Time-based queries (analytics, audits)
+// -- Completed rides analytics
 // CREATE INDEX IF NOT EXISTS idx_rides_completed_at
 // ON rides (completed_at)
 // WHERE completed_at IS NOT NULL;
+
+// -- Active rides
+// CREATE INDEX IF NOT EXISTS idx_rides_active
+// ON rides (id)
+// WHERE deleted = FALSE;
+
 // `
+
+// ]
+
 // };
+
 
 
 import { String } from "../../utils/Constant.js";
 
 export const RideQueryManager = {
-  schema: [`
-    CREATE TABLE IF NOT EXISTS ${String.RIDE_MODEL} (
-      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
-      rider_id UUID NOT NULL REFERENCES ${String.USER_MODEL}(id),
-      driver_id UUID REFERENCES ${String.DRIVER_MODEL}(id),
-      vehicle_id UUID REFERENCES ${String.VEHICLE_APPLICATION_MODEL}(id),
+schema: [`
 
-      status VARCHAR(20) NOT NULL DEFAULT 'requested',
-      is_paid BOOLEAN DEFAULT FALSE,
+CREATE TABLE IF NOT EXISTS ${String.RIDE_MODEL} (
 
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
-      -- Lifecycle timestamps
-      requested_at TIMESTAMPTZ DEFAULT NOW(),
-      accepted_at TIMESTAMPTZ,
-      started_at TIMESTAMPTZ,
-      completed_at TIMESTAMPTZ,
+  ride_request_id UUID NOT NULL
+  REFERENCES ${String.RIDE_REQUEST_MODEL}(id),
 
-      estimated_distance_km NUMERIC(8,2),
-      estimated_duration_minutes INTEGER,
-      estimated_fare NUMERIC(10,2),
+  rider_id UUID NOT NULL
+  REFERENCES ${String.USER_MODEL}(id),
 
-      actual_distance_km NUMERIC(8,2),
-      actual_duration_minutes INTEGER,
-      final_fare NUMERIC(10,2),
+  driver_id UUID
+  REFERENCES ${String.DRIVER_MODEL}(id),
 
-      -- Admin fields
-      forced_by_admin BOOLEAN DEFAULT FALSE,
-      deleted BOOLEAN DEFAULT FALSE,
+  vehicle_id UUID
+  REFERENCES ${String.VEHICLE_APPLICATION_MODEL}(id),
 
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `,
+  status VARCHAR(20) NOT NULL DEFAULT 'requested' CHECK (
+    status IN (
+      'requested',
+      'accepted',
+      'started',
+      'completed',
+      'cancelled',
+      'disputed'
+    )
+  ),
 
- `
-    -- Rider history
-    CREATE INDEX IF NOT EXISTS idx_rides_rider
-    ON rides (rider_id);
+  requested_at TIMESTAMPTZ DEFAULT NOW(),
+  accepted_at TIMESTAMPTZ,
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
 
-    -- Driver history
-    CREATE INDEX IF NOT EXISTS idx_rides_driver
-    ON rides (driver_id);
+  cancelled_at TIMESTAMPTZ,
+  cancelled_by UUID,
+  cancellation_reason TEXT,
 
-    -- Matching / lifecycle queries
-    CREATE INDEX IF NOT EXISTS idx_rides_status
-    ON rides (status);
+  estimated_distance_km NUMERIC(8,2),
+  estimated_duration_minutes INTEGER,
+  estimated_fare NUMERIC(10,2),
 
-    -- Time-based queries (analytics, audits)
-    CREATE INDEX IF NOT EXISTS idx_rides_completed_at
-    ON rides (completed_at)
-    WHERE completed_at IS NOT NULL;
+  actual_distance_km NUMERIC(8,2),
+  actual_duration_minutes INTEGER,
+  final_fare NUMERIC(10,2),
 
-    -- Active rides (not deleted)
-    CREATE INDEX IF NOT EXISTS idx_rides_active
-    ON rides (id)
-    WHERE deleted = FALSE;
-  `]
+  forced_by_admin BOOLEAN DEFAULT FALSE,
+  deleted BOOLEAN DEFAULT FALSE,
+
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+
+);
+
+`,
+
+`
+
+CREATE INDEX IF NOT EXISTS idx_rides_rider
+ON rides (rider_id);
+
+CREATE INDEX IF NOT EXISTS idx_rides_driver
+ON rides (driver_id);
+
+CREATE INDEX IF NOT EXISTS idx_rides_status
+ON rides (status);
+
+CREATE INDEX IF NOT EXISTS idx_rides_completed_at
+ON rides (completed_at)
+WHERE completed_at IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_rides_active
+ON rides (id)
+WHERE deleted = FALSE;
+
+`
+
+]
+
 };

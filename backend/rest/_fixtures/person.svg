@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320">
+  <rect width="320" height="320" fill="#e8f0ff"/>
+  <circle cx="160" cy="110" r="56" fill="#c9d7ff"/>
+  <rect x="82" y="186" width="156" height="84" rx="24" fill="#9bb4ff"/>
+  <text x="160" y="302" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#2b3b67">REST PERSON</text>
+</svg>

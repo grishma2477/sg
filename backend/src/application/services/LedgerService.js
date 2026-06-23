@@ -1,3 +1,6 @@
+
+
+
 import { pool } from "../../database/DBConnection.js";
 import { withTransaction } from "../../infrastructure/transactions/withTransaction.js";
 import LedgerAccount from "../../models/finance/ledger_account/LedgerAccount.js";
@@ -62,7 +65,8 @@ export class LedgerService {
       'revenue',
       'clearing',
       'bnpl',
-      'gift'
+      'gift',
+      'payout_holding'
     ];
 
     for (const type of requiredAccounts) {
@@ -116,6 +120,41 @@ export class LedgerService {
     }
   }
 
+  static async reverseEntry({
+    originalEntryId,
+    reason
+  }) {
+
+    return await withTransaction(async (client) => {
+
+      const original = await LedgerEntry.findById(originalEntryId, client);
+
+      if (!original) {
+        throw new AppError('LEDGER_ENTRY_NOT_FOUND', 404);
+      }
+
+      if (original.reference_type === 'reversal') {
+        throw new AppError('CANNOT_REVERSE_REVERSAL', 400);
+      }
+
+      const reversal = await this.createEntry({
+        debitAccountId: original.credit_account_id,
+        creditAccountId: original.debit_account_id,
+        amount: parseFloat(original.amount),
+        referenceType: 'reversal',
+        referenceId: original.reference_id,
+        description: `Reversal of ${originalEntryId}: ${reason}`,
+        client
+      });
+
+      console.log(`↩️ Ledger reversal created for ${originalEntryId}`);
+
+      return reversal;
+
+    });
+
+  }
+
 
   // static async getAccountBalance(accountId) {
   //   try {
@@ -154,6 +193,19 @@ export class LedgerService {
   }
 
 
+
+  static async lockAccount(accountId, client) {
+
+    await client.query(
+      `SELECT id 
+     FROM ${String.LEDGER_ACCOUNT} 
+     WHERE id = $1 
+     FOR UPDATE`,
+      [accountId]
+    );
+
+  }
+
   static async getUserWalletBalance(userId, ownerType = 'user') {
     try {
       const account = await this.getOrCreateAccount({
@@ -189,7 +241,11 @@ export class LedgerService {
   }) {
     return await withTransaction(async (client) => {
       // Verify sufficient balance
-      const balance = await this.getAccountBalance(fromAccountId);
+
+      await this.lockAccount(fromAccountId, client);
+      await this.lockAccount(toAccountId, client);
+
+      const balance = await this.getAccountBalance(fromAccountId, client);
       if (balance < amount) {
         throw new AppError('INSUFFICIENT_BALANCE', 400, {
           available: balance,
@@ -275,6 +331,8 @@ export class LedgerService {
       }
 
       // Verify balance
+      await this.lockAccount(sourceAccount.id, client);
+
       const balance = await this.getAccountBalance(sourceAccount.id, client);
       if (balance < amount) {
         throw new AppError('INSUFFICIENT_FUNDS', 400, {
@@ -312,6 +370,7 @@ export class LedgerService {
   }) {
     return await withTransaction(async (client) => {
       const platformEscrow = await this.getPlatformAccount('escrow');
+      await this.lockAccount(platformEscrow.id, client);
       const platformRevenue = await this.getPlatformAccount('revenue');
       const driverWallet = await this.getOrCreateAccount({
         ownerType: 'driver',
@@ -363,6 +422,7 @@ export class LedgerService {
   }) {
     return await withTransaction(async (client) => {
       const platformEscrow = await this.getPlatformAccount('escrow');
+      await this.lockAccount(platformEscrow.id, client);
       let destinationAccount;
 
       if (paymentSource === 'wallet') {
@@ -401,19 +461,70 @@ export class LedgerService {
   // PROCESS PAYOUT (DRIVER WALLET → CLEARING)
   // ═══════════════════════════════════════════════════════════
 
+  // static async processPayout({
+  //   driverId,
+  //   amount,
+  //   payoutRequestId
+  // }) {
+  //   return await withTransaction(async (client) => {
+  //     const driverWallet = await this.getOrCreateAccount({
+  //       ownerType: 'driver',
+  //       ownerId: driverId,
+  //       accountType: 'wallet'
+  //     });
+
+
+  //     await this.lockAccount(driverWallet.id, client);
+
+  //     const balance = await this.getAccountBalance(driverWallet.id, client);
+  //     if (balance < amount) {
+  //       throw new AppError('INSUFFICIENT_PAYOUT_BALANCE', 400, {
+  //         available: balance,
+  //         required: amount
+  //       });
+  //     }
+
+  //     const payoutClearing = await this.getPlatformAccount('clearing');
+
+  //     // Driver Wallet → Payout Clearing
+  //     const entry = await this.createEntry({
+  //       debitAccountId: driverWallet.id,
+  //       creditAccountId: payoutClearing.id,
+  //       amount,
+  //       referenceType: 'payout',
+  //       referenceId: payoutRequestId,
+  //       description: `Driver payout request ${payoutRequestId}`,
+  //       client
+  //     });
+
+  //     console.log(`💸 Payout processed: ₹${amount} for driver ${driverId}`);
+
+  //     return entry;
+  //   });
+  // }
+
+
+
   static async processPayout({
     driverId,
     amount,
     payoutRequestId
   }) {
+
     return await withTransaction(async (client) => {
+
       const driverWallet = await this.getOrCreateAccount({
         ownerType: 'driver',
         ownerId: driverId,
         accountType: 'wallet'
       });
 
-      const balance = await this.getAccountBalance(driverWallet.id);
+      const payoutHolding = await this.getPlatformAccount('payout_holding');
+
+      await this.lockAccount(driverWallet.id, client);
+
+      const balance = await this.getAccountBalance(driverWallet.id, client);
+
       if (balance < amount) {
         throw new AppError('INSUFFICIENT_PAYOUT_BALANCE', 400, {
           available: balance,
@@ -421,22 +532,52 @@ export class LedgerService {
         });
       }
 
-      const payoutClearing = await this.getPlatformAccount('clearing');
-
-      // Driver Wallet → Payout Clearing
       const entry = await this.createEntry({
         debitAccountId: driverWallet.id,
-        creditAccountId: payoutClearing.id,
+        creditAccountId: payoutHolding.id,
         amount,
         referenceType: 'payout',
         referenceId: payoutRequestId,
-        description: `Driver payout request ${payoutRequestId}`,
+        description: `Driver payout locked ${payoutRequestId}`,
         client
       });
 
-      console.log(`💸 Payout processed: ₹${amount} for driver ${driverId}`);
+      console.log(`🔒 Payout locked: ₹${amount} for driver ${driverId}`);
 
       return entry;
+
     });
+
+  }
+
+
+
+  static async releasePayoutToClearing({
+    amount,
+    payoutRequestId
+  }) {
+
+    return await withTransaction(async (client) => {
+
+      const payoutHolding = await this.getPlatformAccount('payout_holding');
+      await this.lockAccount(payoutHolding.id, client);
+
+      const clearing = await this.getPlatformAccount('clearing');
+      await this.lockAccount(clearing.id, client);
+
+      const entry = await this.createEntry({
+        debitAccountId: payoutHolding.id,
+        creditAccountId: clearing.id,
+        amount,
+        referenceType: 'payout',
+        referenceId: payoutRequestId,
+        description: `Payout sent to clearing ${payoutRequestId}`,
+        client
+      });
+
+      return entry;
+
+    });
+
   }
 }

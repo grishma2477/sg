@@ -713,40 +713,186 @@ import { DriverMatchingService } from "../application/services/DriverMatchingSer
 import { broadcastRideRequest } from "../realtime/socketServer.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { pool } from '../database/DBConnection.js';
+import { PricingCalculationService } from "../application/services/PricingCalculationService.js";
 const requestService = new RideRequestService();
 const matchingService = new DriverMatchingService();
 
-// export const createRideRequest = async (req, res, next) => {
-//   try {
-//     const result = await requestService.createRideRequest({
-//       riderId: req.user.id,
-//       ...req.body
-//     });
+// ─── GET /api/ride-requests/estimate ─────────────────────────────────────────
+export const estimateFare = async (req, res, next) => {
+  try {
+    const { pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, stops } = req.query;
 
-//     // Find eligible drivers and broadcast
-//     const drivers = await matchingService.findEligibleDrivers(result.requestId);
-//     const driverIds = drivers.map(d => d.driverId);
+    if (!pickup_lat || !pickup_lng || !dropoff_lat || !dropoff_lng) {
+      return res.status(400).json(
+        ApiResponse.error("pickup_lat, pickup_lng, dropoff_lat, dropoff_lng are required", 400)
+      );
+    }
 
-//     broadcastRideRequest({
-//       requestId: result.requestId,
-//       pickup: req.body.pickup,
-//       dropoff: req.body.dropoff,
-//       estimatedFare: result.estimatedFare,
-//       pricingMode: req.body.pricingMode
-//     }, driverIds);
+    const pickup = { lat: parseFloat(pickup_lat), lng: parseFloat(pickup_lng) };
+    const dropoff = { lat: parseFloat(dropoff_lat), lng: parseFloat(dropoff_lng) };
+    const waypointList = stops ? JSON.parse(stops) : [];
 
-//     res.status(201).json(ApiResponse.success(result));
-//   } catch (err) {
-//     next(err);
-//   }
-// };
-// In your backend controller file (e.g., controllers/rideRequestController.js)
+    const result = await PricingCalculationService.estimateAllVehicles({
+      pickup,
+      dropoff,
+      stops: waypointList,
+    });
 
+    res.json(ApiResponse.success(result));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── POST /api/ride-requests ──────────────────────────────────────────────────
+export const createRideRequest = async (req, res, next) => {
+  try {
+    const {
+      pickupLocation,
+      pickupAddress,
+      dropoffLocation,
+      dropoffAddress,
+      stops,
+      pricingMode,
+      vehiclePreference,
+      passengerCount,
+      luggageCount
+    } = req.body;
+
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json(ApiResponse.error("UNAUTHORIZED", 401));
+    }
+
+    const lat1 = Number(pickupLocation.coordinates[1]);
+    const lon1 = Number(pickupLocation.coordinates[0]);
+    const lat2 = Number(dropoffLocation.coordinates[1]);
+    const lon2 = Number(dropoffLocation.coordinates[0]);
+
+    const vehicleType = vehiclePreference || "car";
+
+    // Use real road-based distance + fare via mapsClient (Haversine fallback if no key)
+    const routeData = await PricingCalculationService.estimateAllVehicles({
+      pickup: { lat: lat1, lng: lon1 },
+      dropoff: { lat: lat2, lng: lon2 },
+      stops: (stops || []).map((s) => ({
+        lat: s.location.coordinates[1],
+        lng: s.location.coordinates[0],
+      })),
+    });
+
+    const vehicleEstimate = routeData.estimates.find((e) => e.vehicleType === vehicleType)
+      ?? routeData.estimates.find((e) => e.vehicleType === "car");
+
+    const estimatedTotal = vehicleEstimate.fareMin;
+
+    console.log(`📏 Distance: ${routeData.distanceKm} km | Duration: ${routeData.durationMinutes} min | Fare: NPR ${estimatedTotal}`);
+
+    const pickupCoords = `POINT(${lon1} ${lat1})`;
+    const dropoffCoords = `POINT(${lon2} ${lat2})`;
+
+    const query = `
+      INSERT INTO ride_requests (
+        rider_id,
+        pickup_location,
+        pickup_address,
+        dropoff_location,
+        dropoff_address,
+        pricing_mode,
+        vehicle_preference,
+        passenger_count,
+        luggage_count,
+        estimated_distance_km,
+        estimated_duration_minutes,
+        estimated_total,
+        status,
+        created_at
+      )
+      VALUES (
+        $1,
+        ST_GeomFromText($2,4326),
+        $3,
+        ST_GeomFromText($4,4326),
+        $5,
+        $6,
+        $7,
+        $8,
+        $9,
+        $10,
+        $11,
+        $12,
+        $13,
+        NOW()
+      )
+      RETURNING *
+    `;
+
+    const values = [
+      userId,
+      pickupCoords,
+      pickupAddress,
+      dropoffCoords,
+      dropoffAddress,
+      pricingMode || "bidding",
+      vehicleType,
+      passengerCount || 1,
+      luggageCount || 0,
+      routeData.distanceKm,
+      routeData.durationMinutes,
+      estimatedTotal,
+      "pending"
+    ];
+
+    const result = await pool.query(query, values);
+    const rideRequest = result.rows[0];
+
+    console.log("✅ Ride request created:", rideRequest.id);
+
+    if (stops && stops.length > 0) {
+      const maxStops = Math.min(stops.length, 2);
+
+      for (let i = 0; i < maxStops; i++) {
+        const stop = stops[i];
+
+        const stopCoords = `POINT(${stop.location.coordinates[0]} ${stop.location.coordinates[1]})`;
+
+        await pool.query(
+          `
+          INSERT INTO ride_stops (
+            ride_request_id,
+            location,
+            address,
+            stop_order,
+            stop_type,
+            max_wait_seconds,
+            created_at
+          )
+          VALUES ($1,ST_GeomFromText($2,4326),$3,$4,$5,$6,NOW())
+          `,
+          [
+            rideRequest.id,
+            stopCoords,
+            stop.address,
+            i + 1,
+            "detour",
+            stop.maxWaitSeconds || 120
+          ]
+        );
+      }
+    }
+
+    res.status(201).json(ApiResponse.success(rideRequest, "RIDE_REQUEST_CREATED"));
+  } catch (error) {
+    next(error);
+  }
+};
 
 
 
 
 // export const createRideRequest = async (req, res) => {
+  
 //   try {
 //     const {
 //       pickupLocation,
@@ -760,11 +906,46 @@ const matchingService = new DriverMatchingService();
 //       luggageCount
 //     } = req.body;
 
+//    //TODO JWT malfunction no error -> request goes infinitely
+
 //     const userId = req.user.id;
 
 //     console.log('📝 Creating ride request for user:', userId);
 //     console.log('📍 Pickup:', pickupAddress);
 //     console.log('📍 Dropoff:', dropoffAddress);
+
+//     // Calculate distance using Haversine formula
+//     const toRadians = (degrees) => degrees * (Math.PI / 180);
+
+//     const lat1 = Number(pickupLocation.coordinates[1]);
+//     const lon1 = Number(pickupLocation.coordinates[0]);
+//     const lat2 = Number(dropoffLocation.coordinates[1]);
+//     const lon2 = Number(dropoffLocation.coordinates[0]);
+
+//     const R = 6371; // Earth's radius in km
+//     const dLat = toRadians(lat2 - lat1);
+//     const dLon = toRadians(lon2 - lon1);
+
+//     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+//       Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+//       Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+//     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+//     const distance = R * c; // Distance in km
+
+//     console.log("Payload:", req.body);
+
+    
+
+//     // Calculate fare: ₹20 per km
+//     const baseFare = Math.round(distance * 20);
+//     const estimatedFareMin = Math.round(baseFare * 0.9); // 10% lower
+//     const estimatedFareMax = Math.round(baseFare * 1.1); // 10% higher
+//     const estimatedDuration = Math.round(distance * 3); // Rough estimate: 3 min per km
+
+//     console.log(`📏 Distance: ${Number(distance.toFixed(2))} km`);
+//     console.log(`💰 Estimated fare: ₹${estimatedFareMin} - ₹${estimatedFareMax}`);
+    
 
 //     // Format coordinates for PostGIS
 //     const pickupCoords = `POINT(${pickupLocation.coordinates[0]} ${pickupLocation.coordinates[1]})`;
@@ -781,9 +962,13 @@ const matchingService = new DriverMatchingService();
 //         vehicle_preference,
 //         passenger_count,
 //         luggage_count,
+//         estimated_distance_km,
+//         estimated_duration_minutes,
+//         estimated_fare_min,
+//         estimated_fare_max,
 //         status,
 //         created_at
-//       ) VALUES ($1, ST_GeomFromText($2, 4326), $3, ST_GeomFromText($4, 4326), $5, $6, $7, $8, $9, $10, NOW())
+//       ) VALUES ($1, ST_GeomFromText($2, 4326), $3, ST_GeomFromText($4, 4326), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW())
 //       RETURNING *
 //     `;
 
@@ -797,6 +982,10 @@ const matchingService = new DriverMatchingService();
 //       vehiclePreference || 'sedan',
 //       passengerCount || 1,
 //       luggageCount || 0,
+//       distance.toFixed(2),
+//       estimatedDuration,
+//       estimatedFareMin,
+//       estimatedFareMax,
 //       'pending'
 //     ];
 
@@ -855,155 +1044,6 @@ const matchingService = new DriverMatchingService();
 //     });
 //   }
 // };
-
-
-
-
-export const createRideRequest = async (req, res) => {
-  try {
-    const {
-      pickupLocation,
-      pickupAddress,
-      dropoffLocation,
-      dropoffAddress,
-      stops,
-      pricingMode,
-      vehiclePreference,
-      passengerCount,
-      luggageCount
-    } = req.body;
-
-    const userId = req.user.id;
-
-    console.log('📝 Creating ride request for user:', userId);
-    console.log('📍 Pickup:', pickupAddress);
-    console.log('📍 Dropoff:', dropoffAddress);
-
-    // Calculate distance using Haversine formula
-    const toRadians = (degrees) => degrees * (Math.PI / 180);
-
-    const lat1 = pickupLocation.coordinates[1];
-    const lon1 = pickupLocation.coordinates[0];
-    const lat2 = dropoffLocation.coordinates[1];
-    const lon2 = dropoffLocation.coordinates[0];
-
-    const R = 6371; // Earth's radius in km
-    const dLat = toRadians(lat2 - lat1);
-    const dLon = toRadians(lon2 - lon1);
-
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c; // Distance in km
-
-    // Calculate fare: ₹20 per km
-    const baseFare = Math.round(distance * 20);
-    const estimatedFareMin = Math.round(baseFare * 0.9); // 10% lower
-    const estimatedFareMax = Math.round(baseFare * 1.1); // 10% higher
-    const estimatedDuration = Math.round(distance * 3); // Rough estimate: 3 min per km
-
-    console.log(`📏 Distance: ${distance.toFixed(2)} km`);
-    console.log(`💰 Estimated fare: ₹${estimatedFareMin} - ₹${estimatedFareMax}`);
-
-    // Format coordinates for PostGIS
-    const pickupCoords = `POINT(${pickupLocation.coordinates[0]} ${pickupLocation.coordinates[1]})`;
-    const dropoffCoords = `POINT(${dropoffLocation.coordinates[0]} ${dropoffLocation.coordinates[1]})`;
-
-    const query = `
-      INSERT INTO ride_requests (
-        rider_id,
-        pickup_location,
-        pickup_address,
-        dropoff_location,
-        dropoff_address,
-        pricing_mode,
-        vehicle_preference,
-        passenger_count,
-        luggage_count,
-        estimated_distance_km,
-        estimated_duration_minutes,
-        estimated_fare_min,
-        estimated_fare_max,
-        status,
-        created_at
-      ) VALUES ($1, ST_GeomFromText($2, 4326), $3, ST_GeomFromText($4, 4326), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW())
-      RETURNING *
-    `;
-
-    const values = [
-      userId,
-      pickupCoords,
-      pickupAddress,
-      dropoffCoords,
-      dropoffAddress,
-      pricingMode || 'bidding',
-      vehiclePreference || 'sedan',
-      passengerCount || 1,
-      luggageCount || 0,
-      distance.toFixed(2),
-      estimatedDuration,
-      estimatedFareMin,
-      estimatedFareMax,
-      'pending'
-    ];
-
-    const result = await pool.query(query, values);
-    const rideRequest = result.rows[0];
-
-    console.log('✅ Ride request created:', rideRequest.id);
-
-    // Insert stops if any (max 2)
-    if (stops && stops.length > 0) {
-      const maxStops = Math.min(stops.length, 2);
-      console.log(`📍 Adding ${maxStops} stops...`);
-
-      for (let i = 0; i < maxStops; i++) {
-        const stop = stops[i];
-        const stopCoords = `POINT(${stop.location.coordinates[0]} ${stop.location.coordinates[1]})`;
-
-        await pool.query(
-          `INSERT INTO ride_stops (
-            ride_request_id,
-            location,
-            address,
-            stop_order,
-            stop_type,
-            max_wait_seconds,
-            created_at
-          ) VALUES ($1, ST_GeomFromText($2, 4326), $3, $4, $5, $6, NOW())`,
-          [
-            rideRequest.id,
-            stopCoords,
-            stop.address,
-            i + 1,
-            'detour',
-            stop.maxWaitSeconds || 120
-          ]
-        );
-      }
-
-      console.log('✅ Stops added successfully');
-    }
-
-    res.status(201).json({
-      success: true,
-      message: 'Ride request created successfully',
-      data: rideRequest
-    });
-
-  } catch (error) {
-    console.error('❌ Error creating ride request:', error);
-    res.status(500).json({
-      success: false,
-      message: 'INTERNAL_SERVER_ERROR',
-      error: error.message,
-      code: 500,
-      data: {}
-    });
-  }
-};
 
 
 // // export const getRiderRequests = async (req, res, next) => {
@@ -1104,10 +1144,9 @@ export const getRideRequestDetails = async (req, res) => {
         rr.created_at,
         rr.estimated_distance_km,
         rr.estimated_duration_minutes,
-        rr.estimated_fare_min,
-        rr.estimated_fare_max
+        rr.estimated_total     
       FROM ride_requests rr
-      WHERE rr.id = $1
+    WHERE rr.id = $1
     `;
 
     const result = await pool.query(query, [id]);
@@ -1158,8 +1197,7 @@ export const getRiderRequests = async (req, res) => {
         rr.created_at,
         rr.estimated_distance_km,
         rr.estimated_duration_minutes,
-        rr.estimated_fare_min,
-        rr.estimated_fare_max
+        rr.estimated_total
       FROM ride_requests rr
       WHERE rr.rider_id = $1
     `;
@@ -1224,8 +1262,7 @@ export const getNearbyRideRequests = async (req, res) => {
     rr.created_at,
     rr.estimated_distance_km,
     rr.estimated_duration_minutes,
-    rr.estimated_fare_min,
-    rr.estimated_fare_max,
+    rr.estimated_total,
     CONCAT(k.first_name, ' ', k.last_name) as rider_name,
     (
       SELECT json_agg(

@@ -1,0 +1,79 @@
+@baseUrl = {{baseUrl}}
+
+### Health Check
+GET {{baseUrl}}/
+
+###
+
+# Run once. If the email already exists, skip this block.
+# @name registerRider
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "first_name": "{{riderFirstName}}",
+  "last_name": "{{riderLastName}}",
+  "email": "{{riderEmail}}",
+  "password": "{{riderPassword}}",
+  "phone_number": "{{riderPhone}}",
+  "role": "rider"
+}
+
+###
+
+# Run once. If the email already exists, skip this block.
+# @name registerDriver
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "first_name": "{{driverFirstName}}",
+  "last_name": "{{driverLastName}}",
+  "email": "{{driverEmail}}",
+  "password": "{{driverPassword}}",
+  "phone_number": "{{driverPhone}}",
+  "role": "driver"
+}
+
+###
+
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
+}
+
+###
+
+# @name loginRider
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{riderEmail}}",
+  "password": "{{riderPassword}}"
+}
+
+###
+
+# @name loginDriver
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{driverEmail}}",
+  "password": "{{driverPassword}}"
+}
+
+###
+
+GET {{baseUrl}}/api/kyc/status
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+GET {{baseUrl}}/api/kyc/status
+Authorization: Bearer {{loginDriver.response.body.$.token}}

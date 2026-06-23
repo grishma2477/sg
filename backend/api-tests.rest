@@ -1,0 +1,1345 @@
+# ============================================================
+#  SG Ride-Sharing — Full API Test Suite
+#  Base URL: http://localhost:5000
+#
+#  HOW TO USE (VS Code REST Client):
+#  1. Install "REST Client" extension
+#  2. Set variables below for your tokens
+#  3. Send each request with "Send Request"
+#
+#  ⚠️  = known broken at runtime (see audit report)
+#  ✅  = working
+#  🔒  = requires auth token
+#  🔑  = requires admin token
+# ============================================================
+
+@baseUrl = http://localhost:5000
+@contentType = application/json
+
+# ─── PASTE YOUR TOKENS HERE AFTER LOGIN ───────────────────
+@riderToken = Bearer PASTE_RIDER_TOKEN_HERE
+@driverToken = Bearer PASTE_DRIVER_TOKEN_HERE
+@adminToken = Bearer PASTE_ADMIN_TOKEN_HERE
+
+# ─── COMMON IDs (fill in after creating records) ──────────
+@rideRequestId = 1
+@rideId = 1
+@bidId = 1
+@userId = 1
+@driverId = 1
+@paymentMethodId = 1
+@payoutRequestId = 1
+@promoCode = WELCOME10
+@giftCardCode = GC-XXXX-XXXX
+@reviewId = 1
+@paymentId = 1
+@providerId = 1
+@applicationId = 1
+@stopId = 1
+
+###############################################################
+# SECTION 1 — HEALTH CHECK
+###############################################################
+
+# ✅ Health Check
+GET {{baseUrl}}/
+Accept: {{contentType}}
+
+
+###############################################################
+# SECTION 2 — AUTH
+###############################################################
+
+# ✅ Register Rider
+# @name registerRider
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "full_name": "Test Rider",
+  "email": "rider@test.com",
+  "phone": "9800000001",
+  "password": "Password123!",
+  "role": "rider"
+}
+
+###
+
+# ✅ Register Driver
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "full_name": "Test Driver",
+  "email": "driver@test.com",
+  "phone": "9800000002",
+  "password": "Password123!",
+  "role": "driver"
+}
+
+###
+
+# ✅ Register Admin
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "full_name": "Admin User",
+  "email": "admin@test.com",
+  "phone": "9800000003",
+  "password": "Password123!",
+  "role": "admin"
+}
+
+###
+
+# ✅ Login Rider — copy access_token → @riderToken
+# @name loginRider
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "rider@test.com",
+  "password": "Password123!"
+}
+
+###
+
+# ✅ Login Driver — copy access_token → @driverToken
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "driver@test.com",
+  "password": "Password123!"
+}
+
+###
+
+# ✅ Login Admin — copy access_token → @adminToken
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@test.com",
+  "password": "Password123!"
+}
+
+
+###############################################################
+# SECTION 3 — KYC
+###############################################################
+
+# ✅ 🔒 Get KYC Status (rider/driver)
+GET {{baseUrl}}/api/kyc/status
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Complete KYC (submit documents)
+POST {{baseUrl}}/api/kyc/complete
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "date_of_birth": "1995-05-15",
+  "address": "Kathmandu, Nepal",
+  "gender": "male",
+  "blood_group": "A+",
+  "id_type": "citizenship",
+  "id_number": "123-456-789"
+}
+
+###
+
+# ✅ 🔑 Get Pending KYCs (admin)
+GET {{baseUrl}}/api/kyc/pending
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Get KYC Details for User (admin)
+GET {{baseUrl}}/api/kyc/{{userId}}
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Verify KYC (approve)
+POST {{baseUrl}}/api/kyc/verify/{{userId}}
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "approved",
+  "notes": "All documents verified"
+}
+
+###
+
+# ✅ 🔑 Verify KYC (reject)
+POST {{baseUrl}}/api/kyc/verify/{{userId}}
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "rejected",
+  "notes": "Document unclear, please resubmit"
+}
+
+
+###############################################################
+# SECTION 4 — DRIVER APPLICATION
+###############################################################
+
+# ✅ 🔒 Check Application Status
+GET {{baseUrl}}/api/driver-applications/check
+Authorization: {{driverToken}}
+
+###
+
+# ✅ 🔒 Submit Driver Application
+POST {{baseUrl}}/api/driver-applications/submit
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+
+{
+  "license_number": "DL-12345-2020",
+  "license_expiry": "2027-12-31",
+  "vehicle_make": "Toyota",
+  "vehicle_model": "Corolla",
+  "vehicle_year": 2020,
+  "vehicle_color": "White",
+  "vehicle_plate": "BA-1-234-CHA",
+  "vehicle_type": "car"
+}
+
+###
+
+# ✅ 🔑 Get Pending Driver Applications (admin)
+GET {{baseUrl}}/api/driver-applications/pending
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Get Application Details (admin)
+GET {{baseUrl}}/api/driver-applications/{{applicationId}}
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Review Application — Fixed: driverId scoping bug (const shadow) resolved
+POST {{baseUrl}}/api/driver-applications/{{applicationId}}/review
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "approved",
+  "notes": "All documents verified, driver approved"
+}
+
+
+###############################################################
+# SECTION 5 — DRIVER STATUS
+###############################################################
+
+# ✅ 🔒 Toggle Driver Online
+POST {{baseUrl}}/api/drivers/toggle-status
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+
+{
+  "is_online": true,
+  "latitude": 27.7172,
+  "longitude": 85.3240
+}
+
+###
+
+# ✅ 🔒 Toggle Driver Offline
+POST {{baseUrl}}/api/drivers/toggle-status
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+
+{
+  "is_online": false,
+  "latitude": 27.7172,
+  "longitude": 85.3240
+}
+
+###
+
+# ✅ 🔒 Get Driver Status
+GET {{baseUrl}}/api/drivers/status
+Authorization: {{driverToken}}
+
+
+###############################################################
+# SECTION 6 — DRIVER LOCATION
+###############################################################
+
+# ✅ 🔒 Get Specific Driver Location
+GET {{baseUrl}}/api/ride-requests/drivers/location/{{driverId}}
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Get Nearby Drivers — Fixed: pool import added to driverLocationController
+GET {{baseUrl}}/api/ride-requests/drivers/nearby?latitude=27.7172&longitude=85.3240&radius=5
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Update Driver Location — Routed to rideRequestController (queries driver by user_id)
+POST {{baseUrl}}/api/ride-requests/drivers/location
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+
+{
+  "latitude": 27.7200,
+  "longitude": 85.3250
+}
+
+
+###############################################################
+# SECTION 7 — RIDE REQUESTS
+###############################################################
+
+# ✅ 🔒 Create Ride Request (no stops)
+POST {{baseUrl}}/api/ride-requests
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+Idempotency-Key: ride-req-001
+
+{
+  "pickup_location": "Thamel, Kathmandu",
+  "dropoff_location": "Patan Dhoka, Lalitpur",
+  "pickup_latitude": 27.7172,
+  "pickup_longitude": 85.3140,
+  "dropoff_latitude": 27.6788,
+  "dropoff_longitude": 85.3183,
+  "vehicle_type": "car"
+}
+
+###
+
+# ✅ 🔒 Create Ride Request (with stops)
+POST {{baseUrl}}/api/ride-requests
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+Idempotency-Key: ride-req-002
+
+{
+  "pickup_location": "Thamel, Kathmandu",
+  "dropoff_location": "Patan Dhoka, Lalitpur",
+  "pickup_latitude": 27.7172,
+  "pickup_longitude": 85.3140,
+  "dropoff_latitude": 27.6788,
+  "dropoff_longitude": 85.3183,
+  "vehicle_type": "car",
+  "stops": [
+    {
+      "name": "Ratna Park",
+      "latitude": 27.7069,
+      "longitude": 85.3134,
+      "order": 1
+    },
+    {
+      "name": "New Road",
+      "latitude": 27.7041,
+      "longitude": 85.3176,
+      "order": 2
+    }
+  ]
+}
+
+###
+
+# ✅ 🔒 Get Nearby Ride Requests (driver sees pending requests)
+GET {{baseUrl}}/api/ride-requests/nearby?latitude=27.7172&longitude=85.3240&radius=5
+Authorization: {{driverToken}}
+
+###
+
+# ✅ 🔒 Get Rider's Own Requests
+GET {{baseUrl}}/api/ride-requests
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Get Ride Request Details
+GET {{baseUrl}}/api/ride-requests/{{rideRequestId}}
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Cancel Ride Request
+PUT {{baseUrl}}/api/ride-requests/{{rideRequestId}}/cancel
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Changed plans"
+}
+
+
+###############################################################
+# SECTION 8 — BIDDING
+###############################################################
+
+# ✅ 🔒 Submit Bid (driver bids on a request)
+POST {{baseUrl}}/api/bidding/requests/{{rideRequestId}}/submit
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+
+{
+  "bid_amount": 350,
+  "message": "I can pick you up in 3 minutes",
+  "estimated_duration_minutes": 25
+}
+
+###
+
+# ✅ 🔒 Get Bids for a Request (rider views all bids)
+GET {{baseUrl}}/api/bidding/requests/{{rideRequestId}}/bids
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Accept a Bid (rider accepts driver's bid)
+POST {{baseUrl}}/api/bidding/bids/{{bidId}}/accept
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{}
+
+
+###############################################################
+# SECTION 9 — RIDE LIFECYCLE
+###############################################################
+
+# ✅ 🔒 Accept Ride Request (driver, fixed price — no bidding flow)
+POST {{baseUrl}}/api/rides/accept/{{rideRequestId}}
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+Idempotency-Key: accept-ride-001
+
+{}
+
+###
+
+# ✅ 🔒 Get Ride Details
+GET {{baseUrl}}/api/rides/{{rideId}}
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Start Ride (driver starts)
+POST {{baseUrl}}/api/rides/{{rideId}}/start
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+Idempotency-Key: start-ride-001
+
+{}
+
+###
+
+# ✅ 🔒 Arrive at Stop
+POST {{baseUrl}}/api/rides/{{rideId}}/stops/{{stopId}}/arrive
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+
+{}
+
+###
+
+# ✅ 🔒 Depart from Stop
+POST {{baseUrl}}/api/rides/{{rideId}}/stops/{{stopId}}/depart
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+
+{}
+
+###
+
+# ✅ 🔒 Complete Ride (triggers payment settlement)
+POST {{baseUrl}}/api/rides/{{rideId}}/complete
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+Idempotency-Key: complete-ride-001
+
+{}
+
+###
+
+# ✅ 🔒 Cancel Ride (before start)
+POST {{baseUrl}}/api/rides/{{rideId}}/cancel
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+Idempotency-Key: cancel-ride-001
+
+{
+  "reason": "Driver emergency"
+}
+
+
+###############################################################
+# SECTION 10 — REVIEWS
+###############################################################
+
+# ✅ 🔒 Submit Review — Rider reviews Driver (5 stars, safe)
+POST {{baseUrl}}/api/reviews/
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "ride_id": {{rideId}},
+  "reviewed_id": {{driverId}},
+  "star_rating": 5,
+  "positive_taps": ["felt_safe", "respectful", "followed_traffic_rules"],
+  "negative_taps": [],
+  "safety_concern": false
+}
+
+###
+
+# ✅ 🔒 Submit Review — Rider flags Safety Concern (triggers -40pts + visibility throttle)
+POST {{baseUrl}}/api/reviews/
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "ride_id": {{rideId}},
+  "reviewed_id": {{driverId}},
+  "star_rating": 1,
+  "positive_taps": [],
+  "negative_taps": ["reckless_driving", "felt_uncomfortable"],
+  "safety_concern": true
+}
+
+###
+
+# ✅ 🔒 Submit Review — Driver reviews Rider
+POST {{baseUrl}}/api/reviews/
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+
+{
+  "ride_id": {{rideId}},
+  "reviewed_id": {{userId}},
+  "star_rating": 4,
+  "positive_taps": ["polite"],
+  "negative_taps": [],
+  "safety_concern": false
+}
+
+
+###############################################################
+# SECTION 11 — WALLET
+###############################################################
+
+# ✅ 🔒 Get Wallet Balance (rider)
+GET {{baseUrl}}/api/wallet/balance
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Get Wallet Balance (driver)
+GET {{baseUrl}}/api/wallet/balance
+Authorization: {{driverToken}}
+
+###
+
+# ✅ 🔒 Top Up Wallet
+POST {{baseUrl}}/api/wallet/topup
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+Idempotency-Key: topup-001
+
+{
+  "amount": 1000,
+  "payment_method": "esewa",
+  "reference_id": "ESW-12345"
+}
+
+###
+
+# ✅ 🔒 Withdraw from Wallet (driver)
+POST {{baseUrl}}/api/wallet/withdraw
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+Idempotency-Key: withdraw-001
+
+{
+  "amount": 500,
+  "payment_method": "bank_transfer",
+  "account_details": {
+    "bank_name": "Nepal Investment Bank",
+    "account_number": "0123456789",
+    "account_name": "Test Driver"
+  }
+}
+
+###
+
+# ✅ 🔒 Transfer Funds Between Wallets
+POST {{baseUrl}}/api/wallet/transfer
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+Idempotency-Key: transfer-001
+
+{
+  "to_user_id": 2,
+  "amount": 100,
+  "note": "Splitting fare"
+}
+
+###
+
+# ✅ 🔒 Get Transaction History
+GET {{baseUrl}}/api/wallet/transactions?page=1&limit=20
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔑 Lock Wallet (admin)
+POST {{baseUrl}}/api/wallet/admin/{{userId}}/lock
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Suspicious activity"
+}
+
+###
+
+# ✅ 🔑 Unlock Wallet (admin)
+POST {{baseUrl}}/api/wallet/admin/{{userId}}/unlock
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Issue resolved"
+}
+
+
+###############################################################
+# SECTION 12 — PAYMENTS
+###############################################################
+
+# ✅ 🔒 Get Wallet Balance (payment route)
+GET {{baseUrl}}/api/payments/balance
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Get Account Transaction History
+GET {{baseUrl}}/api/payments/history?page=1&limit=20
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Get Payment Details — Fixed: getPaymentDetails() implemented in PaymentService
+GET {{baseUrl}}/api/payments/{{paymentId}}
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔑 Create Payment Provider (admin)
+POST {{baseUrl}}/api/payments/providers
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "name": "eSewa",
+  "code": "esewa",
+  "type": "mobile_wallet",
+  "config": {
+    "merchant_id": "EPAYTEST",
+    "base_url": "https://uat.esewa.com.np"
+  },
+  "is_active": true
+}
+
+###
+
+# ✅ 🔒 Handle Gateway Webhook (called by payment gateway — no auth)
+POST {{baseUrl}}/api/payments/webhook/gateway
+Content-Type: {{contentType}}
+
+{
+  "transaction_id": "TXN-12345",
+  "status": "success",
+  "amount": 1000,
+  "reference": "topup-001"
+}
+
+
+###############################################################
+# SECTION 13 — PAYMENT METHODS
+###############################################################
+
+# ✅ 🔒 Add Payment Method
+POST {{baseUrl}}/api/payments/methods
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "esewa",
+  "account_identifier": "9800000001",
+  "display_name": "My eSewa",
+  "is_default": true
+}
+
+###
+
+# ✅ 🔒 Get User Payment Methods — Fixed: getUserPaymentMethods() re-implemented
+GET {{baseUrl}}/api/payments/methods
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Set Default Payment Method
+PATCH {{baseUrl}}/api/payments/methods/{{paymentMethodId}}/default
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{}
+
+###
+
+# ✅ 🔒 Delete Payment Method — Fixed: deletePaymentMethod() re-implemented
+DELETE {{baseUrl}}/api/payments/methods/{{paymentMethodId}}
+Authorization: {{riderToken}}
+
+
+###############################################################
+# SECTION 14 — RIDE PAYMENTS
+###############################################################
+
+# ✅ 🔒 Get Ride Payment History
+GET {{baseUrl}}/api/wallet/ride-payments?page=1&limit=20
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Get Payment Stats
+GET {{baseUrl}}/api/wallet/payment-stats
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Get Ride Payment Details
+GET {{baseUrl}}/api/wallet/ride-payments/{{rideId}}
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Cancel Ride Payment (refund)
+POST {{baseUrl}}/api/wallet/ride-payments/{{rideId}}/cancel
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+Idempotency-Key: cancel-pay-001
+
+{
+  "reason": "Ride cancelled before start"
+}
+
+
+###############################################################
+# SECTION 15 — PAYOUTS (DRIVER)
+###############################################################
+
+# ✅ 🔒 Get Available Payout Balance (driver)
+GET {{baseUrl}}/api/payouts/balance
+Authorization: {{driverToken}}
+
+###
+
+# ✅ 🔒 Get Payout History (driver)
+GET {{baseUrl}}/api/payouts/history
+Authorization: {{driverToken}}
+
+###
+
+# ✅ 🔒 Request Payout (driver)
+POST {{baseUrl}}/api/payouts/request
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+
+{
+  "amount": 500,
+  "payment_method": "bank_transfer",
+  "account_details": {
+    "bank_name": "Nabil Bank",
+    "account_number": "0012345678",
+    "account_name": "Test Driver",
+    "branch": "Thamel"
+  }
+}
+
+###
+
+# ✅ 🔑 Get Pending Payouts (admin)
+GET {{baseUrl}}/api/payouts/admin/pending
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Get Approved Payouts (admin)
+GET {{baseUrl}}/api/payouts/admin/approved
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Approve Payout (admin)
+POST {{baseUrl}}/api/payouts/admin/{{payoutRequestId}}/approve
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "notes": "Verified and approved"
+}
+
+###
+
+# ✅ 🔑 Reject Payout (admin)
+POST {{baseUrl}}/api/payouts/admin/{{payoutRequestId}}/reject
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Bank details incorrect"
+}
+
+###
+
+# ✅ 🔑 Create Payout Batch (admin)
+POST {{baseUrl}}/api/payouts/admin/batch
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "payout_request_ids": [1, 2, 3],
+  "notes": "Weekly batch processing"
+}
+
+###
+
+# ✅ 🔑 Get All Payout Batches (admin)
+GET {{baseUrl}}/api/payouts/admin/batches
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Get Batch Details (admin)
+GET {{baseUrl}}/api/payouts/admin/batch/1
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Retry Failed Payout (admin)
+POST {{baseUrl}}/api/payouts/admin/{{payoutRequestId}}/retry
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{}
+
+
+###############################################################
+# SECTION 16 — PROMO CODES
+###############################################################
+
+# ✅ 🔒 Validate Promo Code
+POST {{baseUrl}}/api/promo-gift/promo/validate
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "code": "{{promoCode}}",
+  "ride_amount": 350
+}
+
+###
+
+# ✅ 🔒 Get Promo Code Info
+GET {{baseUrl}}/api/promo-gift/promo/{{promoCode}}
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Get User Promo History
+GET {{baseUrl}}/api/promo-gift/promo-history
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔑 Create Promo Code (admin)
+POST {{baseUrl}}/api/promo-gift/admin/promo/create
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "code": "WELCOME10",
+  "discount_type": "percentage",
+  "discount_value": 10,
+  "min_ride_amount": 200,
+  "max_discount_amount": 100,
+  "usage_limit": 1000,
+  "per_user_limit": 1,
+  "valid_from": "2026-01-01",
+  "valid_until": "2026-12-31",
+  "is_active": true
+}
+
+###
+
+# ✅ 🔑 Update Promo Code (admin)
+PUT {{baseUrl}}/api/promo-gift/admin/promo/{{promoCode}}/update
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "discount_value": 15,
+  "valid_until": "2027-01-01"
+}
+
+###
+
+# ✅ 🔑 Deactivate Promo Code (admin)
+POST {{baseUrl}}/api/promo-gift/admin/promo/{{promoCode}}/deactivate
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{}
+
+###
+
+# ✅ 🔑 List All Promo Codes (admin)
+GET {{baseUrl}}/api/promo-gift/admin/promo/list?page=1&limit=20
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Get Promo Stats (admin)
+GET {{baseUrl}}/api/promo-gift/admin/promo/stats
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Get All Promo Redemptions (admin)
+GET {{baseUrl}}/api/promo-gift/admin/promo/redemptions?page=1&limit=20
+Authorization: {{adminToken}}
+
+
+###############################################################
+# SECTION 17 — GIFT CARDS
+###############################################################
+
+# ✅ 🔒 Purchase Gift Card
+POST {{baseUrl}}/api/promo-gift/gift-card/purchase
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "amount": 500,
+  "recipient_email": "friend@test.com",
+  "message": "Happy Birthday!"
+}
+
+###
+
+# ✅ 🔒 Check Gift Card Balance
+GET {{baseUrl}}/api/promo-gift/gift-card/{{giftCardCode}}/balance
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Redeem Gift Card to Wallet
+POST {{baseUrl}}/api/promo-gift/gift-card/redeem
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "code": "{{giftCardCode}}"
+}
+
+###
+
+# ✅ 🔒 Transfer Gift Card
+POST {{baseUrl}}/api/promo-gift/gift-card/transfer
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "code": "{{giftCardCode}}",
+  "to_email": "another@test.com"
+}
+
+###
+
+# ✅ 🔒 Get User Gift Cards
+GET {{baseUrl}}/api/promo-gift/gift-cards
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Get Gift Card Redemption History
+GET {{baseUrl}}/api/promo-gift/gift-card/{{giftCardCode}}/history
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔑 Get All Gift Cards (admin)
+GET {{baseUrl}}/api/promo-gift/admin/gift-cards/list?page=1&limit=20
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Get Gift Card Stats (admin)
+GET {{baseUrl}}/api/promo-gift/admin/gift-cards/stats
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Get All Redemptions (admin)
+GET {{baseUrl}}/api/promo-gift/admin/gift-cards/redemptions
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Cancel Gift Card (admin)
+POST {{baseUrl}}/api/promo-gift/admin/gift-card/{{giftCardCode}}/cancel
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Fraudulent purchase"
+}
+
+
+###############################################################
+# SECTION 18 — ADMIN: PAYMENT PROVIDERS
+# ✅ verifyuser + requireRole("admin") middleware added to router
+###############################################################
+
+# ✅ 🔑 Create Payment Provider
+POST {{baseUrl}}/api/admin/payment-providers
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Khalti",
+  "code": "khalti",
+  "type": "mobile_wallet",
+  "config": {
+    "public_key": "test_public_key_abc123",
+    "base_url": "https://a.khalti.com"
+  },
+  "is_active": true
+}
+
+###
+
+# ✅ 🔑 Get Providers
+GET {{baseUrl}}/api/admin/payment-providers
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Update Provider
+PUT {{baseUrl}}/api/admin/payment-providers/{{providerId}}
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "is_active": false
+}
+
+###
+
+# ✅ 🔑 Deactivate Provider
+PATCH {{baseUrl}}/api/admin/payment-providers/{{providerId}}/deactivate
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{}
+
+
+###############################################################
+# SECTION 19 — ADMIN: USER MANAGEMENT
+###############################################################
+
+# ✅ 🔑 Get All Users
+GET {{baseUrl}}/api/admin/manage/users?page=1&limit=20
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Get User Stats
+GET {{baseUrl}}/api/admin/manage/users/stats
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Get User By ID
+GET {{baseUrl}}/api/admin/manage/users/{{userId}}
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Create User (admin)
+POST {{baseUrl}}/api/admin/manage/users
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "full_name": "Manually Created",
+  "email": "manual@test.com",
+  "phone": "9800000099",
+  "password": "Password123!",
+  "role": "rider"
+}
+
+###
+
+# ✅ 🔑 Update User (admin)
+PUT {{baseUrl}}/api/admin/manage/users/{{userId}}
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "full_name": "Updated Name",
+  "is_active": true
+}
+
+###
+
+# ✅ 🔑 Delete User (admin)
+DELETE {{baseUrl}}/api/admin/manage/users/{{userId}}
+Authorization: {{adminToken}}
+
+
+###############################################################
+# SECTION 20 — ADMIN: RIDES
+###############################################################
+
+# ✅ 🔑 Create Ride (admin) — Fixed: next(err) instead of return(err)
+POST {{baseUrl}}/api/admin/rides
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "rider_id": 1,
+  "driver_id": 2,
+  "pickup_location": "Thamel",
+  "dropoff_location": "Patan",
+  "fare": 300
+}
+
+###
+
+# ✅ 🔑 Get Ride by ID (admin)
+GET {{baseUrl}}/api/admin/rides/{{rideId}}
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Update Ride (admin)
+PUT {{baseUrl}}/api/admin/rides/{{rideId}}
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "cancelled",
+  "cancellation_reason": "Admin override"
+}
+
+###
+
+# ✅ 🔑 Delete Ride (admin)
+DELETE {{baseUrl}}/api/admin/rides/{{rideId}}
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Force Complete Ride (admin)
+POST {{baseUrl}}/api/admin/rides/{{rideId}}/force-complete
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Driver unresponsive"
+}
+
+
+###############################################################
+# SECTION 21 — ADMIN: REVIEWS
+###############################################################
+
+# ✅ 🔑 Create Review (admin)
+POST {{baseUrl}}/api/admin/reviews
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "ride_id": {{rideId}},
+  "reviewer_id": 1,
+  "reviewed_id": 2,
+  "star_rating": 3,
+  "comment": "Admin-created review"
+}
+
+###
+
+# ✅ 🔑 Get Review (admin)
+GET {{baseUrl}}/api/admin/reviews/{{reviewId}}
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Update Review (admin)
+PUT {{baseUrl}}/api/admin/reviews/{{reviewId}}
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "star_rating": 4,
+  "comment": "Updated by admin"
+}
+
+###
+
+# ✅ 🔑 Flag Review (admin)
+POST {{baseUrl}}/api/admin/reviews/{{reviewId}}/flag
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Suspected fake review"
+}
+
+###
+
+# ✅ 🔑 Delete Review (admin)
+DELETE {{baseUrl}}/api/admin/reviews/{{reviewId}}
+Authorization: {{adminToken}}
+
+
+###############################################################
+# SECTION 22 — DRIVER PROFILE
+# ✅ Newly mounted: /api/drivers (driverProfileRoutes)
+###############################################################
+
+# ✅ 🔒 Create Driver Profile (driver)
+POST {{baseUrl}}/api/drivers/create-profile
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+
+{
+  "bio": "Experienced driver in Kathmandu",
+  "preferred_areas": ["Thamel", "Baneshwor"],
+  "languages": ["Nepali", "English"]
+}
+
+###
+
+# ✅ 🔒 Get Driver Profile
+GET {{baseUrl}}/api/drivers/profile
+Authorization: {{driverToken}}
+
+
+###############################################################
+# SECTION 23 — DRIVER VERIFICATION STATUS
+# ✅ Newly mounted: /api/drivers (driverRoutes)
+###############################################################
+
+# ✅ 🔒 Get Driver Verification Status + Badges
+GET {{baseUrl}}/api/drivers/verification-status
+Authorization: {{driverToken}}
+
+
+###############################################################
+# SECTION 24 — ADMIN: BADGE MANAGEMENT
+# ✅ Newly mounted: /api/admin (adminBadgeRoutes)
+###############################################################
+
+# ✅ 🔑 Get All Drivers With Badges
+GET {{baseUrl}}/api/admin/drivers/badges
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Get Single Driver's Badges
+GET {{baseUrl}}/api/admin/drivers/{{driverId}}/badges
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Update Driver Badges
+PUT {{baseUrl}}/api/admin/drivers/{{driverId}}/badges
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "confirmed_identity": true,
+  "driver_license_verified": true,
+  "vehicle_inspection_passed": true,
+  "background_check_passed": false
+}
+
+###
+
+# ✅ 🔑 Reset Driver Badges
+POST {{baseUrl}}/api/admin/drivers/{{driverId}}/badges/reset
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Re-verification required"
+}
+
+
+###############################################################
+# SECTION 25 — SAFETY COMMENTS
+# ✅ Newly mounted: /api/safety-comments (safetyCommentRoutes)
+###############################################################
+
+# ✅ 🔒 Add Safety Comment on a Review
+POST {{baseUrl}}/api/safety-comments/reviews/{{reviewId}}/comments
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "comment": "Driver was driving recklessly at high speed",
+  "severity": "high"
+}
+
+###
+
+# ✅ 🔒 Get Comments on a Review
+GET {{baseUrl}}/api/safety-comments/reviews/{{reviewId}}/comments
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔑 Admin Review a Safety Comment
+POST {{baseUrl}}/api/safety-comments/comments/1/review
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "action": "acknowledge",
+  "notes": "Reviewed and flagged for follow-up"
+}
+
+###
+
+# ✅ 🔑 Get Pending Safety Comment Reviews (admin)
+GET {{baseUrl}}/api/safety-comments/pending
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Get Safety Comment Statistics (admin)
+GET {{baseUrl}}/api/safety-comments/statistics
+Authorization: {{adminToken}}

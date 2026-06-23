@@ -16,6 +16,7 @@ import {
   getPaymentStats,
   cancelRidePayment
 } from '../controllers/ridePaymentController.js';
+import { idempotency } from '../middleware/idempotency.js';
 
 const router = express.Router();
 
@@ -23,13 +24,13 @@ const router = express.Router();
 router.get('/balance', auth, getWalletBalance);
 
 // Top-up wallet
-router.post('/topup', auth, topUpWallet);
+router.post('/topup', auth, idempotency, topUpWallet);
 
 // Withdraw from wallet
-router.post('/withdraw', auth, withdrawFromWallet);
+router.post('/withdraw', auth, idempotency, withdrawFromWallet);
 
 // Transfer funds to another user
-router.post('/transfer', auth, transferFunds);
+router.post('/transfer', auth, idempotency, transferFunds);
 
 // Get transaction history
 router.get('/transactions', auth, getTransactionHistory);
@@ -48,7 +49,7 @@ router.get('/payment-stats', auth, getPaymentStats);
 router.get('/ride-payments/:rideId', auth, getRidePaymentDetails);
 
 // Cancel ride payment (used by ride cancellation)
-router.post('/ride-payments/:rideId/cancel', auth, cancelRidePayment);
+router.post('/ride-payments/:rideId/cancel', auth, idempotency, cancelRidePayment);
 
 // ═══════════════════════════════════════════════════════════
 // ADMIN ROUTES

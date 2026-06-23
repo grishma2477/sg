@@ -567,7 +567,7 @@ const RequestCard = ({ request, navigate }) => {
           ESTIMATED FARE RANGE
         </div>
         <div className="font-bold" style={{ fontSize: '1.25rem', color: '#10B981' }}>
-          ₹{request.estimated_fare_min} - ₹{request.estimated_fare_max}
+          NPR {request.estimated_total}
         </div>
         <div className="text-dim mt-1" style={{ fontSize: '0.75rem' }}>
           Submit your competitive bid to get this ride

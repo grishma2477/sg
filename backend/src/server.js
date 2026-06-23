@@ -3,6 +3,19 @@ import app from "./app.js";
 import { connectDB } from "./database/DBConnection.js";
 import { initSocket } from "./realtime/socketServer.js";
 import { LedgerService } from "./application/services/LedgerService.js";
+import { runExpireRideRequestsWorker } from "./application/workers/expireRideRequestsWorker.js";
+
+const REQUIRED_ENV = [
+  "ACCESS_TOKEN_SECRET_KEY",
+  "REFRESH_TOKEN_SECRET_KEY",
+  "DATABASE_URL",
+];
+
+const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
+if (missing.length > 0) {
+  console.error(`❌ Missing required env vars: ${missing.join(", ")}`);
+  process.exit(1);
+}
 
 const PORT = Number(process.env.PORT) || 5000;
 
@@ -22,6 +35,8 @@ const server = http.createServer(app);
     await connectDB();
     console.log("✅ Database connected");
     await LedgerService.initializePlatformAccounts();
+    runExpireRideRequestsWorker()
+    console.log("⏰ Ride expiration worker started");
 
     initSocket(server);
     console.log("✅ Socket initialized");

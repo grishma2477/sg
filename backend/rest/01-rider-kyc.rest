@@ -1,0 +1,143 @@
+@baseUrl = {{baseUrl}}
+@kycBoundary = RiderKycBoundary
+
+### Login Admin
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
+}
+
+###
+
+### Login Rider
+# @name loginRider
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{riderEmail}}",
+  "password": "{{riderPassword}}"
+}
+
+###
+
+### Rider KYC Status Before Submit
+GET {{baseUrl}}/api/kyc/status
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Submit Rider KYC
+# @name submitRiderKyc
+POST {{baseUrl}}/api/kyc/complete
+Authorization: Bearer {{loginRider.response.body.$.token}}
+Content-Type: multipart/form-data; boundary={{kycBoundary}}
+
+--{{kycBoundary}}
+Content-Disposition: form-data; name="firstName"
+
+{{riderFirstName}}
+--{{kycBoundary}}
+Content-Disposition: form-data; name="lastName"
+
+{{riderLastName}}
+--{{kycBoundary}}
+Content-Disposition: form-data; name="dateOfBirth"
+
+1998-05-11
+--{{kycBoundary}}
+Content-Disposition: form-data; name="address"
+
+Kathmandu Metropolitan City, Nepal
+--{{kycBoundary}}
+Content-Disposition: form-data; name="phoneNumber"
+
+{{riderPhone}}
+--{{kycBoundary}}
+Content-Disposition: form-data; name="email"
+
+{{riderEmail}}
+--{{kycBoundary}}
+Content-Disposition: form-data; name="gender"
+
+male
+--{{kycBoundary}}
+Content-Disposition: form-data; name="nationalIdentityNumber"
+
+RIDER-REST-0001
+--{{kycBoundary}}
+Content-Disposition: form-data; name="bloodGroup"
+
+O+
+--{{kycBoundary}}
+Content-Disposition: form-data; name="documentType"
+
+citizenship
+--{{kycBoundary}}
+Content-Disposition: form-data; name="documentNumber"
+
+RID-DOC-0001
+--{{kycBoundary}}
+Content-Disposition: form-data; name="issuedDate"
+
+2017-04-13
+--{{kycBoundary}}
+Content-Disposition: form-data; name="expiryDate"
+
+2037-04-13
+--{{kycBoundary}}
+Content-Disposition: form-data; name="profilePhoto"; filename="person.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/person.svg
+--{{kycBoundary}}
+Content-Disposition: form-data; name="documentFront"; filename="document-front.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/document.svg
+--{{kycBoundary}}
+Content-Disposition: form-data; name="documentBack"; filename="document-back.svg"
+Content-Type: image/svg+xml
+
+< ./_fixtures/document.svg
+--{{kycBoundary}}--
+
+###
+
+### Rider KYC Status After Submit
+GET {{baseUrl}}/api/kyc/status
+Authorization: Bearer {{loginRider.response.body.$.token}}
+
+###
+
+### Admin List Pending KYC
+GET {{baseUrl}}/api/kyc/pending
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Get Rider KYC Details
+GET {{baseUrl}}/api/kyc/{{loginRider.response.body.$.userId}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Verify Rider KYC
+POST {{baseUrl}}/api/kyc/verify/{{loginRider.response.body.$.userId}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "approved": true,
+  "remarks": "Rider KYC approved by REST suite"
+}
+
+###
+
+### Rider KYC Status After Approval
+GET {{baseUrl}}/api/kyc/status
+Authorization: Bearer {{loginRider.response.body.$.token}}

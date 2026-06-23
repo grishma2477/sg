@@ -1,0 +1,575 @@
+{
+  "info": {
+    "_postman_id": "f4f78a7c-5313-4538-8ebb-10bc17f51802",
+    "name": "SG Backend 02 - Ride Flows",
+    "description": "Ride requests, bidding, driver availability, location updates, ride lifecycle, and reviews.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Login Admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.token) pm.environment.set('adminToken', json.token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Login Rider",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.token) pm.environment.set('riderToken', json.token);",
+              "if (json.userId) pm.environment.set('riderUserId', json.userId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{riderEmail}}\",\n  \"password\": \"{{riderPassword}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Login Driver",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.token) pm.environment.set('driverToken', json.token);",
+              "if (json.userId) pm.environment.set('driverUserId', json.userId);",
+              "if (json.driverId) pm.environment.set('driverDriverId', json.driverId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{driverEmail}}\",\n  \"password\": \"{{driverPassword}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Create Ride Flow Payment Provider",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.id) pm.environment.set('paymentProviderId', json.data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Ride Flow Provider\",\n  \"type\": \"wallet\",\n  \"config\": {\n    \"mode\": \"sandbox\",\n    \"source\": \"postman-ride-flows\"\n  }\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/payments/providers"
+      }
+    },
+    {
+      "name": "Add Rider Payment Method",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.id) pm.environment.set('riderPaymentMethodId', json.data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"providerId\": \"{{paymentProviderId}}\",\n  \"providerToken\": \"rest-rider-flow-token-001\",\n  \"accountIdentifier\": \"rider-ride-flow-wallet\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/payments/methods"
+      }
+    },
+    {
+      "name": "Set Rider Default Payment Method",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/payments/methods/{{riderPaymentMethodId}}/default"
+      }
+    },
+    {
+      "name": "Get Driver Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/drivers/status"
+      }
+    },
+    {
+      "name": "Toggle Driver Status",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/drivers/toggle-status"
+      }
+    },
+    {
+      "name": "Update Driver Location",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"lat\": 27.7172,\n  \"lng\": 85.324\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/ride-requests/drivers/location"
+      }
+    },
+    {
+      "name": "Get Driver Location",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/ride-requests/drivers/location/{{driverDriverId}}"
+      }
+    },
+    {
+      "name": "Create Fixed Ride Request",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.id) pm.environment.set('fixedRideRequestId', json.data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+          { "key": "Idempotency-Key", "value": "rest-fixed-request-001" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pickupLocation\": {\n    \"coordinates\": [85.324, 27.7172]\n  },\n  \"pickupAddress\": \"New Baneshwor, Kathmandu\",\n  \"dropoffLocation\": {\n    \"coordinates\": [85.332, 27.7017]\n  },\n  \"dropoffAddress\": \"Jawalakhel, Lalitpur\",\n  \"pricingMode\": \"fixed\",\n  \"vehiclePreference\": \"sedan\",\n  \"passengerCount\": 1,\n  \"luggageCount\": 0,\n  \"stops\": [\n    {\n      \"address\": \"Maitighar, Kathmandu\",\n      \"location\": {\n        \"coordinates\": [85.3235, 27.7097]\n      },\n      \"maxWaitSeconds\": 180\n    }\n  ]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/ride-requests"
+      }
+    },
+    {
+      "name": "List Rider Ride Requests",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/ride-requests"
+      }
+    },
+    {
+      "name": "Get Fixed Ride Request Details",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/ride-requests/{{fixedRideRequestId}}"
+      }
+    },
+    {
+      "name": "Accept Fixed Ride Request",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.id) pm.environment.set('fixedRideId', json.data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+          { "key": "Idempotency-Key", "value": "rest-fixed-accept-001" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/rides/accept/{{fixedRideRequestId}}"
+      }
+    },
+    {
+      "name": "Get Fixed Ride Details",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "const stopId = json.data && json.data.stops && json.data.stops[0] && json.data.stops[0].id;",
+              "if (stopId) pm.environment.set('fixedRideStopId', stopId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/rides/{{fixedRideId}}"
+      }
+    },
+    {
+      "name": "Start Fixed Ride",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+          { "key": "Idempotency-Key", "value": "rest-fixed-start-001" }
+        ],
+        "url": "{{baseUrl}}/api/rides/{{fixedRideId}}/start"
+      }
+    },
+    {
+      "name": "Arrive At Ride Stop",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/rides/{{fixedRideId}}/stops/{{fixedRideStopId}}/arrive"
+      }
+    },
+    {
+      "name": "Depart From Ride Stop",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/rides/{{fixedRideId}}/stops/{{fixedRideStopId}}/depart"
+      }
+    },
+    {
+      "name": "Complete Fixed Ride",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+          { "key": "Idempotency-Key", "value": "rest-fixed-complete-001" }
+        ],
+        "url": "{{baseUrl}}/api/rides/{{fixedRideId}}/complete"
+      }
+    },
+    {
+      "name": "Submit Rider Review",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rideSummary\": {\n    \"rideId\": \"{{fixedRideId}}\",\n    \"riderId\": \"{{riderUserId}}\",\n    \"driverId\": \"{{driverDriverId}}\",\n    \"status\": \"completed\",\n    \"isPaid\": true\n  },\n  \"rating\": {\n    \"stars\": 5\n  },\n  \"taps\": [\n    {\n      \"key\": \"FELT_SAFE\",\n      \"category\": \"positive\"\n    }\n  ]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/reviews"
+      }
+    },
+    {
+      "name": "Submit Driver Review",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rideSummary\": {\n    \"rideId\": \"{{fixedRideId}}\",\n    \"riderId\": \"{{riderUserId}}\",\n    \"driverId\": \"{{driverDriverId}}\",\n    \"status\": \"completed\",\n    \"isPaid\": true\n  },\n  \"rating\": {\n    \"stars\": 4\n  },\n  \"taps\": [\n    {\n      \"key\": \"POLITE\",\n      \"category\": \"positive\"\n    }\n  ]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/reviews"
+      }
+    },
+    {
+      "name": "Create Cancelable Ride Request",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.id) pm.environment.set('cancelRideRequestId', json.data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+          { "key": "Idempotency-Key", "value": "rest-fixed-request-002" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pickupLocation\": {\n    \"coordinates\": [85.31, 27.72]\n  },\n  \"pickupAddress\": \"Koteshwor, Kathmandu\",\n  \"dropoffLocation\": {\n    \"coordinates\": [85.301, 27.694]\n  },\n  \"dropoffAddress\": \"Satdobato, Lalitpur\",\n  \"pricingMode\": \"fixed\",\n  \"vehiclePreference\": \"sedan\",\n  \"passengerCount\": 1,\n  \"luggageCount\": 0\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/ride-requests"
+      }
+    },
+    {
+      "name": "Cancel Pending Ride Request",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/ride-requests/{{cancelRideRequestId}}/cancel"
+      }
+    },
+    {
+      "name": "Accept Cancelable Ride Request",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.id) pm.environment.set('cancelRideId', json.data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+          { "key": "Idempotency-Key", "value": "rest-fixed-accept-002" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/rides/accept/{{cancelRideRequestId}}"
+      }
+    },
+    {
+      "name": "Cancel Accepted Ride",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+          { "key": "Idempotency-Key", "value": "rest-fixed-cancel-001" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Postman cancellation test\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/rides/{{cancelRideId}}/cancel"
+      }
+    },
+    {
+      "name": "Create Bidding Ride Request",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.id) pm.environment.set('biddingRideRequestId', json.data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+          { "key": "Idempotency-Key", "value": "rest-bidding-request-001" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pickupLocation\": {\n    \"coordinates\": [85.315, 27.712]\n  },\n  \"pickupAddress\": \"Putalisadak, Kathmandu\",\n  \"dropoffLocation\": {\n    \"coordinates\": [85.299, 27.671]\n  },\n  \"dropoffAddress\": \"Balkumari, Lalitpur\",\n  \"pricingMode\": \"bidding\",\n  \"vehiclePreference\": \"sedan\",\n  \"passengerCount\": 2,\n  \"luggageCount\": 1\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/ride-requests"
+      }
+    },
+    {
+      "name": "Get Nearby Bidding Ride Requests",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/ride-requests/nearby"
+      }
+    },
+    {
+      "name": "Submit Bid",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.id) pm.environment.set('bidId', json.data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"bidAmount\": 650,\n  \"estimatedArrivalMinutes\": 7,\n  \"driverMessage\": \"Can arrive quickly\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/bidding/requests/{{biddingRideRequestId}}/submit"
+      }
+    },
+    {
+      "name": "Get Ride Request Bids",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/bidding/requests/{{biddingRideRequestId}}/bids"
+      }
+    },
+    {
+      "name": "Accept Bid",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.ride_id) pm.environment.set('biddingRideId', json.data.ride_id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{riderToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/bidding/bids/{{bidId}}/accept"
+      }
+    },
+    {
+      "name": "Get Accepted Bidding Ride Details",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/rides/{{biddingRideId}}"
+      }
+    }
+  ]
+}

@@ -1,53 +1,53 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login } from "../api/auth.api";
 
 const LoginPage = ({ onLogin }) => {
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+    email: "",
+    password: "",
   });
-  const [error, setError] = useState('');
+
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
+      const data = await login(formData);
 
-      const data = await response.json();
-      console.log('Login response:', data);
-
-      if (response.ok && data.success) {
-        // Call onLogin with the data from backend
+      if (data.success) {
         onLogin({
           token: data.token,
+          refreshToken: data.refreshToken,
           userId: data.userId,
           role: data.role,
-          driverId: data.driverId  // Will be null for riders, has value for drivers
+          driverId: data.driverId,
+          user: {
+            id: data.userId,
+            role: data.role,
+          },
         });
 
-        // Navigate based on role
-        if (data.role === 'driver') {
-          navigate('/driver/dashboard');
+        if (data.role === "admin") {
+          navigate("/admin/dashboard");
+        } else if (data.requiresKyc || !data.isKycComplete) {
+          navigate("/kyc-upload");
+        } else if (data.role === "driver") {
+          navigate("/driver/dashboard");
         } else {
-          navigate('/rider/dashboard');
+          navigate("/rider/dashboard");
         }
       } else {
-        setError(data.message || 'Login failed');
+        setError(data.message || "Login failed");
       }
     } catch (error) {
-      console.error('Login error:', error);
-      setError('Network error. Please try again.');
+      setError(error.message || "Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -55,9 +55,9 @@ const LoginPage = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="card" style={{maxWidth: '400px', width: '100%'}}>
+      <div className="card" style={{ maxWidth: "400px", width: "100%" }}>
         <h1 className="text-2xl font-bold mb-6 text-center">Login</h1>
-        
+
         {error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
             {error}
@@ -70,7 +70,9 @@ const LoginPage = ({ onLogin }) => {
             <input
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
               className="w-full p-3 border rounded"
               placeholder="driver@test.com"
               required
@@ -82,7 +84,9 @@ const LoginPage = ({ onLogin }) => {
             <input
               type="password"
               value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              onChange={(e) =>
+                setFormData({ ...formData, password: e.target.value })
+              }
               className="w-full p-3 border rounded"
               placeholder="••••••••"
               required
@@ -93,16 +97,16 @@ const LoginPage = ({ onLogin }) => {
             type="submit"
             disabled={loading}
             className="btn btn-primary w-full"
-            style={{padding: '1rem'}}
+            style={{ padding: "1rem" }}
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
 
         <div className="mt-4 text-center text-sm">
           <p className="text-gray-600">Don't have an account?</p>
           <button
-            onClick={() => navigate('/register')}
+            onClick={() => navigate("/register")}
             className="text-blue-600 hover:underline"
           >
             Sign Up
@@ -152,11 +156,11 @@ export default LoginPage;
 //       if (response.ok && data.success) {
 //         console.log('📦 data.data:', data.data);
 //         console.log('👤 data.data.user:', data.data.user);
-        
+
 //         // Extract tokens
 //         const accessToken = data.data.accessToken;
 //         const refreshToken = data.data.refreshToken;
-        
+
 //         // Extract user info
 //         const userId = data.data.user.id;
 //         const role = data.data.user.role;
@@ -178,7 +182,7 @@ export default LoginPage;
 //         localStorage.setItem('refreshToken', refreshToken);
 //         localStorage.setItem('userId', userId);
 //         localStorage.setItem('role', role);
-        
+
 //         console.log('💾 Stored in localStorage');
 //         console.log('🍪 All cookies set');
 
@@ -226,9 +230,9 @@ export default LoginPage;
 //                 Hi Email
 //               </label>
 //               <div style={{position: 'relative'}}>
-//                 <Mail 
-//                   size={20} 
-//                   style={{position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8'}} 
+//                 <Mail
+//                   size={20}
+//                   style={{position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8'}}
 //                 />
 //                 <input
 //                   type="email"
@@ -247,9 +251,9 @@ export default LoginPage;
 //                 Password
 //               </label>
 //               <div style={{position: 'relative'}}>
-//                 <Lock 
-//                   size={20} 
-//                   style={{position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8'}} 
+//                 <Lock
+//                   size={20}
+//                   style={{position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8'}}
 //                 />
 //                 <input
 //                   type="password"
@@ -263,8 +267,8 @@ export default LoginPage;
 //               </div>
 //             </div>
 
-//             <button 
-//               type="submit" 
+//             <button
+//               type="submit"
 //               className="btn btn-primary w-full mt-3"
 //               disabled={loading}
 //             >

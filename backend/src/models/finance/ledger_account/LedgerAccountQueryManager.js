@@ -22,7 +22,8 @@ export const LedgerAccountQueryManager = {
     'bnpl',
     'gift',
     'clearing',
-    'payable'   -- driver pending earnings (NOT yet paid out)
+    'payable',
+    'payout_holding'
   )
 ),
       currency VARCHAR(3) DEFAULT 'NPR',

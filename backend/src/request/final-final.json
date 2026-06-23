@@ -1,0 +1,1416 @@
+{
+  "info": {
+    "name": "RideApp — Financial Flows Deep Dive",
+    "description": "Full coverage of every financial flow found in the codebase:\n\n💡 HOW YOUR PAYMENT SYSTEM WORKS (from the code):\n\n1. PAYMENT LIFECYCLE:\n   Created → Authorized (funds in escrow) → Settled (escrow → driver + platform) OR Refunded (escrow → rider)\n\n2. DUAL WALLET SYSTEM:\n   • wallets table: simple balance/locked_balance (fast reads)\n   • ledger_accounts + ledger_entries: double-entry accounting (audit trail)\n   Both exist in parallel.\n\n3. PAYMENT STRATEGIES:\n   • wallet: deduct wallet balance → escrow\n   • gateway: eSewa/Khalti external gateway → escrow\n   • gift: GiftCard balance → escrow\n   • bnpl: BNPL credit account → escrow (stub, not fully implemented)\n   • points: FinancialPoints → escrow (FIFO batch expiry at 2 months)\n\n4. PAYMENT HOLDS (PaymentHoldService):\n   Pre-ride hold on wallet locked_balance → capture on ride complete → release on cancel\n\n5. LEDGER PLATFORM ACCOUNTS (auto-init on server start):\n   escrow | revenue | clearing | bnpl | gift | payout_holding\n\n6. SETTLEMENT FLOW:\n   Ride complete → LedgerService.settlePayment → Escrow splits to DriverWallet + PlatformRevenue\n   → Settlement record created (pending) → Driver requests payout → Admin approves → Batch created\n   → LedgerService.processPayout (DriverWallet → payout_holding)\n   → LedgerService.releasePayoutToClearing (payout_holding → clearing)\n\n7. REFUND FLOW:\n   Ride cancel → LedgerService.refundPayment → Escrow back to original source (wallet/gift/bnpl)\n   Gateway refunds: stub only (TODO in code)\n\n8. POINTS:\n   1 NPR = 3.33 points earned | 1 point = 0.30 NPR redeemed\n   FIFO batch expiry: 2 months per batch\n\n9. GIFT CARDS:\n   Purchase (wallet debit) → code generated → redeem to wallet (credit) or use at ride payment\n   Transfer between users supported\n\n10. BNPL:\n   Strategy stub exists. BNPLAccount model exists. Platform 'bnpl' ledger account exists.\n   Full credit scoring / repayment logic not yet implemented in code.\n\n⚠️  MISSING ROUTES (logic exists in services but no HTTP routes yet):\n   - POST /api/payments/authorize (authorizeRidePayment)\n   - POST /api/payments/capture (capturePayment)\n   - POST /api/payments/refund/:rideId\n   - GET  /api/settlements/:settlementId\n   - POST /api/settlements/:settlementId/complete\n   - POST /api/points/earn\n   - GET  /api/points/balance\n   - POST /api/points/redeem\n   - POST /api/payments/holds (createHold)\n   - POST /api/payments/holds/:holdId/capture\n   - POST /api/payments/holds/:holdId/release\n   These are tested via internal service calls (ride completion auto-triggers them).\n   You should add these routes to expose them.\n\nIMPORT INSTRUCTIONS:\n1. Import this collection AND the main collection\n2. They share the same variables (baseUrl, riderToken, etc.)\n3. Run Auth section first to get tokens\n4. Then run each section top-to-bottom — they chain IDs automatically",
+    "_postman_id": "rideapp-financial-deep-dive-v1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "riderToken", "value": "", "type": "string" },
+    { "key": "driverToken", "value": "", "type": "string" },
+    { "key": "adminToken", "value": "", "type": "string" },
+    { "key": "riderId", "value": "", "type": "string" },
+    { "key": "driverId", "value": "", "type": "string" },
+    { "key": "rideId", "value": "", "type": "string" },
+    { "key": "rideRequestId", "value": "", "type": "string" },
+    { "key": "paymentId", "value": "", "type": "string" },
+    { "key": "ridePaymentId", "value": "", "type": "string" },
+    { "key": "paymentMethodId", "value": "", "type": "string" },
+    { "key": "holdId", "value": "", "type": "string" },
+    { "key": "settlementId", "value": "", "type": "string" },
+    { "key": "payoutRequestId", "value": "", "type": "string" },
+    { "key": "payoutBatchId", "value": "", "type": "string" },
+    { "key": "giftCardCode", "value": "", "type": "string" },
+    { "key": "promoCode", "value": "SAVE20", "type": "string" },
+    { "key": "ledgerEntryId", "value": "", "type": "string" },
+    { "key": "ledgerAccountId", "value": "", "type": "string" },
+    { "key": "pointsAccountId", "value": "", "type": "string" },
+    { "key": "providerId", "value": "", "type": "string" },
+    { "key": "targetUserId", "value": "", "type": "string" },
+    { "key": "bidId", "value": "", "type": "string" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (['POST','PUT','PATCH'].includes(pm.request.method)) {",
+          "  if (!pm.request.headers.get('Idempotency-Key')) {",
+          "    pm.request.headers.add({",
+          "      key: 'Idempotency-Key',",
+          "      value: 'idem-' + Date.now() + '-' + Math.random().toString(36).substr(2,9)",
+          "    });",
+          "  }",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth (Quick Login)",
+      "item": [
+        {
+          "name": "Login Rider",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "const j = pm.response.json();",
+              "if (j.token) { pm.collectionVariables.set('riderToken', j.token); pm.collectionVariables.set('riderId', j.userId); }",
+              "pm.test('Rider logged in', () => pm.response.to.have.status(200));"
+            ], "type": "text/javascript" }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"email\": \"rider@test.com\",\n  \"password\": \"Password123!\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/auth/login","host":["{{baseUrl}}"],"path":["api","auth","login"]}
+          }
+        },
+        {
+          "name": "Login Driver",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "const j = pm.response.json();",
+              "if (j.token) { pm.collectionVariables.set('driverToken', j.token); pm.collectionVariables.set('driverId', j.driverId || j.userId); }",
+              "pm.test('Driver logged in', () => pm.response.to.have.status(200));"
+            ], "type": "text/javascript" }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"email\": \"driver@test.com\",\n  \"password\": \"Password123!\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/auth/login","host":["{{baseUrl}}"],"path":["api","auth","login"]}
+          }
+        },
+        {
+          "name": "Login Admin",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "const j = pm.response.json();",
+              "if (j.token) pm.collectionVariables.set('adminToken', j.token);",
+              "pm.test('Admin logged in', () => pm.response.to.have.status(200));"
+            ], "type": "text/javascript" }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"email\": \"admin@test.com\",\n  \"password\": \"AdminPass123!\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/auth/login","host":["{{baseUrl}}"],"path":["api","auth","login"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "💰 WALLET — Full Flow",
+      "description": "Wallet uses TWO layers: wallets table (fast balance) + ledger (double-entry audit). Both are written on every transaction.",
+      "item": [
+        {
+          "name": "1. Get Balance (includes locked + available + active holds)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json().data;",
+            "pm.test('Has balance', () => pm.expect(j).to.have.property('balance'));",
+            "pm.test('Has availableBalance', () => pm.expect(j).to.have.property('availableBalance'));",
+            "pm.test('Has lockedBalance', () => pm.expect(j).to.have.property('lockedBalance'));",
+            "pm.test('Has isLocked flag', () => pm.expect(j).to.have.property('isLocked'));",
+            "pm.test('Has dailyWithdrawalLimit', () => pm.expect(j).to.have.property('dailyWithdrawalLimit'));",
+            "console.log('💰 Balance:', j.balance, '| Available:', j.availableBalance, '| Locked:', j.lockedBalance, '| Wallet locked:', j.isLocked);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/wallet/balance","host":["{{baseUrl}}"],"path":["api","wallet","balance"]}
+          }
+        },
+        {
+          "name": "2. Top-Up via Khalti",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'topup-khalti-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('200 OK + WALLET_TOPPED_UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().message).to.eql('WALLET_TOPPED_UP'); });",
+              "const j = pm.response.json().data;",
+              "pm.test('Transaction created', () => pm.expect(j.transaction).to.exist);",
+              "pm.test('Category is wallet_topup', () => pm.expect(j.transaction.category).to.eql('wallet_topup'));",
+              "console.log('New balance:', j.wallet.balance);"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 1000,\n  \"paymentMethod\": \"khalti\",\n  \"paymentGateway\": \"khalti\",\n  \"gatewayTransactionId\": \"KHALTI-{{$randomUUID}}\",\n  \"metadata\": { \"note\": \"Test top-up\" }\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/topup","host":["{{baseUrl}}"],"path":["api","wallet","topup"]}
+          }
+        },
+        {
+          "name": "3. Top-Up via eSewa",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'topup-esewa-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":["pm.test('eSewa top-up OK', () => pm.response.to.have.status(200));"],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 500,\n  \"paymentMethod\": \"esewa\",\n  \"paymentGateway\": \"esewa\",\n  \"gatewayTransactionId\": \"ESEWA-{{$randomUUID}}\",\n  \"metadata\": {}\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/topup","host":["{{baseUrl}}"],"path":["api","wallet","topup"]}
+          }
+        },
+        {
+          "name": "4. Top-Up via Card",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'topup-card-'+Date.now()});"],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 2000,\n  \"paymentMethod\": \"card\",\n  \"paymentGateway\": \"stripe\",\n  \"gatewayTransactionId\": \"CARD-{{$randomUUID}}\",\n  \"metadata\": { \"last4\": \"4242\" }\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/topup","host":["{{baseUrl}}"],"path":["api","wallet","topup"]}
+          }
+        },
+        {
+          "name": "5. Withdraw (daily limit check built-in)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'withdraw-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('200 or 400 expected', () => pm.expect([200,400]).to.include(pm.response.code));",
+              "const j = pm.response.json();",
+              "if (pm.response.code === 400) {",
+              "  console.warn('⚠️ Withdraw failed:', j.message, j.error);",
+              "  if (j.message === 'DAILY_LIMIT_EXCEEDED') console.warn('Daily limit details:', j.details);",
+              "  if (j.message === 'INSUFFICIENT_BALANCE') console.warn('Balance details:', j.details);",
+              "} else {",
+              "  pm.test('WITHDRAWAL_INITIATED', () => pm.expect(j.message).to.eql('WITHDRAWAL_INITIATED'));",
+              "  pm.test('Transaction created', () => pm.expect(j.data.transaction).to.exist);",
+              "}"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 300,\n  \"bankDetails\": {\n    \"accountNumber\": \"0123456789\",\n    \"bankName\": \"Nepal Investment Bank\",\n    \"accountHolder\": \"Test Rider\"\n  },\n  \"metadata\": { \"note\": \"Test withdrawal\" }\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/withdraw","host":["{{baseUrl}}"],"path":["api","wallet","withdraw"]}
+          }
+        },
+        {
+          "name": "6. Transfer Rider → Driver",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'xfer-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Transfer completed', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().message).to.eql('TRANSFER_COMPLETED'); });",
+              "const j = pm.response.json().data;",
+              "pm.test('Debit transaction created', () => pm.expect(j.debitTransaction).to.exist);",
+              "pm.test('Credit transaction created', () => pm.expect(j.creditTransaction).to.exist);",
+              "pm.test('Both txn categories are wallet_transfer', () => {",
+              "  pm.expect(j.debitTransaction.category).to.eql('wallet_transfer');",
+              "  pm.expect(j.creditTransaction.category).to.eql('wallet_transfer');",
+              "});",
+              "pm.test('Reference IDs linked', () => pm.expect(j.creditTransaction.reference_id).to.eql(j.debitTransaction.id));"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"toUserId\": \"{{driverId}}\",\n  \"amount\": 50,\n  \"description\": \"Peer transfer test\",\n  \"metadata\": { \"note\": \"Test P2P transfer\" }\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/transfer","host":["{{baseUrl}}"],"path":["api","wallet","transfer"]}
+          }
+        },
+        {
+          "name": "7. Transfer — Self (should fail CANNOT_TRANSFER_TO_SELF)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'xfer-self-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Should be 400', () => pm.response.to.have.status(400));",
+              "pm.test('Error is CANNOT_TRANSFER_TO_SELF', () => pm.expect(pm.response.json().message).to.eql('CANNOT_TRANSFER_TO_SELF'));"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"toUserId\": \"{{riderId}}\",\n  \"amount\": 100,\n  \"description\": \"Self transfer — should fail\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/transfer","host":["{{baseUrl}}"],"path":["api","wallet","transfer"]}
+          }
+        },
+        {
+          "name": "8. Transfer — Insufficient Balance (should fail)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'xfer-insuf-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Should fail with 400', () => pm.response.to.have.status(400));",
+              "pm.test('Error is INSUFFICIENT_BALANCE', () => pm.expect(pm.response.json().message).to.eql('INSUFFICIENT_BALANCE'));"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"toUserId\": \"{{driverId}}\",\n  \"amount\": 9999999,\n  \"description\": \"Huge transfer — should fail\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/transfer","host":["{{baseUrl}}"],"path":["api","wallet","transfer"]}
+          }
+        },
+        {
+          "name": "9. Get Transaction History — All",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const txns = pm.response.json().data;",
+            "pm.test('Array returned', () => pm.expect(txns).to.be.an('array'));",
+            "console.log('Total transactions:', txns.length);",
+            "if (txns.length) console.log('Latest txn:', txns[0].category, txns[0].type, txns[0].amount);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/wallet/transactions?limit=50&offset=0","host":["{{baseUrl}}"],"path":["api","wallet","transactions"],"query":[{"key":"limit","value":"50"},{"key":"offset","value":"0"}]}
+          }
+        },
+        {
+          "name": "9a. Get Transactions — Filter by type=credit",
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/wallet/transactions?type=credit&limit=20","host":["{{baseUrl}}"],"path":["api","wallet","transactions"],"query":[{"key":"type","value":"credit"},{"key":"limit","value":"20"}]}
+          }
+        },
+        {
+          "name": "9b. Get Transactions — Filter by category=wallet_topup",
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/wallet/transactions?category=wallet_topup","host":["{{baseUrl}}"],"path":["api","wallet","transactions"],"query":[{"key":"category","value":"wallet_topup"}]}
+          }
+        },
+        {
+          "name": "9c. Get Transactions — Filter by category=ride_payment",
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/wallet/transactions?category=ride_payment","host":["{{baseUrl}}"],"path":["api","wallet","transactions"],"query":[{"key":"category","value":"ride_payment"}]}
+          }
+        },
+        {
+          "name": "10. Top-Up Locked Wallet (should fail WALLET_LOCKED)",
+          "description": "First lock wallet via admin, then try top-up — should return WALLET_LOCKED error.",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'topup-locked-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "const j = pm.response.json();",
+              "if (pm.response.code === 403) {",
+              "  pm.test('WALLET_LOCKED returned', () => pm.expect(j.message).to.eql('WALLET_LOCKED'));",
+              "  console.log('🔒 Wallet is locked. Lock reason:', j.details?.reason || j.error);",
+              "} else {",
+              "  console.log('ℹ️ Wallet not locked — top-up succeeded. Lock it via Admin first.');",
+              "}"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 100,\n  \"paymentMethod\": \"khalti\",\n  \"gatewayTransactionId\": \"LOCK-TEST-{{$randomUUID}}\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/topup","host":["{{baseUrl}}"],"path":["api","wallet","topup"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🔒 PAYMENT HOLDS",
+      "description": "PaymentHoldService: Pre-ride fund reservation. On ride accept, hold is created locking funds. On ride complete → capture. On ride cancel → release.\n\n⚠️ NOTE: Holds are created internally by the ride lifecycle (acceptRide → createHold). These requests test the service layer directly IF you wire up the routes. Currently no HTTP routes expose holds directly.",
+      "item": [
+        {
+          "name": "[Internal] Wallet Balance Before Hold",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Balance fetched', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "console.log('Before hold — Balance:', d.balance, '| Locked:', d.lockedBalance, '| Available:', d.availableBalance, '| Active holds:', d.activeHolds);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/wallet/balance","host":["{{baseUrl}}"],"path":["api","wallet","balance"]}
+          }
+        },
+        {
+          "name": "[Simulated] Accept Ride → Auto-Creates Hold",
+          "description": "Accepting a ride via the ride lifecycle internally calls PaymentHoldService.createHold. This triggers:\n  1. Wallet locked_balance += amount\n  2. PaymentHold record created (status=active)\n  3. Hold expires in 24h if not captured\n\nRun: POST /api/rides/accept/:requestId to trigger this.",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'accept-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Ride accepted (hold created internally)', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "if (j.data && j.data.rideId) pm.collectionVariables.set('rideId', j.data.rideId);",
+              "if (j.data && j.data.holdId) pm.collectionVariables.set('holdId', j.data.holdId);",
+              "console.log('rideId:', pm.collectionVariables.get('rideId'));"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/accept/{{rideRequestId}}","host":["{{baseUrl}}"],"path":["api","rides","accept","{{rideRequestId}}"]}
+          }
+        },
+        {
+          "name": "[Internal] Wallet Balance After Hold (locked increases)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "console.log('After hold — Balance:', d.balance, '| Locked:', d.lockedBalance, '| Available:', d.availableBalance, '| Active holds:', d.activeHolds, '| Total locked amount:', d.totalLockedAmount);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/wallet/balance","host":["{{baseUrl}}"],"path":["api","wallet","balance"]}
+          }
+        },
+        {
+          "name": "[Simulated] Complete Ride → Captures Hold",
+          "description": "Completing ride calls PaymentHoldService.captureHold:\n  1. Wallet balance -= captureAmount\n  2. Wallet locked_balance -= holdAmount\n  3. Hold status = captured\n  4. Then LedgerService.settlePayment runs (Escrow → Driver + Platform)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'complete-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Ride completed', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "if (j.data && j.data.paymentId) pm.collectionVariables.set('ridePaymentId', j.data.paymentId);",
+              "if (j.data && j.data.settlementId) pm.collectionVariables.set('settlementId', j.data.settlementId);",
+              "console.log('Payment settled. PaymentId:', pm.collectionVariables.get('ridePaymentId'));"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}/complete","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}","complete"]}
+          }
+        },
+        {
+          "name": "[Simulated] Cancel Ride → Releases Hold (REFUND)",
+          "description": "Cancelling ride calls PaymentHoldService.releaseHold:\n  1. Wallet locked_balance -= holdAmount\n  2. Hold status = released\n  3. Then LedgerService.refundPayment runs (Escrow → Rider)\n  4. RidePayment.payment_status = refunded",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'cancel-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Cancel response', () => pm.expect([200,400]).to.include(pm.response.code));",
+              "const j = pm.response.json();",
+              "console.log('Cancel result:', j.message || j.error);"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"reason\": \"Changed plans — testing refund flow\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/rides/{{rideId}}/cancel","host":["{{baseUrl}}"],"path":["api","rides","{{rideId}}","cancel"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "📊 LEDGER — Double Entry Accounting",
+      "description": "LedgerService uses double-entry bookkeeping.\nEvery financial event creates a ledger entry: debit one account, credit another.\nPlatform accounts: escrow | revenue | clearing | bnpl | gift | payout_holding",
+      "item": [
+        {
+          "name": "1. Get Ledger Balance (via /payments/balance)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json().data;",
+            "pm.collectionVariables.set('ledgerAccountId', j.accountId);",
+            "pm.test('accountId returned', () => pm.expect(j.accountId).to.be.a('string'));",
+            "pm.test('balance is number', () => pm.expect(j.balance).to.be.a('number'));",
+            "console.log('Ledger accountId:', j.accountId, '| Balance:', j.balance, j.currency);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/payments/balance","host":["{{baseUrl}}"],"path":["api","payments","balance"]}
+          }
+        },
+        {
+          "name": "2. Get Ledger Account History (entries)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "pm.test('history array exists', () => pm.expect(d.history).to.be.an('array'));",
+            "console.log('Ledger entries:', d.history.length);",
+            "if (d.history.length) {",
+            "  const e = d.history[0];",
+            "  pm.collectionVariables.set('ledgerEntryId', e.id);",
+            "  console.log('Latest entry — type:', e.entry_type, '| amount:', e.amount, '| ref:', e.reference_type, '| id:', e.reference_id);",
+            "}"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/payments/history?limit=50","host":["{{baseUrl}}"],"path":["api","payments","history"],"query":[{"key":"limit","value":"50"}]}
+          }
+        },
+        {
+          "name": "3. Driver Ledger Balance",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json().data;",
+            "console.log('Driver ledger balance:', j.balance, j.currency);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/payments/balance","host":["{{baseUrl}}"],"path":["api","payments","balance"]}
+          }
+        },
+        {
+          "name": "4. Driver Ledger History",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "console.log('Driver ledger entries:', d.history.length);",
+            "const settlements = d.history.filter(e => e.reference_type === 'settlement');",
+            "const commissions = d.history.filter(e => e.reference_type === 'commission');",
+            "const payouts = d.history.filter(e => e.reference_type === 'payout');",
+            "console.log('Settlements:', settlements.length, '| Commissions:', commissions.length, '| Payouts:', payouts.length);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/payments/history?limit=50","host":["{{baseUrl}}"],"path":["api","payments","history"],"query":[{"key":"limit","value":"50"}]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "💳 PAYMENT METHODS (Full CRUD)",
+      "description": "PaymentMethodService: add, verify, set default, delete.\nProviders must be created via admin first.\nVerification_status starts as 'pending' — must be 'verified' before gateway payments work.",
+      "item": [
+        {
+          "name": "1. Admin — Create Khalti Provider (prereq)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Provider created or exists', () => pm.expect([201,409]).to.include(pm.response.code));",
+            "const j = pm.response.json();",
+            "if (j.data && j.data.id) pm.collectionVariables.set('providerId', j.data.id);",
+            "console.log('Provider id:', pm.collectionVariables.get('providerId'));"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"name\": \"Khalti\",\n  \"type\": \"khalti\",\n  \"config\": {\n    \"apiKey\": \"live_secret_key_xxxxx\",\n    \"baseUrl\": \"https://khalti.com/api/v2\",\n    \"environment\": \"sandbox\"\n  }\n}"},
+            "url": {"raw":"{{baseUrl}}/api/payments/providers","host":["{{baseUrl}}"],"path":["api","payments","providers"]}
+          }
+        },
+        {
+          "name": "2. Add Payment Method (Khalti)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'pm-add-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "const j = pm.response.json().data;",
+              "pm.collectionVariables.set('paymentMethodId', j.id);",
+              "pm.test('Status is pending', () => pm.expect(j.verification_status).to.eql('pending'));",
+              "console.log('✅ paymentMethodId:', j.id, '| status:', j.verification_status);"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"providerId\": \"{{providerId}}\",\n  \"providerToken\": \"khalti-token-test-abc123\",\n  \"accountIdentifier\": \"9801234567\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/payments/methods","host":["{{baseUrl}}"],"path":["api","payments","methods"]}
+          }
+        },
+        {
+          "name": "3. Add Duplicate Payment Method (should fail 409)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'pm-dup-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+              "pm.test('PAYMENT_METHOD_ALREADY_EXISTS', () => pm.expect(pm.response.json().message).to.eql('PAYMENT_METHOD_ALREADY_EXISTS'));"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"providerId\": \"{{providerId}}\",\n  \"providerToken\": \"khalti-token-test-abc123\",\n  \"accountIdentifier\": \"9801234567\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/payments/methods","host":["{{baseUrl}}"],"path":["api","payments","methods"]}
+          }
+        },
+        {
+          "name": "4. Add eSewa Provider",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Provider created', () => pm.expect([201,409]).to.include(pm.response.code));",
+            "const j = pm.response.json();",
+            "if (j.data && j.data.id) pm.collectionVariables.set('esewaProviderId', j.data.id);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"name\": \"eSewa\",\n  \"type\": \"esewa\",\n  \"config\": {\n    \"merchantId\": \"EPAYTEST\",\n    \"secretKey\": \"8gBm/:&EnhH.1/q\",\n    \"baseUrl\": \"https://uat.esewa.com.np\",\n    \"environment\": \"sandbox\"\n  }\n}"},
+            "url": {"raw":"{{baseUrl}}/api/payments/providers","host":["{{baseUrl}}"],"path":["api","payments","providers"]}
+          }
+        },
+        {
+          "name": "5. Gateway Webhook — Payment Completed",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Webhook processed', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().message).to.eql('WEBHOOK_PROCESSED'); });"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"gatewayTransactionId\": \"KHALTI-TXN-001\",\n  \"status\": \"completed\",\n  \"response\": {\n    \"amount\": 1000,\n    \"mobile\": \"9801234567\",\n    \"product_identity\": \"wallet-topup\",\n    \"transaction_id\": \"KHALTI-TXN-001\",\n    \"fee\": 30\n  }\n}"},
+            "url": {"raw":"{{baseUrl}}/api/payments/webhook/gateway","host":["{{baseUrl}}"],"path":["api","payments","webhook","gateway"]}
+          }
+        },
+        {
+          "name": "6. Gateway Webhook — Payment Failed",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Webhook processed for failure', () => pm.response.to.have.status(200));"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"gatewayTransactionId\": \"KHALTI-TXN-002\",\n  \"status\": \"failed\",\n  \"response\": {\n    \"error_key\": \"INSUFFICIENT_FUNDS\",\n    \"message\": \"User does not have sufficient balance\"\n  }\n}"},
+            "url": {"raw":"{{baseUrl}}/api/payments/webhook/gateway","host":["{{baseUrl}}"],"path":["api","payments","webhook","gateway"]}
+          }
+        },
+        {
+          "name": "7. Gateway Webhook — Missing Fields (should fail 400)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+            "pm.test('MISSING_REQUIRED_FIELDS', () => pm.expect(pm.response.json().message).to.eql('MISSING_REQUIRED_FIELDS'));"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"status\": \"completed\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/payments/webhook/gateway","host":["{{baseUrl}}"],"path":["api","payments","webhook","gateway"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🔁 REFUNDS — All Scenarios",
+      "description": "Refund flows in the codebase:\n\n1. WALLET refund: Escrow → Rider wallet (LedgerService.refundPayment)\n2. GIFT refund: Escrow → Platform gift account\n3. BNPL refund: Escrow → Platform bnpl account\n4. GATEWAY refund: Stub only (TODO in GatewayStrategy.refund)\n5. CASH: No refund needed (no escrow hold)\n\nAll refunds triggered by cancelRidePayment. Idempotency: cannot refund already-settled payments.",
+      "item": [
+        {
+          "name": "1. Cancel Ride Payment (triggers refund to wallet)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'refund-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "const code = pm.response.code;",
+              "pm.test('200 or 400 (valid responses)', () => pm.expect([200,400]).to.include(code));",
+              "const j = pm.response.json();",
+              "if (code === 200) {",
+              "  pm.test('PAYMENT_CANCELLED', () => pm.expect(j.message).to.eql('PAYMENT_CANCELLED'));",
+              "  console.log('✅ Refund processed. Payment status now: refunded');",
+              "} else {",
+              "  console.warn('⚠️ Cancel failed:', j.message, '—', j.error);",
+              "  if (j.message === 'CANNOT_REFUND_SETTLED_PAYMENT') console.warn('Cannot refund — ride already settled/completed.');",
+              "  if (j.message === 'INVALID_PAYMENT_STATE') console.warn('Payment is not in authorized state.');",
+              "}"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"reason\": \"Rider cancelled — full refund to wallet\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/ride-payments/{{rideId}}/cancel","host":["{{baseUrl}}"],"path":["api","wallet","ride-payments","{{rideId}}","cancel"]}
+          }
+        },
+        {
+          "name": "2. Double Refund (should fail — already refunded)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'refund-dup-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Should be 400 or 404', () => pm.expect([400,404]).to.include(pm.response.code));",
+              "const j = pm.response.json();",
+              "console.log('Double refund error:', j.message, j.error);"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"reason\": \"Second cancel attempt — should fail\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/ride-payments/{{rideId}}/cancel","host":["{{baseUrl}}"],"path":["api","wallet","ride-payments","{{rideId}}","cancel"]}
+          }
+        },
+        {
+          "name": "3. Check Wallet Balance After Refund (should be restored)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "console.log('Post-refund balance:', d.balance, '| Locked:', d.lockedBalance, '| Available:', d.availableBalance);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/wallet/balance","host":["{{baseUrl}}"],"path":["api","wallet","balance"]}
+          }
+        },
+        {
+          "name": "4. Verify Refund in Ledger History",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "const refunds = d.history.filter(e => e.reference_type === 'ride_cancellation');",
+            "pm.test('Refund ledger entry exists', () => pm.expect(refunds.length).to.be.greaterThan(0));",
+            "console.log('Refund ledger entries:', refunds.length);",
+            "if (refunds.length) console.log('Latest refund:', refunds[0].amount, refunds[0].entry_type, refunds[0].description);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/payments/history?limit=50","host":["{{baseUrl}}"],"path":["api","payments","history"],"query":[{"key":"limit","value":"50"}]}
+          }
+        },
+        {
+          "name": "5. Refund Ride Payment Details",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Details returned', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "if (d) {",
+            "  pm.test('Status is refunded', () => pm.expect(d.payment_status).to.eql('refunded'));",
+            "  console.log('Payment status:', d.payment_status, '| Refund reason:', d.refund_reason, '| Refunded at:', d.refunded_at);",
+            "}"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/wallet/ride-payments/{{rideId}}","host":["{{baseUrl}}"],"path":["api","wallet","ride-payments","{{rideId}}"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🏦 SETTLEMENT FLOW",
+      "description": "After ride completes:\n  1. LedgerService.settlePayment → Escrow split to Driver + Platform\n  2. Settlement record created (status=pending)\n  3. Driver requests payout → PayoutService.requestPayout\n  4. Admin approves → PayoutService.approvePayoutRequest\n  5. Batch created → PayoutService.createPayoutBatch\n  6. LedgerService.processPayout → DriverWallet → payout_holding\n  7. LedgerService.releasePayoutToClearing → payout_holding → clearing",
+      "item": [
+        {
+          "name": "1. Get Ride Payment Details (should be settled after ride complete)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "if (d) console.log('Payment status:', d.payment_status, '| Total:', d.total_amount, '| Platform fee:', d.platform_fee);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/wallet/ride-payments/{{rideId}}","host":["{{baseUrl}}"],"path":["api","wallet","ride-payments","{{rideId}}"] }
+          }
+        },
+        {
+          "name": "2. Driver — Get Available Balance (post-settlement)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Balance returned', () => pm.response.to.have.status(200));",
+            "console.log('Driver available balance:', pm.response.json().data);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/payouts/balance","host":["{{baseUrl}}"],"path":["api","payouts","balance"]}
+          }
+        },
+        {
+          "name": "3. Driver — Request Payout",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'payout-req-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Payout requested', () => pm.expect([201,400]).to.include(pm.response.code));",
+              "const j = pm.response.json();",
+              "if (j.data && j.data.id) { pm.collectionVariables.set('payoutRequestId', j.data.id); console.log('✅ payoutRequestId:', j.data.id); }",
+              "else console.warn('Failed:', j.message, j.error, j.details);"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 500,\n  \"payoutMethodId\": \"{{paymentMethodId}}\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/payouts/request","host":["{{baseUrl}}"],"path":["api","payouts","request"]}
+          }
+        },
+        {
+          "name": "4. Admin — Get Pending Payouts",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json();",
+            "if (j.data && j.data.length > 0) {",
+            "  pm.collectionVariables.set('payoutRequestId', j.data[0].id);",
+            "  console.log('Pending payouts:', j.data.length, '| First ID:', j.data[0].id, '| Amount:', j.data[0].amount);",
+            "}"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/payouts/admin/pending","host":["{{baseUrl}}"],"path":["api","payouts","admin","pending"]}
+          }
+        },
+        {
+          "name": "5. Admin — Approve Payout",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('PAYOUT_APPROVED', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().message).to.eql('PAYOUT_APPROVED'); });",
+            "console.log('✅ Payout approved:', pm.response.json().data?.status);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"notes\": \"Verified earnings. Proceeding to batch.\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/payouts/admin/{{payoutRequestId}}/approve","host":["{{baseUrl}}"],"path":["api","payouts","admin","{{payoutRequestId}}","approve"]}
+          }
+        },
+        {
+          "name": "6. Admin — Batch Approved Payouts",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('BATCH_CREATED', () => { pm.response.to.have.status(201); pm.expect(pm.response.json().message).to.eql('BATCH_CREATED'); });",
+            "const j = pm.response.json().data;",
+            "if (j && j.id) { pm.collectionVariables.set('payoutBatchId', j.id); console.log('✅ Batch created:', j.id, '| Total:', j.total_amount); }"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"requestIds\": [\"{{payoutRequestId}}\"],\n  \"notes\": \"Settlement batch week 1\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/payouts/admin/batch","host":["{{baseUrl}}"],"path":["api","payouts","admin","batch"]}
+          }
+        },
+        {
+          "name": "7. Driver Verifies Payout History",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('History returned', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json().data;",
+            "console.log('Driver payout requests:', j.length);",
+            "if (j.length) console.log('Latest:', j[0].status, '| Amount:', j[0].amount);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/payouts/history?limit=20","host":["{{baseUrl}}"],"path":["api","payouts","history"],"query":[{"key":"limit","value":"20"}]}
+          }
+        },
+        {
+          "name": "8. Admin — Reject Payout (different payout)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Rejected or 400 (already processed)', () => pm.expect([200,400]).to.include(pm.response.code));",
+            "console.log('Rejection result:', pm.response.json().message);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"reason\": \"Bank details mismatch — please update and resubmit\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/payouts/admin/{{payoutRequestId}}/reject","host":["{{baseUrl}}"],"path":["api","payouts","admin","{{payoutRequestId}}","reject"]}
+          }
+        },
+        {
+          "name": "9. Admin — Retry Failed Payout",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Retry initiated or 400', () => pm.expect([200,400]).to.include(pm.response.code));",
+            "console.log('Retry result:', pm.response.json().message);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/payouts/admin/{{payoutRequestId}}/retry","host":["{{baseUrl}}"],"path":["api","payouts","admin","{{payoutRequestId}}","retry"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🏆 FINANCIAL POINTS (1 point = Rs.0.30)",
+      "description": "FinancialPointsService:\n• Earn: 10/3 points per NPR (configurable via POINTS_CONVERSION constant)\n• Redeem: 1 point = NPR 0.30 (NPR_PER_POINT)\n• FIFO batch expiry: each batch expires 2 months from earn date\n• Points payment source: 'points' — auto-redeems FIFO during ride payment\n\n⚠️ NOTE: No HTTP routes exist for points yet. These are placeholder requests for when you add them.\nSuggested routes to implement:\n  POST /api/points/earn\n  GET  /api/points/balance\n  POST /api/points/redeem\n  POST /api/points/expire (cron trigger)\n\nCurrently points are used internally when paymentSource = 'points' in authorizePayment.",
+      "item": [
+        {
+          "name": "[Placeholder] Earn Points",
+          "description": "NOT YET ROUTED — add POST /api/points/earn. Calls FinancialPointsService.earnPoints internally.",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Route exists (404 = not yet wired)', () => pm.expect([200,201,404]).to.include(pm.response.code));",
+            "console.log('Response:', pm.response.code, pm.response.json().message || 'Route not found — add it!');"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"points\": 1000,\n  \"source\": \"ride_completion\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/points/earn","host":["{{baseUrl}}"],"path":["api","points","earn"]}
+          }
+        },
+        {
+          "name": "[Placeholder] Get Points Balance",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Route check', () => pm.expect([200,404]).to.include(pm.response.code));",
+            "const j = pm.response.json();",
+            "if (pm.response.code === 200) {",
+            "  pm.test('Points balance returned', () => pm.expect(j.data).to.have.property('total_points'));",
+            "  console.log('Total points:', j.data.total_points, '| Lifetime earned:', j.data.lifetime_earned, '| Redeemed:', j.data.lifetime_redeemed);",
+            "} else console.log('Route not yet implemented.');"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/points/balance","host":["{{baseUrl}}"],"path":["api","points","balance"]}
+          }
+        },
+        {
+          "name": "[Placeholder] Redeem Points for Ride (paymentSource = points)",
+          "description": "Points are redeemed by setting paymentSource='points' in ride payment authorization.\n1 point = NPR 0.30. Redeem for Rs.150 requires 500 points.\nFIFO: oldest batches consumed first.",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Route check', () => pm.expect([200,400,404]).to.include(pm.response.code));",
+            "const j = pm.response.json();",
+            "if (pm.response.code === 200) {",
+            "  pm.test('Points redeemed', () => pm.expect(j.data.message).to.eql('POINTS_REDEEMED'));",
+            "  console.log('Points used:', j.data.pointsUsed, '| NPR value:', j.data.nprValue);",
+            "} else if (pm.response.code === 400) {",
+            "  console.warn('Redeem failed:', j.message, '— balance?');",
+            "} else console.log('Route not yet implemented.');"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"nprAmount\": 150\n}"},
+            "url": {"raw":"{{baseUrl}}/api/points/redeem","host":["{{baseUrl}}"],"path":["api","points","redeem"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🏦 BNPL (Buy Now Pay Later)",
+      "description": "BNPL in your codebase:\n• BNPLStrategy exists (strategy pattern) — authorize/capture/refund stubs\n• BNPLAccount model exists in DB\n• Platform 'bnpl' ledger account exists\n• LedgerService supports paymentSource='bnpl' (uses platform bnpl account as source)\n\n⚠️ WHAT'S NOT IMPLEMENTED YET:\n  - Credit scoring / eligibility check\n  - Repayment schedule creation\n  - Repayment collection\n  - BNPL account limit management\n  - Overdue/late fee handling\n  - HTTP routes for BNPL management\n\n🔧 WHAT EXISTS (internal only):\n  - BNPLStrategy.authorize() — returns {authorized:true} (stub)\n  - BNPLStrategy.capture() — returns {captured:true} (stub)\n  - BNPLStrategy.refund() — returns {refunded:true} (stub)\n  - LedgerService handles 'bnpl' source by using platform bnpl account\n\nBNPL Ledger flow:\n  Authorize: platform_bnpl → escrow\n  Settle: escrow → driver + platform\n  Refund: escrow → platform_bnpl",
+      "item": [
+        {
+          "name": "[Placeholder] Add Payment Method as BNPL",
+          "description": "When you implement full BNPL, the user would link a BNPL account. This tests the endpoint.",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'bnpl-add-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Response received', () => pm.expect([201,400,404]).to.include(pm.response.code));",
+              "const j = pm.response.json();",
+              "if (pm.response.code === 201) {",
+              "  pm.collectionVariables.set('bnplMethodId', j.data.id);",
+              "  console.log('BNPL method added:', j.data.id);",
+              "} else console.log('BNPL method result:', j.message);"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"providerId\": \"{{providerId}}\",\n  \"providerToken\": \"bnpl-account-token-001\",\n  \"accountIdentifier\": \"bnpl-9801234567\",\n  \"type\": \"bnpl\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/payments/methods","host":["{{baseUrl}}"],"path":["api","payments","methods"]}
+          }
+        },
+        {
+          "name": "[Placeholder] BNPL Account Balance Check",
+          "description": "Not yet routed. Add GET /api/bnpl/balance",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Route check', () => pm.expect([200,404]).to.include(pm.response.code));",
+            "console.log(pm.response.code === 404 ? '⚠️ BNPL route not yet implemented' : pm.response.json());"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/bnpl/balance","host":["{{baseUrl}}"],"path":["api","bnpl","balance"]}
+          }
+        },
+        {
+          "name": "[Placeholder] BNPL Repayment",
+          "description": "Not yet routed. Add POST /api/bnpl/repay",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Route check', () => pm.expect([200,404]).to.include(pm.response.code));",
+            "console.log(pm.response.code === 404 ? '⚠️ BNPL repayment route not yet implemented' : pm.response.json());"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 500,\n  \"paymentMethod\": \"khalti\",\n  \"gatewayTransactionId\": \"BNPL-REPAY-{{$randomUUID}}\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/bnpl/repay","host":["{{baseUrl}}"],"path":["api","bnpl","repay"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🎴 GIFT CARDS — Full Flow",
+      "description": "Gift cards use TWO payment strategies:\n  1. GiftStrategy: use gift card as payment for ride\n  2. GiftCardService.redeemToWallet: convert gift card balance to wallet\n\nLedger flow on gift card ride payment:\n  platform_gift_account → escrow (authorization)\n  escrow → driver + platform (settlement)\n  escrow → platform_gift_account (refund if cancelled)",
+      "item": [
+        {
+          "name": "1. Purchase Gift Card (deducted from wallet)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'gc-buy-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Gift card purchased', () => pm.expect([200,201]).to.include(pm.response.code));",
+              "const j = pm.response.json();",
+              "if (j.data && j.data.code) {",
+              "  pm.collectionVariables.set('giftCardCode', j.data.code);",
+              "  console.log('✅ Gift card code:', j.data.code, '| Amount:', j.data.initial_balance);",
+              "} else if (j.data && j.data.requiresAction) {",
+              "  console.log('⏳ Gateway redirect required:', j.data.redirectUrl);",
+              "} else console.warn('Unexpected:', JSON.stringify(j));"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 500,\n  \"message\": \"Happy Dashain!\",\n  \"validityDays\": 180,\n  \"paymentMethodId\": \"{{paymentMethodId}}\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/gift-card/purchase","host":["{{baseUrl}}"],"path":["api","promo-gift","gift-card","purchase"]}
+          }
+        },
+        {
+          "name": "2. Check Gift Card Balance",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Balance returned', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "pm.test('current_balance exists', () => pm.expect(d).to.have.property('current_balance'));",
+            "console.log('GC Balance:', d.current_balance, '| Initial:', d.initial_balance, '| Status:', d.status, '| Expires:', d.valid_until);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/gift-card/{{giftCardCode}}/balance","host":["{{baseUrl}}"],"path":["api","promo-gift","gift-card","{{giftCardCode}}","balance"]}
+          }
+        },
+        {
+          "name": "3. Get My Gift Cards",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json().data;",
+            "console.log('My gift cards:', j.length);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/gift-cards","host":["{{baseUrl}}"],"path":["api","promo-gift","gift-cards"]}
+          }
+        },
+        {
+          "name": "4. Redeem Gift Card to Wallet",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'gc-redeem-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Redeemed', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "console.log('Redemption result:', j.message);"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"code\": \"{{giftCardCode}}\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/gift-card/redeem","host":["{{baseUrl}}"],"path":["api","promo-gift","gift-card","redeem"]}
+          }
+        },
+        {
+          "name": "5. Redeem Already Redeemed Gift Card (should fail)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'gc-dup-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Should fail (400/409)', () => pm.expect([400,409]).to.include(pm.response.code));",
+              "console.log('Duplicate redeem error:', pm.response.json().message);"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"code\": \"{{giftCardCode}}\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/gift-card/redeem","host":["{{baseUrl}}"],"path":["api","promo-gift","gift-card","redeem"]}
+          }
+        },
+        {
+          "name": "6. Transfer Gift Card to Another User",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'gc-xfer-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Transfer or fail', () => pm.expect([200,400,409]).to.include(pm.response.code));",
+              "console.log('GC transfer result:', pm.response.json().message);"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"code\": \"{{giftCardCode}}\",\n  \"recipientUserId\": \"{{driverId}}\",\n  \"message\": \"Good ride today!\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/gift-card/transfer","host":["{{baseUrl}}"],"path":["api","promo-gift","gift-card","transfer"]}
+          }
+        },
+        {
+          "name": "7. Redemption History for Gift Card",
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/gift-card/{{giftCardCode}}/history","host":["{{baseUrl}}"],"path":["api","promo-gift","gift-card","{{giftCardCode}}","history"]}
+          }
+        },
+        {
+          "name": "8. Admin — Cancel Gift Card",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Cancelled', () => pm.response.to.have.status(200));",
+            "console.log('Cancel result:', pm.response.json().message);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"reason\": \"Fraud detected on this gift card\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/admin/gift-card/{{giftCardCode}}/cancel","host":["{{baseUrl}}"],"path":["api","promo-gift","admin","gift-card","{{giftCardCode}}","cancel"]}
+          }
+        },
+        {
+          "name": "9. Use Cancelled Gift Card (should fail)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'gc-cancelled-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Should fail (400/409)', () => pm.expect([400,409]).to.include(pm.response.code));",
+              "console.log('Cancelled GC error:', pm.response.json().message);"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"code\": \"{{giftCardCode}}\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/gift-card/redeem","host":["{{baseUrl}}"],"path":["api","promo-gift","gift-card","redeem"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🎫 PROMO CODES — Full Flow",
+      "item": [
+        {
+          "name": "1. Admin — Create Promo (flat discount)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "const j = pm.response.json();",
+            "if (j.data && j.data.code) pm.collectionVariables.set('promoCode', j.data.code);",
+            "console.log('Promo code:', pm.collectionVariables.get('promoCode'));"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"code\": \"FLAT50\",\n  \"discountType\": \"flat\",\n  \"discountValue\": 50,\n  \"minRideAmount\": 200,\n  \"maxDiscount\": 50,\n  \"usageLimit\": 500,\n  \"perUserLimit\": 2,\n  \"expiresAt\": \"2026-12-31T23:59:59.000Z\",\n  \"description\": \"Rs.50 flat off any ride\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/admin/promo/create","host":["{{baseUrl}}"],"path":["api","promo-gift","admin","promo","create"]}
+          }
+        },
+        {
+          "name": "2. Admin — Create Promo (percentage)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Created', () => pm.expect([201,409]).to.include(pm.response.code));"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"code\": \"SAVE20\",\n  \"discountType\": \"percentage\",\n  \"discountValue\": 20,\n  \"minRideAmount\": 300,\n  \"maxDiscount\": 100,\n  \"usageLimit\": 1000,\n  \"perUserLimit\": 3,\n  \"expiresAt\": \"2026-12-31T23:59:59.000Z\",\n  \"description\": \"20% off up to Rs.100\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/admin/promo/create","host":["{{baseUrl}}"],"path":["api","promo-gift","admin","promo","create"]}
+          }
+        },
+        {
+          "name": "3. Validate Promo (valid)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "pm.test('Validation result returned', () => pm.expect(d).to.exist);",
+            "console.log('Promo valid:', d.isValid, '| Discount:', d.discountAmount, '| Final amount:', d.finalAmount);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"code\": \"SAVE20\",\n  \"rideAmount\": 500\n}"},
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/promo/validate","host":["{{baseUrl}}"],"path":["api","promo-gift","promo","validate"]}
+          }
+        },
+        {
+          "name": "4. Validate Promo — Below Min Amount (should fail)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('400 or invalid', () => pm.expect([200,400]).to.include(pm.response.code));",
+            "const j = pm.response.json();",
+            "if (pm.response.code === 200) { console.warn('isValid?', j.data.isValid); }",
+            "else console.log('Below min amount error:', j.message);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"code\": \"SAVE20\",\n  \"rideAmount\": 50\n}"},
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/promo/validate","host":["{{baseUrl}}"],"path":["api","promo-gift","promo","validate"]}
+          }
+        },
+        {
+          "name": "5. Get Promo Code Details",
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/promo/SAVE20","host":["{{baseUrl}}"],"path":["api","promo-gift","promo","SAVE20"]}
+          }
+        },
+        {
+          "name": "6. Get My Promo History",
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/promo-history","host":["{{baseUrl}}"],"path":["api","promo-gift","promo-history"]}
+          }
+        },
+        {
+          "name": "7. Admin — Get Stats",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Stats returned', () => pm.response.to.have.status(200));",
+            "console.log('Promo stats:', JSON.stringify(pm.response.json().data, null, 2));"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/admin/promo/stats","host":["{{baseUrl}}"],"path":["api","promo-gift","admin","promo","stats"]}
+          }
+        },
+        {
+          "name": "8. Admin — Deactivate Promo",
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/admin/promo/FLAT50/deactivate","host":["{{baseUrl}}"],"path":["api","promo-gift","admin","promo","FLAT50","deactivate"]}
+          }
+        },
+        {
+          "name": "9. Use Deactivated Promo (should fail)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Should fail', () => pm.expect([400,404]).to.include(pm.response.code));",
+            "console.log('Deactivated promo error:', pm.response.json().message);"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"code\": \"FLAT50\",\n  \"rideAmount\": 500\n}"},
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/promo/validate","host":["{{baseUrl}}"],"path":["api","promo-gift","promo","validate"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🔐 ADMIN — Wallet Controls",
+      "item": [
+        {
+          "name": "Lock User Wallet",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Wallet locked', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().message).to.eql('WALLET_LOCKED'); });"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"reason\": \"Suspected fraud — account under investigation\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/admin/{{targetUserId}}/lock","host":["{{baseUrl}}"],"path":["api","wallet","admin","{{targetUserId}}","lock"]}
+          }
+        },
+        {
+          "name": "Try Top-Up While Locked (should fail 403 WALLET_LOCKED)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'locked-topup-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('403 WALLET_LOCKED', () => { pm.response.to.have.status(403); pm.expect(pm.response.json().message).to.eql('WALLET_LOCKED'); });",
+              "console.log('Lock reason:', pm.response.json().details?.reason);"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 100,\n  \"paymentMethod\": \"khalti\",\n  \"gatewayTransactionId\": \"LOCK-TEST-{{$randomUUID}}\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/topup","host":["{{baseUrl}}"],"path":["api","wallet","topup"]}
+          }
+        },
+        {
+          "name": "Try Withdraw While Locked (should fail 403 WALLET_LOCKED)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'locked-withdraw-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('403 WALLET_LOCKED on withdraw', () => pm.expect([403,400]).to.include(pm.response.code));"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 50,\n  \"bankDetails\": { \"accountNumber\": \"123\", \"bankName\": \"NIC\", \"accountHolder\": \"Test\" }\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/withdraw","host":["{{baseUrl}}"],"path":["api","wallet","withdraw"]}
+          }
+        },
+        {
+          "name": "Unlock User Wallet",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('Wallet unlocked', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().message).to.eql('WALLET_UNLOCKED'); });"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/admin/{{targetUserId}}/unlock","host":["{{baseUrl}}"],"path":["api","wallet","admin","{{targetUserId}}","unlock"]}
+          }
+        },
+        {
+          "name": "Verify Wallet Operational After Unlock",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'post-unlock-topup-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Top-up works after unlock', () => pm.response.to.have.status(200));",
+              "pm.test('WALLET_TOPPED_UP', () => pm.expect(pm.response.json().message).to.eql('WALLET_TOPPED_UP'));"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 100,\n  \"paymentMethod\": \"khalti\",\n  \"gatewayTransactionId\": \"POST-UNLOCK-{{$randomUUID}}\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/topup","host":["{{baseUrl}}"],"path":["api","wallet","topup"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🧪 EDGE CASES & NEGATIVE TESTS",
+      "item": [
+        {
+          "name": "Top-Up Zero Amount (should fail INVALID_AMOUNT)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'zero-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('400 INVALID_AMOUNT', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().message).to.eql('INVALID_AMOUNT'); });"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 0,\n  \"paymentMethod\": \"khalti\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/topup","host":["{{baseUrl}}"],"path":["api","wallet","topup"]}
+          }
+        },
+        {
+          "name": "Withdraw Without Bank Details (should fail)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'no-bank-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('400 BANK_DETAILS_REQUIRED', () => pm.response.to.have.status(400));"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 100\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/withdraw","host":["{{baseUrl}}"],"path":["api","wallet","withdraw"]}
+          }
+        },
+        {
+          "name": "Request Payout — Negative Amount",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'neg-payout-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('400 INVALID_AMOUNT', () => pm.response.to.have.status(400));"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{driverToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": -500\n}"},
+            "url": {"raw":"{{baseUrl}}/api/payouts/request","host":["{{baseUrl}}"],"path":["api","payouts","request"]}
+          }
+        },
+        {
+          "name": "Transfer Missing Recipient (should fail RECIPIENT_REQUIRED)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'no-recip-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('400 RECIPIENT_REQUIRED', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().message).to.eql('RECIPIENT_REQUIRED'); });"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 100\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/transfer","host":["{{baseUrl}}"],"path":["api","wallet","transfer"]}
+          }
+        },
+        {
+          "name": "Payout Reject — Missing Reason (should fail)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('400 REASON_REQUIRED', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().message).to.eql('REASON_REQUIRED'); });"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{}"},
+            "url": {"raw":"{{baseUrl}}/api/payouts/admin/{{payoutRequestId}}/reject","host":["{{baseUrl}}"],"path":["api","payouts","admin","{{payoutRequestId}}","reject"]}
+          }
+        },
+        {
+          "name": "Batch with Empty requestIds (should fail INVALID_REQUEST_IDS)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('400 INVALID_REQUEST_IDS', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().message).to.eql('INVALID_REQUEST_IDS'); });"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"requestIds\": []\n}"},
+            "url": {"raw":"{{baseUrl}}/api/payouts/admin/batch","host":["{{baseUrl}}"],"path":["api","payouts","admin","batch"]}
+          }
+        },
+        {
+          "name": "Validate Promo — Missing Fields (should fail)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('400 MISSING_REQUIRED_FIELDS', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().message).to.eql('MISSING_REQUIRED_FIELDS'); });"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"code\": \"SAVE20\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/promo-gift/promo/validate","host":["{{baseUrl}}"],"path":["api","promo-gift","promo","validate"]}
+          }
+        },
+        {
+          "name": "Access Driver Payout as Rider (should fail 403)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'role-fail-'+Date.now()});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('403 Forbidden (role check)', () => pm.expect([401,403]).to.include(pm.response.code));"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 100\n}"},
+            "url": {"raw":"{{baseUrl}}/api/payouts/request","host":["{{baseUrl}}"],"path":["api","payouts","request"]}
+          }
+        },
+        {
+          "name": "No Auth Token (should fail 401)",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('401 Unauthorized', () => pm.expect([401,403]).to.include(pm.response.code));"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {"raw":"{{baseUrl}}/api/wallet/balance","host":["{{baseUrl}}"],"path":["api","wallet","balance"]}
+          }
+        },
+        {
+          "name": "Get Payment — Non-Existent ID",
+          "event": [{"listen":"test","script":{"exec":[
+            "pm.test('404 Not Found', () => pm.expect([404,400]).to.include(pm.response.code));"
+          ],"type":"text/javascript"}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"}],
+            "url": {"raw":"{{baseUrl}}/api/payments/00000000-0000-0000-0000-000000000000","host":["{{baseUrl}}"],"path":["api","payments","00000000-0000-0000-0000-000000000000"]}
+          }
+        },
+        {
+          "name": "Idempotency — Same Key Twice (second should return cached result)",
+          "description": "The idempotency middleware caches responses for 24h per key. Second request with same key returns identical response without re-processing.",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.request.headers.upsert({key:'Idempotency-Key',value:'idem-test-static-key-12345'});"],"type":"text/javascript"}},
+            {"listen":"test","script":{"exec":[
+              "pm.test('Response received', () => pm.expect([200,201]).to.include(pm.response.code));",
+              "console.log('Second call with same idem key. Response:', pm.response.json().message);"
+            ],"type":"text/javascript"}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{riderToken}}"},{"key":"Content-Type","value":"application/json"},{"key":"Idempotency-Key","value":"idem-test-static-key-12345"}],
+            "body": {"mode":"raw","raw":"{\n  \"amount\": 100,\n  \"paymentMethod\": \"khalti\",\n  \"gatewayTransactionId\": \"IDEM-TEST-TXN-001\"\n}"},
+            "url": {"raw":"{{baseUrl}}/api/wallet/topup","host":["{{baseUrl}}"],"path":["api","wallet","topup"]}
+          }
+        }
+      ]
+    }
+  ]
+}

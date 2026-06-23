@@ -269,6 +269,8 @@ const ProfilePage = ({ auth, onLogout }) => {
           <button className="btn btn-secondary w-full mb-2">
             Edit Profile
           </button>
+
+        
           
           <button className="btn btn-secondary w-full mb-2">
             Change Password
@@ -279,6 +281,12 @@ const ProfilePage = ({ auth, onLogout }) => {
           </button>
         </div>
 
+  <button 
+  className="btn btn-secondary w-full mb-2"
+  onClick={() => navigate('/payment-methods')}
+>
+  Payment Methods
+</button>
         {/* Logout */}
         <button 
           className="btn btn-danger w-full"

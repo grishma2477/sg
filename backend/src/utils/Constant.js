@@ -12,8 +12,33 @@ export const Constant = {
 };
 
 export const POINTS_CONVERSION = {
-  POINTS_PER_NPR: 10 / 3,   
-  NPR_PER_POINT: 0.3
+  POINTS_PER_NPR: 10 / 3,
+  NPR_PER_POINT: 0.3,
+};
+
+// Nepal market pricing (NPR). Adjust per zone if needed.
+export const VEHICLE_PRICING = {
+  bike: {
+    baseFare: 30,
+    ratePerKm: 15,
+    ratePerMin: 1.5,
+    minFare: 80,
+    surgeMultiplier: 1.0,
+  },
+  car: {
+    baseFare: 50,
+    ratePerKm: 25,
+    ratePerMin: 2.0,
+    minFare: 150,
+    surgeMultiplier: 1.0,
+  },
+  suv: {
+    baseFare: 80,
+    ratePerKm: 35,
+    ratePerMin: 3.0,
+    minFare: 250,
+    surgeMultiplier: 1.0,
+  },
 };
 /**
  * Database Table Names
@@ -26,8 +51,10 @@ export const String = {
   // ===================================================
   // Globals Constant 
   // ===================================================
-  MINIMUM_RIDE:10,
-  INITIAL_POINTS:1000,
+  MINIMUM_RIDE: 10,
+  INITIAL_POINTS: 1000,
+  REQUEST_EXPIRY_MINUTES: 5,
+  PLATFORM_FEE_PERCENTAGE: 20,
   // ═══════════════════════════════════════════════════
   // USER & AUTH TABLES
   // ═══════════════════════════════════════════════════
@@ -64,6 +91,14 @@ export const String = {
   RIDE_STOP_MODEL: "ride_stops",
   RIDER_SAFETY_STATS_MODEL: "rider_safety_stats",
 
+  // ═══════════════════════════════════════════════════
+  // DISPUTE AND CASE 
+  // ═══════════════════════════════════════════════════
+
+  DISPUTE_CASE_MODEL : "dispute_cases",
+  DISPUTE_EVIDENCE_MODEL: "dispute_evidence",
+  DISPUTE_MESSAGE_MODEL: "dispute_messages",
+  DISPUTE_RESOLUTION_MODEL: "dispute_resolutions",
 
   // ═══════════════════════════════════════════════════
   // REVIEW & SAFETY TABLES
@@ -103,7 +138,7 @@ export const String = {
   PAYOUT_ATTEMPTS: 'payout_attempts',
   FINANCIAL_POINT_BATCH: 'financial_point_batches',
   FINANCIAL_POINT_ACCOUNT: 'financial_point_accounts',
-  
+  IDEMPOTENCY_KEY: 'idempotency_keys',
 
 // ══════════════════════════════════════════════════
   // REFERENCE TABLES

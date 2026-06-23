@@ -1,0 +1,333 @@
+@baseUrl = {{baseUrl}}
+@managedUserEmail = {{managedUserEmail}}
+@driverPayoutToken = rest-driver-payout-token-001
+
+### Login Admin
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
+}
+
+###
+
+### Login Rider
+# @name loginRider
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{riderEmail}}",
+  "password": "{{riderPassword}}"
+}
+
+###
+
+### Login Driver
+# @name loginDriver
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{driverEmail}}",
+  "password": "{{driverPassword}}"
+}
+
+###
+
+### Admin User Stats
+GET {{baseUrl}}/api/admin/manage/users/stats
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin List Users
+GET {{baseUrl}}/api/admin/manage/users
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Create Managed User
+# @name createManagedUser
+POST {{baseUrl}}/api/admin/manage/users
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "email": "{{managedUserEmail}}",
+  "role": "rider",
+  "firstName": "Managed",
+  "lastName": "User",
+  "phoneNumber": "9800000010"
+}
+
+###
+
+### Admin Get Managed User
+GET {{baseUrl}}/api/admin/manage/users/{{createManagedUser.response.body.$.data.user.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Update Managed User
+PUT {{baseUrl}}/api/admin/manage/users/{{createManagedUser.response.body.$.data.user.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "status": "active",
+  "firstName": "Managed Updated",
+  "lastName": "User Updated",
+  "phoneNumber": "9800000011",
+  "address": "Updated by REST suite"
+}
+
+###
+
+### Admin Create Payment Provider For Driver Payout Method
+# @name createPayoutProvider
+POST {{baseUrl}}/api/payments/providers
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "name": "{{paymentProviderName}} Payout Tests",
+  "type": "{{paymentProviderType}}",
+  "config": {
+    "mode": "sandbox",
+    "source": "payout-suite"
+  }
+}
+
+###
+
+### Driver Add Payout Payment Method
+# @name addDriverPayoutMethod
+POST {{baseUrl}}/api/payments/methods
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "providerId": "{{createPayoutProvider.response.body.$.data.id}}",
+  "providerToken": "{{driverPayoutToken}}",
+  "accountIdentifier": "driver-payout-wallet"
+}
+
+###
+
+### Driver Set Default Payout Method
+PATCH {{baseUrl}}/api/payments/methods/{{addDriverPayoutMethod.response.body.$.data.id}}/default
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+
+###
+
+### Driver Available Balance
+GET {{baseUrl}}/api/payouts/balance
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+
+###
+
+### Driver Request Payout
+# @name requestPayoutOne
+POST {{baseUrl}}/api/payouts/request
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "amount": 1,
+  "payoutMethodId": "{{addDriverPayoutMethod.response.body.$.data.id}}"
+}
+
+###
+
+### Driver Request Second Payout
+# @name requestPayoutTwo
+POST {{baseUrl}}/api/payouts/request
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "amount": 1,
+  "payoutMethodId": "{{addDriverPayoutMethod.response.body.$.data.id}}"
+}
+
+###
+
+### Driver Payout History
+GET {{baseUrl}}/api/payouts/history?limit=20
+Authorization: Bearer {{loginDriver.response.body.$.token}}
+
+###
+
+### Admin Pending Payouts
+GET {{baseUrl}}/api/payouts/admin/pending
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Approve First Payout
+POST {{baseUrl}}/api/payouts/admin/{{requestPayoutOne.response.body.$.data.id}}/approve
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "notes": "Approved by REST suite"
+}
+
+###
+
+### Admin Reject Second Payout
+POST {{baseUrl}}/api/payouts/admin/{{requestPayoutTwo.response.body.$.data.id}}/reject
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "reason": "Rejected by REST suite"
+}
+
+###
+
+### Admin Approved Payouts
+GET {{baseUrl}}/api/payouts/admin/approved
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Create Payout Batch
+# @name createPayoutBatch
+POST {{baseUrl}}/api/payouts/admin/batch
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "requestIds": [
+    "{{requestPayoutOne.response.body.$.data.id}}"
+  ],
+  "notes": "REST suite payout batch"
+}
+
+###
+
+### Admin List Payout Batches
+GET {{baseUrl}}/api/payouts/admin/batches?limit=20
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Get Payout Batch Details
+GET {{baseUrl}}/api/payouts/admin/batch/{{createPayoutBatch.response.body.$.data.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Create Ride
+# @name adminCreateRide
+POST {{baseUrl}}/api/admin/rides
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "rider_id": "{{loginRider.response.body.$.userId}}",
+  "driver_id": "{{loginDriver.response.body.$.driverId}}",
+  "status": "created",
+  "fare_amount": 300,
+  "currency": "NPR"
+}
+
+###
+
+### Admin Get Ride
+GET {{baseUrl}}/api/admin/rides/{{adminCreateRide.response.body.$.data.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Update Ride
+PUT {{baseUrl}}/api/admin/rides/{{adminCreateRide.response.body.$.data.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "status": "accepted",
+  "note": "Updated by REST suite"
+}
+
+###
+
+### Admin Force Complete Ride
+POST {{baseUrl}}/api/admin/rides/{{adminCreateRide.response.body.$.data.id}}/force-complete
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Soft Delete Ride
+DELETE {{baseUrl}}/api/admin/rides/{{adminCreateRide.response.body.$.data.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Create Review
+# @name adminCreateReview
+POST {{baseUrl}}/api/admin/reviews
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "rideId": "{{adminCreateRide.response.body.$.data.id}}",
+  "reviewerId": "{{loginRider.response.body.$.userId}}",
+  "revieweeId": "{{loginDriver.response.body.$.driverId}}",
+  "rating": {
+    "stars": 4
+  },
+  "taps": [
+    {
+      "key": "FELT_SAFE",
+      "category": "positive"
+    }
+  ],
+  "reason": "Admin-created recovery review"
+}
+
+###
+
+### Admin Get Review
+GET {{baseUrl}}/api/admin/reviews/{{adminCreateReview.response.body.$.data.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Update Review
+PUT {{baseUrl}}/api/admin/reviews/{{adminCreateReview.response.body.$.data.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "flagged": false,
+  "override_reason": "Updated by REST suite"
+}
+
+###
+
+### Admin Flag Review
+POST {{baseUrl}}/api/admin/reviews/{{adminCreateReview.response.body.$.data.id}}/flag
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "reason": "REST suite moderation check"
+}
+
+###
+
+### Admin Delete Review
+DELETE {{baseUrl}}/api/admin/reviews/{{adminCreateReview.response.body.$.data.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+###
+
+### Admin Delete Managed User
+DELETE {{baseUrl}}/api/admin/manage/users/{{createManagedUser.response.body.$.data.user.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}

@@ -1,0 +1,272 @@
+{
+  "info": {
+    "name": "Ride Platform Full Automation QA",
+    "_postman_id": "ride-finance-full-test",
+    "description": "Automated testing of wallet, ride lifecycle, payments, settlements, payouts, disputes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key":"base_url","value":"http://localhost:3000/api"},
+    {"key":"rider_token","value":""},
+    {"key":"driver_token","value":""},
+    {"key":"admin_token","value":""},
+    {"key":"ride_request_id","value":""},
+    {"key":"ride_id","value":""},
+    {"key":"payout_request_id","value":""},
+    {"key":"ledger_entry_id","value":""}
+  ],
+  "item":[
+    {
+      "name":"1 Admin Login",
+      "request":{
+        "method":"POST",
+        "header":[{"key":"Content-Type","value":"application/json"}],
+        "url":"{{base_url}}/auth/login",
+        "body":{
+          "mode":"raw",
+          "raw":"{\n\"email\":\"{{admin_email}}\",\n\"password\":\"{{admin_password}}\"\n}"
+        }
+      },
+      "event":[{
+        "listen":"test",
+        "script":{
+          "exec":[
+            "let json = pm.response.json();",
+            "pm.environment.set('admin_token', json.data.token);"
+          ]
+        }
+      }]
+    },
+    {
+      "name":"2 Rider Login",
+      "request":{
+        "method":"POST",
+        "header":[{"key":"Content-Type","value":"application/json"}],
+        "url":"{{base_url}}/auth/login",
+        "body":{
+          "mode":"raw",
+          "raw":"{\n\"email\":\"{{rider_email}}\",\n\"password\":\"{{rider_password}}\"\n}"
+        }
+      },
+      "event":[{
+        "listen":"test",
+        "script":{
+          "exec":[
+            "let json = pm.response.json();",
+            "pm.environment.set('rider_token', json.data.token);"
+          ]
+        }
+      }]
+    },
+    {
+      "name":"3 Driver Login",
+      "request":{
+        "method":"POST",
+        "header":[{"key":"Content-Type","value":"application/json"}],
+        "url":"{{base_url}}/auth/login",
+        "body":{
+          "mode":"raw",
+          "raw":"{\n\"email\":\"{{driver_email}}\",\n\"password\":\"{{driver_password}}\"\n}"
+        }
+      },
+      "event":[{
+        "listen":"test",
+        "script":{
+          "exec":[
+            "let json = pm.response.json();",
+            "pm.environment.set('driver_token', json.data.token);"
+          ]
+        }
+      }]
+    },
+
+    {
+      "name":"4 Wallet Topup",
+      "request":{
+        "method":"POST",
+        "header":[
+          {"key":"Authorization","value":"Bearer {{rider_token}}"},
+          {"key":"Content-Type","value":"application/json"}
+        ],
+        "url":"{{base_url}}/wallet/topup",
+        "body":{
+          "mode":"raw",
+          "raw":"{\n\"amount\":1000,\n\"paymentMethod\":\"gateway\"\n}"
+        }
+      }
+    },
+
+    {
+      "name":"5 Create Ride Request",
+      "request":{
+        "method":"POST",
+        "header":[
+          {"key":"Authorization","value":"Bearer {{rider_token}}"},
+          {"key":"Content-Type","value":"application/json"}
+        ],
+        "url":"{{base_url}}/ride-request",
+        "body":{
+          "mode":"raw",
+          "raw":"{\n\"pickup_location\":\"Kathmandu\",\n\"drop_location\":\"Lalitpur\",\n\"estimated_total\":500\n}"
+        }
+      },
+      "event":[{
+        "listen":"test",
+        "script":{
+          "exec":[
+            "let json = pm.response.json();",
+            "pm.environment.set('ride_request_id', json.data.id);"
+          ]
+        }
+      }]
+    },
+
+    {
+      "name":"6 Authorize Payment",
+      "request":{
+        "method":"POST",
+        "header":[
+          {"key":"Authorization","value":"Bearer {{rider_token}}"},
+          {"key":"Content-Type","value":"application/json"}
+        ],
+        "url":"{{base_url}}/payments/authorize",
+        "body":{
+          "mode":"raw",
+          "raw":"{\n\"rideRequestId\":\"{{ride_request_id}}\",\n\"paymentSource\":\"wallet\"\n}"
+        }
+      }
+    },
+
+    {
+      "name":"7 Driver Accept Ride",
+      "request":{
+        "method":"POST",
+        "header":[
+          {"key":"Authorization","value":"Bearer {{driver_token}}"}
+        ],
+        "url":"{{base_url}}/rides/{{ride_request_id}}/accept"
+      },
+      "event":[{
+        "listen":"test",
+        "script":{
+          "exec":[
+            "let json = pm.response.json();",
+            "pm.environment.set('ride_id', json.data.id);"
+          ]
+        }
+      }]
+    },
+
+    {
+      "name":"8 Start Ride",
+      "request":{
+        "method":"POST",
+        "header":[
+          {"key":"Authorization","value":"Bearer {{driver_token}}"}
+        ],
+        "url":"{{base_url}}/rides/{{ride_id}}/start"
+      }
+    },
+
+    {
+      "name":"9 Complete Ride (Settlement)",
+      "request":{
+        "method":"POST",
+        "header":[
+          {"key":"Authorization","value":"Bearer {{driver_token}}"}
+        ],
+        "url":"{{base_url}}/rides/{{ride_id}}/complete"
+      }
+    },
+
+    {
+      "name":"10 Driver Wallet Balance",
+      "request":{
+        "method":"GET",
+        "header":[
+          {"key":"Authorization","value":"Bearer {{driver_token}}"}
+        ],
+        "url":"{{base_url}}/payout/balance"
+      }
+    },
+
+    {
+      "name":"11 Request Payout",
+      "request":{
+        "method":"POST",
+        "header":[
+          {"key":"Authorization","value":"Bearer {{driver_token}}"},
+          {"key":"Content-Type","value":"application/json"}
+        ],
+        "url":"{{base_url}}/payout/request",
+        "body":{
+          "mode":"raw",
+          "raw":"{\n\"amount\":200,\n\"payoutMethodId\":\"bank-test\"\n}"
+        }
+      },
+      "event":[{
+        "listen":"test",
+        "script":{
+          "exec":[
+            "let json = pm.response.json();",
+            "pm.environment.set('payout_request_id', json.data.id);"
+          ]
+        }
+      }]
+    },
+
+    {
+      "name":"12 Admin Approve Payout",
+      "request":{
+        "method":"POST",
+        "header":[
+          {"key":"Authorization","value":"Bearer {{admin_token}}"}
+        ],
+        "url":"{{base_url}}/admin/payouts/{{payout_request_id}}/approve"
+      }
+    },
+
+    {
+      "name":"13 Create Payout Batch",
+      "request":{
+        "method":"POST",
+        "header":[
+          {"key":"Authorization","value":"Bearer {{admin_token}}"},
+          {"key":"Content-Type","value":"application/json"}
+        ],
+        "url":"{{base_url}}/admin/payout-batch",
+        "body":{
+          "mode":"raw",
+          "raw":"{\n\"requestIds\":[\"{{payout_request_id}}\"]\n}"
+        }
+      }
+    },
+
+    {
+      "name":"14 Simulate Bank Success",
+      "request":{
+        "method":"POST",
+        "header":[
+          {"key":"Authorization","value":"Bearer {{admin_token}}"},
+          {"key":"Content-Type","value":"application/json"}
+        ],
+        "url":"{{base_url}}/admin/payout-attempt",
+        "body":{
+          "mode":"raw",
+          "raw":"{\n\"payoutRequestId\":\"{{payout_request_id}}\",\n\"success\":true,\n\"bankReference\":\"BANK123\"\n}"
+        }
+      }
+    },
+
+    {
+      "name":"15 Ledger History",
+      "request":{
+        "method":"GET",
+        "header":[
+          {"key":"Authorization","value":"Bearer {{admin_token}}"}
+        ],
+        "url":"{{base_url}}/ledger/history"
+      }
+    }
+  ]
+}

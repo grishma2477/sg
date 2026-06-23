@@ -7,19 +7,24 @@ export const verifyuser = async (req, res, next)=>{
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return ApiResponse.error(401, "Unauthorized.");
+    return res.status(401).json(ApiResponse.error("Unauthorized", 401));
 };
 
     const accessToken = authHeader.split(" ")[1];
     if (accessToken == null){
-        return ApiResponse.error(401, "Unauthorized.");
+        return res.status(401).json(ApiResponse.error("Unauthorized", 401));
     }
-    const accessTokenSecretKey = Constant.AccessTokenSecretKey
-    const payload = jwt.verify(accessToken, accessTokenSecretKey);
+    const accessTokenSecretKey = Constant.AccessTokenSecretKey;
+    let payload;
+    try {
+        payload = jwt.verify(accessToken, accessTokenSecretKey);
+    } catch (e) {
+        return res.status(401).json(ApiResponse.error("Unauthorized", 401));
+    }
     const userId = payload.id;
     const user = await User.findOne({id:userId})
     if (!user) {
-        return ApiResponse.failure(401, "You are not authorized.")
+        return res.status(401).json(ApiResponse.failure("Unauthorized", 401));
     }
     req.user = user;
     next();

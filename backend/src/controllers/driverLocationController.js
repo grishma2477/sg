@@ -2,6 +2,7 @@ import DriverLocationModel from "../models/driver/driver_location/DriverLocation
 import { notifyDriverLocationUpdate } from "../realtime/socketServer.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import RideModel from "../models/ride/Ride.js";
+import { pool } from "../database/DBConnection.js";
 
 export const updateDriverLocation = async (req, res, next) => {
   try {

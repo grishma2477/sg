@@ -1,4 +1,5 @@
 
+import { PaymentProviderService } from "../application/services/PaymentProviderService.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
 export const createProvider = async (req, res, next) => {
@@ -8,6 +9,18 @@ export const createProvider = async (req, res, next) => {
     res.status(201).json(
       ApiResponse.success(provider, "PROVIDER_CREATED")
     );
+  } catch (err) {
+    next(err);
+  }
+};
+export const getUserProviders = async (req, res, next) => {
+  try {
+    const providers = await PaymentProviderService.getUserAvailableProviders();
+
+    res.status(200).json(
+      ApiResponse.success(providers, "USER_PROVIDERS_FETCHED")
+    );
+
   } catch (err) {
     next(err);
   }

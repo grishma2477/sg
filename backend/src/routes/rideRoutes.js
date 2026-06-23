@@ -44,6 +44,7 @@ import {
   completeRide,
   cancelRide
 } from '../controllers/rideController.js';
+import { idempotency } from '../middleware/idempotency.js';
 
 const router = express.Router();
 
@@ -52,8 +53,10 @@ router.get('/:rideId', verifyuser, getRideDetails);
 
 // Accept a ride request (fixed price)
 router.post('/accept/:requestId', 
-  verifyuser,           // 1. Verify JWT token
+  verifyuser,   
+  idempotency,        // 1. Verify JWT token
   ensureDriverProfile, 
+
   acceptRideRequest     // 3. Handle the request
 );
 
@@ -61,6 +64,7 @@ router.post('/accept/:requestId',
 router.post('/:rideId/start', 
   verifyuser, 
   ensureDriverProfile, 
+  idempotency,
   startRide
 );
 
@@ -75,9 +79,10 @@ router.post('/:rideId/stops/:stopId/depart', verifyuser, departFromStop);
 router.post('/:rideId/complete', 
   verifyuser, 
   ensureDriverProfile, 
+  idempotency,
   completeRide
 );
 // Cancel ride
-router.post('/:rideId/cancel', verifyuser, cancelRide);
+router.post('/:rideId/cancel', verifyuser, idempotency,cancelRide);
 
 export default router;
