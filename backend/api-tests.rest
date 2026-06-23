@@ -301,6 +301,41 @@ Content-Type: {{contentType}}
 
 
 ###############################################################
+# SECTION 26 — MAPS (Sprint 1)
+# All require auth. Falls back to Haversine if GOOGLE_MAPS_API_KEY_SERVER not set.
+###############################################################
+
+# ✅ 🔒 Fare Estimate — all vehicle types, real road distance
+# Returns distanceKm, durationMinutes, polyline, and fare range for bike/car/suv
+GET {{baseUrl}}/api/ride-requests/estimate?pickup_lat=27.7172&pickup_lng=85.3140&dropoff_lat=27.6788&dropoff_lng=85.3183
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Fare Estimate with stops
+GET {{baseUrl}}/api/ride-requests/estimate?pickup_lat=27.7172&pickup_lng=85.3140&dropoff_lat=27.6788&dropoff_lng=85.3183&stops=[{"lat":27.7069,"lng":85.3134}]
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Address Autocomplete (requires GOOGLE_MAPS_API_KEY_SERVER)
+GET {{baseUrl}}/api/maps/autocomplete?query=Thamel&lat=27.7172&lng=85.3240
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Place Details by place_id (requires GOOGLE_MAPS_API_KEY_SERVER)
+GET {{baseUrl}}/api/maps/place/ChIJ7e3VkZiZ6zkRK1bw5vVvyLQ
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Reverse Geocode — lat/lng → formatted address (requires GOOGLE_MAPS_API_KEY_SERVER)
+GET {{baseUrl}}/api/maps/reverse?lat=27.7172&lng=85.3240
+Authorization: {{riderToken}}
+
+
+###############################################################
 # SECTION 7 — RIDE REQUESTS
 ###############################################################
 

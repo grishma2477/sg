@@ -25,6 +25,7 @@ import driverProfileRoutes from "./routes/driverProfileRoutes.js";
 import driverVerificationRoutes from "./routes/driverRoutes.js";
 import adminBadgeRoutes from "./routes/adminBadgeRoutes.js";
 import safetyCommentRoutes from "./routes/safetyCommentRoutes.js";
+import mapsRoutes from "./routes/mapsRoutes.js";
 const app = express();
 
 // ---------- GLOBAL MIDDLEWARE ---------- 
@@ -33,8 +34,8 @@ app.use(express.json());
 app.use(fileUpload({ useTempFiles: true }));
 
 // ---------- HEALTH CHECK ---------- 
-app.get("/", (req, res) => {
-  res.status(200).send("Welcome to PERN API");
+app.get("/", (_req, res) => {
+  res.status(200).send("Welcome to SG API");
 });
 
 //  ---------- API ROUTES ---------- 
@@ -58,6 +59,7 @@ app.use('/api/drivers', driverProfileRoutes);
 app.use('/api/drivers', driverVerificationRoutes);
 app.use('/api/admin', adminBadgeRoutes);
 app.use('/api/safety-comments', safetyCommentRoutes);
+app.use('/api/maps', mapsRoutes);
 
 
 

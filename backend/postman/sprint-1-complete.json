@@ -1,0 +1,188 @@
+{
+  "info": {
+    "name": "SG Backend — Sprint 1 Complete",
+    "description": "Sprint 1: Google Maps + Location Infrastructure\n\nNew in this sprint:\n- GET /api/ride-requests/estimate — real road-based fare for all vehicle types (Haversine fallback when no API key)\n- GET /api/maps/autocomplete — Places API proxy (requires GOOGLE_MAPS_API_KEY_SERVER)\n- GET /api/maps/place/:placeId — Place details\n- GET /api/maps/reverse — Reverse geocode\n- createRideRequest now uses real road distance + vehicle-based NPR pricing\n- DriverMatchingService ETAs replaced with Distance Matrix batch call\n- VEHICLE_PRICING constants in Constant.js (bike/car/suv, Nepal NPR rates)\n- PricingCalculationService rewritten with per-vehicle rates\n\nEnv vars needed for full Maps functionality:\n  GOOGLE_MAPS_API_KEY_SERVER=your_server_key\n  (Haversine fallback is used automatically when key is absent)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "sg-sprint-1-2026-06-24"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000", "type": "string" },
+    { "key": "riderToken", "value": "", "type": "string" },
+    { "key": "driverToken", "value": "", "type": "string" },
+    { "key": "adminToken", "value": "", "type": "string" },
+    { "key": "rideRequestId", "value": "1", "type": "string" },
+    { "key": "rideId", "value": "1", "type": "string" },
+    { "key": "bidId", "value": "1", "type": "string" },
+    { "key": "userId", "value": "1", "type": "string" },
+    { "key": "driverId", "value": "1", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth — get tokens",
+      "item": [
+        {
+          "name": "Login Rider",
+          "event": [{ "listen": "test", "script": { "exec": ["const r = pm.response.json();\nif (r.data?.token) pm.collectionVariables.set('riderToken', 'Bearer ' + r.data.token);"], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"rider@test.com\",\n  \"password\": \"Password123!\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login Driver",
+          "event": [{ "listen": "test", "script": { "exec": ["const r = pm.response.json();\nif (r.data?.token) pm.collectionVariables.set('driverToken', 'Bearer ' + r.data.token);"], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"driver@test.com\",\n  \"password\": \"Password123!\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sprint 1 — Fare Estimate",
+      "item": [
+        {
+          "name": "Estimate — Thamel to Patan (all vehicles)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));\npm.test('Has estimates array', () => {\n  const r = pm.response.json();\n  pm.expect(r.data.estimates).to.be.an('array').with.length(3);\n});\npm.test('Has distance', () => pm.expect(pm.response.json().data.distanceKm).to.be.above(0));"], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/ride-requests/estimate?pickup_lat=27.7172&pickup_lng=85.3140&dropoff_lat=27.6788&dropoff_lng=85.3183",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ride-requests", "estimate"],
+              "query": [
+                { "key": "pickup_lat", "value": "27.7172" },
+                { "key": "pickup_lng", "value": "85.3140" },
+                { "key": "dropoff_lat", "value": "27.6788" },
+                { "key": "dropoff_lng", "value": "85.3183" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Estimate — with 1 stop",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/ride-requests/estimate?pickup_lat=27.7172&pickup_lng=85.3140&dropoff_lat=27.6788&dropoff_lng=85.3183&stops=[{\"lat\":27.7069,\"lng\":85.3134}]",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ride-requests", "estimate"],
+              "query": [
+                { "key": "pickup_lat", "value": "27.7172" },
+                { "key": "pickup_lng", "value": "85.3140" },
+                { "key": "dropoff_lat", "value": "27.6788" },
+                { "key": "dropoff_lng", "value": "85.3183" },
+                { "key": "stops", "value": "[{\"lat\":27.7069,\"lng\":85.3134}]" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Estimate — missing params (expect 400)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 400', () => pm.response.to.have.status(400));"], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/ride-requests/estimate?pickup_lat=27.7172", "host": ["{{baseUrl}}"], "path": ["api", "ride-requests", "estimate"], "query": [{ "key": "pickup_lat", "value": "27.7172" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sprint 1 — Maps Proxy (requires API key)",
+      "item": [
+        {
+          "name": "Autocomplete — Thamel",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/maps/autocomplete?query=Thamel&lat=27.7172&lng=85.3240",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maps", "autocomplete"],
+              "query": [{ "key": "query", "value": "Thamel" }, { "key": "lat", "value": "27.7172" }, { "key": "lng", "value": "85.3240" }]
+            }
+          }
+        },
+        {
+          "name": "Place Details",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/maps/place/ChIJ7e3VkZiZ6zkRK1bw5vVvyLQ",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maps", "place", "ChIJ7e3VkZiZ6zkRK1bw5vVvyLQ"]
+            }
+          }
+        },
+        {
+          "name": "Reverse Geocode — Thamel coords",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/maps/reverse?lat=27.7172&lng=85.3240",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maps", "reverse"],
+              "query": [{ "key": "lat", "value": "27.7172" }, { "key": "lng", "value": "85.3240" }]
+            }
+          }
+        },
+        {
+          "name": "Autocomplete — missing query (expect 400)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 400', () => pm.response.to.have.status(400));"], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/maps/autocomplete", "host": ["{{baseUrl}}"], "path": ["api", "maps", "autocomplete"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sprint 1 — Create Ride Request (real pricing)",
+      "item": [
+        {
+          "name": "Create Ride Request — car, Thamel → Patan",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));\nconst r = pm.response.json();\nif (r.data?.id) pm.collectionVariables.set('rideRequestId', r.data.id);"], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{riderToken}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "ride-req-sprint1-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupLocation\": { \"coordinates\": [85.3140, 27.7172] },\n  \"pickupAddress\": \"Thamel, Kathmandu\",\n  \"dropoffLocation\": { \"coordinates\": [85.3183, 27.6788] },\n  \"dropoffAddress\": \"Patan Dhoka, Lalitpur\",\n  \"vehiclePreference\": \"car\",\n  \"pricingMode\": \"bidding\",\n  \"passengerCount\": 1\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/ride-requests", "host": ["{{baseUrl}}"], "path": ["api", "ride-requests"] }
+          }
+        },
+        {
+          "name": "Create Ride Request — bike with 1 stop",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{riderToken}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "ride-req-sprint1-002" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupLocation\": { \"coordinates\": [85.3140, 27.7172] },\n  \"pickupAddress\": \"Thamel, Kathmandu\",\n  \"dropoffLocation\": { \"coordinates\": [85.3183, 27.6788] },\n  \"dropoffAddress\": \"Patan Dhoka, Lalitpur\",\n  \"vehiclePreference\": \"bike\",\n  \"pricingMode\": \"bidding\",\n  \"passengerCount\": 1,\n  \"stops\": [\n    {\n      \"location\": { \"coordinates\": [85.3134, 27.7069] },\n      \"address\": \"Ratna Park, Kathmandu\",\n      \"maxWaitSeconds\": 120\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/ride-requests", "host": ["{{baseUrl}}"], "path": ["api", "ride-requests"] }
+          }
+        }
+      ]
+    }
+  ]
+}

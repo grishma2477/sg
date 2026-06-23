@@ -1,12 +1,10 @@
-import DriverModel from "../../models/driver/Driver.js";
-import DriverLocationModel from "../../models/driver/driver_location/DriverLocation.js";
 import DriverSafetyStatsModel from "../../models/driver/driver_safety_stats/DriverSafetyStats.js";
 import DriverVisibilityModel from "../../models/driver/driver_visibility/DriverVisibility.js";
 import RideRequestModel from "../../models/ride/RideRequest.js";
 import { pool } from "../../database/DBConnection.js";
 import { AppError } from "../../utils/AppError.js";
 import { String } from "../../utils/Constant.js";
-import { getDistanceMatrix } from "../../infrastructure/mapsClient.js";
+import { getBatchDistanceMatrix } from "../../infrastructure/mapsClient.js";
 
 /**
  * Driver Matching Service
@@ -176,7 +174,7 @@ export class DriverMatchingService {
     // ═══════════════════════════════════════════════════
     
     const query = `
-      SELECT 
+      SELECT
         rr.id,
         rr.rider_id,
         rr.pickup_address,
@@ -190,71 +188,57 @@ export class DriverMatchingService {
         rr.requested_pickup_time,
         rr.expires_at,
         rr.created_at,
-        -- Calculate distance from driver to pickup
+        ST_Y(rr.pickup_location::geometry)  AS pickup_lat,
+        ST_X(rr.pickup_location::geometry)  AS pickup_lng,
+        ST_Y(dl.location::geometry)         AS driver_lat,
+        ST_X(dl.location::geometry)         AS driver_lng,
         ST_Distance(
           dl.location::geography,
           rr.pickup_location::geography
-        ) / 1000.0 as distance_to_pickup_km,
-        -- Calculate time to reach pickup (assume 30 km/h avg)
-        (ST_Distance(
-          dl.location::geography,
-          rr.pickup_location::geography
-        ) / 1000.0 / 30.0 * 60.0) as eta_minutes
+        ) / 1000.0 AS distance_to_pickup_km
       FROM ${String.RIDE_REQUEST_MODEL} rr
       CROSS JOIN ${String.DRIVER_LOCATION_MODEL} dl
       WHERE dl.driver_id = $1
         AND rr.status IN ('pending', 'broadcasting')
         AND rr.matched_driver_id IS NULL
-        -- Within driver's visibility radius
         AND ST_DWithin(
           dl.location::geography,
           rr.pickup_location::geography,
-          $2 * 1000  -- max_request_radius_km in meters
+          $2 * 1000
         )
-        -- Not expired
         AND rr.expires_at > NOW()
       ORDER BY distance_to_pickup_km ASC;
     `;
-    
-    const result = await pool.query(query, [
-      driverId,
-      driverData.max_request_radius_km
-    ]);
-    
-    // ═══════════════════════════════════════════════════
-    // 2️⃣ APPLY VISIBILITY MULTIPLIER LIMIT
-    // ═══════════════════════════════════════════════════
-    
-    /**
-     * Limit number of requests shown based on multiplier:
-     * - 0.5x: show 5 requests
-     * - 1.0x: show 10 requests (default)
-     * - 1.5x: show 15 requests
-     * - 2.0x: show 20 requests
-     */
+
+    const result = await pool.query(query, [driverId, driverData.max_request_radius_km]);
+
     const baseLimit = 10;
-    const adjustedLimit = Math.floor(
-      baseLimit * driverData.visibility_multiplier
-    );
-    
+    const adjustedLimit = Math.floor(baseLimit * driverData.visibility_multiplier);
     const limitedRequests = result.rows.slice(0, adjustedLimit);
-    
-    console.log(`📱 Showing ${limitedRequests.length} requests to driver ${driverId} (multiplier: ${driverData.visibility_multiplier})`);
-    
-    return limitedRequests.map(req => ({
+
+    // ── Real road ETAs via Distance Matrix (one batch call) ──────────────────
+    let etaSeconds = limitedRequests.map(() => 0);
+    if (limitedRequests.length > 0) {
+      const first = limitedRequests[0];
+      const driverOrigin = { lat: parseFloat(first.driver_lat), lng: parseFloat(first.driver_lng) };
+      const pickups = limitedRequests.map((r) => ({
+        lat: parseFloat(r.pickup_lat),
+        lng: parseFloat(r.pickup_lng),
+      }));
+      const etaResults = await getBatchDistanceMatrix(driverOrigin, pickups);
+      etaSeconds = etaResults.map((r) => r.durationSeconds);
+    }
+
+    return limitedRequests.map((req, i) => ({
       requestId: req.id,
       riderId: req.rider_id,
-      pickup: {
-        address: req.pickup_address
-      },
-      dropoff: {
-        address: req.dropoff_address
-      },
+      pickup: { address: req.pickup_address },
+      dropoff: { address: req.dropoff_address },
       estimatedDistance: parseFloat(req.estimated_distance_km),
       estimatedDuration: req.estimated_duration_minutes,
       estimatedFare: {
         min: parseFloat(req.estimated_fare_min),
-        max: parseFloat(req.estimated_fare_max)
+        max: parseFloat(req.estimated_fare_max),
       },
       pricingMode: req.pricing_mode,
       passengerCount: req.passenger_count,
@@ -262,8 +246,8 @@ export class DriverMatchingService {
       scheduledTime: req.requested_pickup_time,
       expiresAt: req.expires_at,
       distanceToPickup: parseFloat(req.distance_to_pickup_km).toFixed(2),
-      estimatedArrival: Math.round(req.eta_minutes),
-      createdAt: req.created_at
+      estimatedArrival: Math.round(etaSeconds[i] / 60),
+      createdAt: req.created_at,
     }));
   }
   

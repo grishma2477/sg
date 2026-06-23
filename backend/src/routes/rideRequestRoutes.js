@@ -32,15 +32,18 @@ import {
   getRideRequestDetails,
   cancelRideRequest,
   getNearbyRideRequests,
-  updateDriverLocation
+  estimateFare,
 } from "../controllers/rideRequestController.js";
 import { idempotency } from "../middleware/idempotency.js";
 
 const router = express.Router();
 
+// Fare estimate — MUST come before /:id
+router.get("/estimate", verifyuser, estimateFare);
+
 router.post("/", verifyuser, idempotency, createRideRequest);
 
-// Get nearby requests (MUST come before /:id route)
+// Get nearby requests — MUST come before /:id
 router.get('/nearby', verifyuser, getNearbyRideRequests);
 
 router.get("/", verifyuser, getRiderRequests);
