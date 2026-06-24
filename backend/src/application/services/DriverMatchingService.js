@@ -94,25 +94,23 @@ export class DriverMatchingService {
           AND status IN ('matched', 'accepted')
         GROUP BY matched_driver_id
       )
-      SELECT 
+      SELECT
         dvi.*,
         COALESCE(dcr.active_requests, 0) as current_requests,
-        -- Calculate match score
+        -- Spec formula: baseScore=(distanceScore*0.4)+(pointScore*0.4)+(safetyBonus*0.2), finalScore=baseScore*visibility_multiplier
         (
-          (1.0 / (1.0 + dvi.distance_km)) * 0.3 +  -- 30% proximity
-          (dvi.visibility_multiplier / 2.0) * 0.3 +  -- 30% visibility
-          (dvi.average_rating / 5.0) * 0.2 +  -- 20% rating
-          (LEAST(dvi.safety_points, 1500) / 1500.0) * 0.2  -- 20% safety
-        ) * 100 as match_score
+          (GREATEST(1.0 - (dvi.distance_km / NULLIF(dvi.max_request_radius_km, 0)), 0) * 0.4) +
+          (LEAST(dvi.safety_points, 1000) / 1000.0 * 0.4) +
+          (CASE WHEN dss_badge.verified_safe_badge THEN 0.24 ELSE 0.20 END)
+        ) * dvi.visibility_multiplier * 100 as match_score
       FROM driver_visibility_info dvi
       LEFT JOIN driver_current_requests dcr ON dvi.driver_id = dcr.driver_id
-      WHERE 
-        -- Respect max concurrent requests
+      LEFT JOIN driver_safety_stats dss_badge ON dss_badge.driver_id = dvi.driver_id
+      WHERE
         COALESCE(dcr.active_requests, 0) < dvi.max_concurrent_requests
-        -- Minimum safety threshold
-        AND dvi.safety_points >= 500
+        AND dvi.safety_points >= 800
       ORDER BY match_score DESC
-      LIMIT 50;  -- Top 50 candidates
+      LIMIT 50;
     `;
     
     const result = await pool.query(query, [rideRequestId]);
@@ -236,10 +234,7 @@ export class DriverMatchingService {
       dropoff: { address: req.dropoff_address },
       estimatedDistance: parseFloat(req.estimated_distance_km),
       estimatedDuration: req.estimated_duration_minutes,
-      estimatedFare: {
-        min: parseFloat(req.estimated_fare_min),
-        max: parseFloat(req.estimated_fare_max),
-      },
+      estimatedTotal: parseFloat(req.estimated_total),
       pricingMode: req.pricing_mode,
       passengerCount: req.passenger_count,
       vehiclePreference: req.vehicle_preference,

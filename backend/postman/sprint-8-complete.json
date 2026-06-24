@@ -1,0 +1,184 @@
+{
+  "info": {
+    "name": "SG — Sprint 8: React Native Mobile App",
+    "description": "Mobile app end-to-end: OTP auth, background location, full ride flow from an Expo client. Tests 97–106.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",     "value": "http://localhost:5000" },
+    { "key": "mobileToken", "value": "" },
+    { "key": "mobileRefresh","value": "" },
+    { "key": "driverToken", "value": "" },
+    { "key": "mobileOtp",   "value": "" },
+    { "key": "activeRequestId","value": "" },
+    { "key": "bidId",       "value": "" },
+    { "key": "rideId",      "value": "" }
+  ],
+  "item": [
+    {
+      "name": "8.1 Mobile Auth",
+      "item": [
+        {
+          "name": "97 — Send OTP (mobile rider)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json();",
+            "if (d.data?.otp) pm.collectionVariables.set('mobileOtp', d.data.otp);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/send-otp",
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+9779800000001\",\n  \"role\": \"rider\"\n}" }
+          }
+        },
+        {
+          "name": "98 — Verify OTP → get tokens",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json()?.data ?? pm.response.json();",
+            "pm.collectionVariables.set('mobileToken',   d.accessToken ?? d.token);",
+            "pm.collectionVariables.set('mobileRefresh', d.refreshToken ?? '');"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/verify-otp",
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+9779800000001\",\n  \"otp\": \"{{mobileOtp}}\"\n}" }
+          }
+        },
+        {
+          "name": "99 — Register Expo push token",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{mobileToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/auth/device",
+            "body": { "mode": "raw", "raw": "{\n  \"fcm_token\": \"ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]\",\n  \"device_type\": \"ios\",\n  \"device_id\": \"simulator-iphone-15\",\n  \"device_name\": \"iPhone 15 Simulator\"\n}" }
+          }
+        },
+        {
+          "name": "106 — Token refresh (auto-interceptor)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json()?.data;",
+            "if (d?.accessToken) pm.collectionVariables.set('mobileToken', d.accessToken);",
+            "if (d?.refreshToken) pm.collectionVariables.set('mobileRefresh', d.refreshToken);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/refresh",
+            "body": { "mode": "raw", "raw": "{\n  \"refresh_token\": \"{{mobileRefresh}}\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8.2 Background Location",
+      "item": [
+        {
+          "name": "100 — Driver goes online",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/drivers/status",
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"online\"\n}" }
+          }
+        },
+        {
+          "name": "101 — Background location heartbeat (5s interval)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/ride-requests/drivers/location",
+            "body": { "mode": "raw", "raw": "{\n  \"lat\": 27.7095,\n  \"lng\": 85.3130\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8.3 Mobile Ride Flow",
+      "item": [
+        {
+          "name": "102 — Rider creates ride request (with Idempotency-Key)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "const d = pm.response.json()?.data;",
+            "const rid = d?.request?.id ?? d?.id;",
+            "if (rid) pm.collectionVariables.set('activeRequestId', String(rid));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization",   "value": "Bearer {{mobileToken}}" },
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "mobile-test-{{$timestamp}}" }
+            ],
+            "url": "{{baseUrl}}/api/ride-requests",
+            "body": { "mode": "raw", "raw": "{\n  \"pickup_lat\": 27.7172,\n  \"pickup_lng\": 85.3240,\n  \"pickup_address\": \"Kathmandu Durbar Square\",\n  \"dropoff_lat\": 27.6933,\n  \"dropoff_lng\": 85.3424,\n  \"dropoff_address\": \"Tribhuvan International Airport\",\n  \"vehicle_type\": \"bike\",\n  \"stops\": []\n}" }
+          }
+        },
+        {
+          "name": "103 — Driver submits bid (IncomingCard)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "const d = pm.response.json()?.data;",
+            "if (d?.bid?.id) pm.collectionVariables.set('bidId', String(d.bid.id));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/bidding/requests/{{activeRequestId}}/submit",
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 280,\n  \"eta_minutes\": 4\n}" }
+          }
+        },
+        {
+          "name": "104 — Rider accepts bid (WaitingForBids screen)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json()?.data;",
+            "const rid = d?.ride_id ?? d?.ride?.id;",
+            "if (rid) pm.collectionVariables.set('rideId', String(rid));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{mobileToken}}" }],
+            "url": "{{baseUrl}}/api/bidding/bids/{{bidId}}/accept"
+          }
+        },
+        {
+          "name": "105 — Driver marks arrived at pickup (DriverActiveRide step 1)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/rides/{{rideId}}/arrive"
+          }
+        }
+      ]
+    }
+  ]
+}

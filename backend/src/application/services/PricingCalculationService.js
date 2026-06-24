@@ -1,5 +1,6 @@
 import { getDirections } from "../../infrastructure/mapsClient.js";
 import { VEHICLE_PRICING, String as C } from "../../utils/Constant.js";
+import { CacheService } from "./CacheService.js";
 
 const ALL_VEHICLE_TYPES = Object.keys(VEHICLE_PRICING);
 
@@ -32,10 +33,14 @@ export class PricingCalculationService {
    * @param {number} surgeMultiplier
    */
   static async estimateAllVehicles({ pickup, dropoff, stops = [], surgeMultiplier = 1.0 }) {
-    const { distanceMeters, durationSeconds, polyline } = await getDirections(
-      pickup,
-      dropoff,
-      stops
+    // Cache route data keyed by rounded coordinates (3dp ≈ 111m precision) — 5min TTL
+    const stopKey = stops.map(s => `${s.lat.toFixed(3)},${s.lng.toFixed(3)}`).join('|');
+    const routeKey = `route:${pickup.lat.toFixed(3)},${pickup.lng.toFixed(3)}_${dropoff.lat.toFixed(3)},${dropoff.lng.toFixed(3)}_${stopKey}`;
+
+    const { distanceMeters, durationSeconds, polyline } = await CacheService.get(
+      routeKey,
+      () => getDirections(pickup, dropoff, stops),
+      300
     );
 
     const distanceKm = distanceMeters / 1000;

@@ -1,0 +1,329 @@
+{
+  "info": {
+    "name": "SG Backend — Sprint 2 Complete",
+    "description": "Sprint 2: Phone-first OTP Auth, Refresh Tokens, Rate Limiting\n\nNew in this sprint:\n- POST /api/auth/send-otp    — generate & send 6-digit OTP via Sparrow SMS (Twilio fallback)\n- POST /api/auth/verify-otp  — verify OTP; creates account on first use, logs in on subsequent calls\n- POST /api/auth/resend-otp  — resend OTP (rate limited: 5/15min)\n- POST /api/auth/refresh     — rotate refresh token, issue new access+refresh tokens\n- POST /api/auth/logout      — revoke single device refresh token\n- POST /api/auth/logout-all  — revoke all sessions for authenticated user\n- PUT  /api/auth/device      — store/update FCM device token\n- Zod validation on all write endpoints (auth, ride, wallet, bid, paymentMethod schemas)\n- Helmet security headers on all responses\n- Redis-backed rate limiting: 5/15m send-otp, 10/15m verify-otp+login, 30/15m refresh, 300/m global\n- Access token TTL: 15m | Refresh token TTL: 30 days | Stolen token detection (revoke-all)\n\nDB migrations:\n  backend/migrations/sprint2_auth_tokens.up.sql   — run this first\n  backend/migrations/sprint2_auth_tokens.down.sql — rollback\n\nEnv vars added:\n  SPARROW_SMS_TOKEN      — Sparrow SMS API token\n  SPARROW_SMS_FROM       — sender ID (default: SG)\n  TWILIO_ACCOUNT_SID     — Twilio account SID\n  TWILIO_AUTH_TOKEN      — Twilio auth token\n  TWILIO_FROM_NUMBER     — Twilio sender number\n  ALLOWED_ORIGINS        — comma-separated CORS origins (default: *)\n\nNote: In non-production (NODE_ENV != 'production') the OTP is returned\nin the response body for easier testing — no SMS is sent.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "sg-sprint-2-2026-06-24"
+  },
+  "variable": [
+    { "key": "baseUrl",      "value": "http://localhost:5000", "type": "string" },
+    { "key": "riderToken",   "value": "", "type": "string" },
+    { "key": "driverToken",  "value": "", "type": "string" },
+    { "key": "adminToken",   "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "testPhone",    "value": "+97798XXXXXXXX", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Sprint 2 — OTP Auth Flow",
+      "item": [
+        {
+          "name": "Send OTP",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "const r = pm.response.json();",
+                "pm.test('Has OTP in dev mode', () => pm.expect(r.data).to.have.property('otp'));",
+                "if (r.data?.otp) pm.collectionVariables.set('testOtp', r.data.otp);"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{testPhone}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/send-otp", "host": ["{{baseUrl}}"], "path": ["api", "auth", "send-otp"] }
+          }
+        },
+        {
+          "name": "Verify OTP — new user (expect 201)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 201 or 200', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                "const r = pm.response.json();",
+                "pm.test('Has accessToken', () => pm.expect(r.data).to.have.property('accessToken'));",
+                "pm.test('Has refreshToken', () => pm.expect(r.data).to.have.property('refreshToken'));",
+                "if (r.data?.accessToken) pm.collectionVariables.set('riderToken', 'Bearer ' + r.data.accessToken);",
+                "if (r.data?.refreshToken) pm.collectionVariables.set('refreshToken', r.data.refreshToken);"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{testPhone}}\",\n  \"otp\": \"{{testOtp}}\",\n  \"role\": \"rider\",\n  \"device_id\": \"postman-device-001\",\n  \"device_name\": \"Postman Test\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["api", "auth", "verify-otp"] }
+          }
+        },
+        {
+          "name": "Send OTP again (for resend test)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"{{testPhone}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/send-otp", "host": ["{{baseUrl}}"], "path": ["api", "auth", "send-otp"] }
+          }
+        },
+        {
+          "name": "Resend OTP",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "const r = pm.response.json();",
+                "if (r.data?.otp) pm.collectionVariables.set('testOtp', r.data.otp);"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"{{testPhone}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/resend-otp", "host": ["{{baseUrl}}"], "path": ["api", "auth", "resend-otp"] }
+          }
+        },
+        {
+          "name": "Verify OTP — wrong OTP (expect 400 INVALID_OTP)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                "pm.test('Message is INVALID_OTP', () => pm.expect(pm.response.json().message).to.equal('INVALID_OTP'));"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"{{testPhone}}\",\n  \"otp\": \"000000\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["api", "auth", "verify-otp"] }
+          }
+        },
+        {
+          "name": "Send OTP — bad phone format (expect 400 VALIDATION_ERROR)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                "pm.test('Validation error', () => pm.expect(pm.response.json().message).to.equal('VALIDATION_ERROR'));"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"9800000000\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/send-otp", "host": ["{{baseUrl}}"], "path": ["api", "auth", "send-otp"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sprint 2 — Token Refresh & Rotation",
+      "item": [
+        {
+          "name": "Refresh Token (rotate)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "const r = pm.response.json();",
+                "pm.test('New accessToken issued', () => pm.expect(r.data).to.have.property('accessToken'));",
+                "pm.test('New refreshToken issued', () => pm.expect(r.data).to.have.property('refreshToken'));",
+                "if (r.data?.accessToken) pm.collectionVariables.set('riderToken', 'Bearer ' + r.data.accessToken);",
+                "if (r.data?.refreshToken) pm.collectionVariables.set('refreshToken', r.data.refreshToken);"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "auth", "refresh"] }
+          }
+        },
+        {
+          "name": "Refresh — missing body (expect 400)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": ["pm.test('Status 400', () => pm.response.to.have.status(400));"],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "auth", "refresh"] }
+          }
+        },
+        {
+          "name": "Refresh — invalid token (expect 401 NOT_FOUND)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": ["pm.test('Status 401', () => pm.response.to.have.status(401));"],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"refresh_token\": \"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "auth", "refresh"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sprint 2 — Logout",
+      "item": [
+        {
+          "name": "Logout (single device)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] }
+          }
+        },
+        {
+          "name": "Logout All (requires auth)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/logout-all", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout-all"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sprint 2 — Device Registration",
+      "item": [
+        {
+          "name": "Register FCM Device Token",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "{{riderToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fcm_token\": \"dGVzdC1mY20tdG9rZW4tMTIzNDU2\",\n  \"device_type\": \"android\",\n  \"device_id\": \"postman-device-001\",\n  \"device_name\": \"Postman Test Device\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/device", "host": ["{{baseUrl}}"], "path": ["api", "auth", "device"] }
+          }
+        },
+        {
+          "name": "Register Device — invalid device_type (expect 400)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": ["pm.test('Status 400', () => pm.response.to.have.status(400));"],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "{{riderToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fcm_token\": \"some-token\",\n  \"device_type\": \"windows\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/device", "host": ["{{baseUrl}}"], "path": ["api", "auth", "device"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sprint 2 — Email Auth (unchanged, now schema-validated)",
+      "item": [
+        {
+          "name": "Login (email+password) — success",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "const r = pm.response.json();",
+                "if (r.token) pm.collectionVariables.set('riderToken', 'Bearer ' + r.token);"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"rider@test.com\",\n  \"password\": \"Password123!\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login — invalid email (expect 400 VALIDATION_ERROR)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                "pm.test('Validation error', () => pm.expect(pm.response.json().message).to.equal('VALIDATION_ERROR'));"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"Password123!\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        }
+      ]
+    }
+  ]
+}

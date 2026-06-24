@@ -1,0 +1,31 @@
+{
+  "packageName": "com.sg.sawagaadi",
+  "defaultLanguage": "en-US",
+  "category": "TRANSPORTATION",
+  "contentRating": "Everyone",
+  "privacyPolicyUrl": "https://sawagaadi.com/privacy",
+  "title": {
+    "en-US": "SG - Sawa Gaadi"
+  },
+  "shortDescription": {
+    "en-US": "Ride-sharing with driver bidding for Nepal"
+  },
+  "fullDescription": {
+    "en-US": "SG (Sawa Gaadi) is Nepal's driver-bidding ride-sharing platform — fast, fair, and built for Kathmandu.\n\nRIDERS:\n• Enter your destination and watch multiple drivers bid for your ride\n• See real-time driver location on a live map\n• Pay through your SG wallet (eSewa / Khalti top-up)\n• Rate your driver and build a better community\n\nDRIVERS:\n• Set your own price by bidding on nearby ride requests\n• Earn more with a higher safety score and badge tier\n• Background GPS updates keep your position accurate even when the screen is off\n• Get instant push notifications for new ride requests\n\nFEATURES:\n• Real-time bidding — no surge pricing surprises\n• Live map tracking during every ride\n• Multi-stop trips supported\n• Full wallet: top-up, payout, transaction history\n• OTP-based login — no passwords needed\n• Available in Kathmandu, Lalitpur, and Bhaktapur"
+  },
+  "contactEmail": "help@sawagaadi.com",
+  "contactWebsite": "https://sawagaadi.com",
+  "screenshots": {
+    "phoneScreenshots": [
+      "screenshots/android/01_home.png",
+      "screenshots/android/02_bidding.png",
+      "screenshots/android/03_live_map.png",
+      "screenshots/android/04_wallet.png",
+      "screenshots/android/05_driver_home.png"
+    ],
+    "sevenInchScreenshots": [],
+    "tenInchScreenshots": []
+  },
+  "featureGraphic": "feature_graphic_1024x500.png",
+  "icon": "icon_512x512.png"
+}

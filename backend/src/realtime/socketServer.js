@@ -1,464 +1,100 @@
-
-// import { Server } from "socket.io";
-
-// let io;
-// const connectedUsers = new Map(); // userId -> socketId
-// const connectedDrivers = new Map(); // driverId -> socketId
-
-// export const notifyBidAccepted = (driverId, rideData) => {
-//   console.log('');
-//   console.log('🔔🔔🔔 NOTIFY BID ACCEPTED CALLED 🔔🔔🔔');
-//   console.log('Driver ID to notify:', driverId);
-//   console.log('Ride data:', rideData);
-  
-//   // Check if driver is connected
-//   const socketId = connectedDrivers.get(driverId);
-//   console.log('Socket ID from map:', socketId);
-//   console.log('All connected drivers:', Array.from(connectedDrivers.keys()));
-  
-//   if (socketId) {
-//     const socket = io.sockets.sockets.get(socketId);
-//     if (socket) {
-//       console.log('✅ Driver socket found! Emitting event...');
-//       socket.emit('ride:bid:accepted', rideData);
-//       console.log('✅ Event emitted!');
-//     } else {
-//       console.log('❌ Socket ID exists but socket object not found');
-//     }
-//   } else {
-//     console.log('❌ Driver not in connected drivers map');
-//   }
-  
-//   console.log('🔔🔔🔔 NOTIFY BID ACCEPTED END 🔔🔔🔔');
-//   console.log('');
-// };
-
-// export const initSocket = (server) => {
-//   io = new Server(server, {
-//     cors: {
-//       origin: "*",
-//       methods: ["GET", "POST"]
-//     }
-//   });
-
-//   io.on("connection", (socket) => {
-//     console.log(`✅ Client connected: ${socket.id}`);
-
-//     // User authentication - WITH DETAILED LOGGING
-//     socket.on("authenticate", ({ userId, role, driverId }) => {
-//       console.log('');
-//       console.log('🔐🔐🔐 SOCKET AUTHENTICATION 🔐🔐🔐');
-//       console.log('Socket ID:', socket.id);
-//       console.log('User ID:', userId);
-//       console.log('Role:', role);
-//       console.log('Driver ID:', driverId);
-      
-//       socket.userId = userId;
-//       socket.userRole = role;
-//       socket.driverId = driverId;
-
-//       connectedUsers.set(userId, socket.id);
-      
-//       if (driverId) {
-//         connectedDrivers.set(driverId, socket.id);
-//         socket.join(`driver:${driverId}`);
-//         console.log('✅ Driver added to map:', driverId, '→', socket.id);
-//         console.log('✅ Driver joined room: driver:' + driverId);
-//         console.log('All connected drivers now:', Array.from(connectedDrivers.keys()));
-//       }
-
-//       socket.join(`user:${userId}`);
-//       console.log('✅ User authenticated:', userId, '(', role, ')');
-//       console.log('🔐🔐🔐 AUTHENTICATION COMPLETE 🔐🔐🔐');
-//       console.log('');
-//     });
-
-//     // Driver location update
-//     socket.on("driver:location:update", ({ driverId, location }) => {
-//       io.emit("driver:location:changed", { driverId, location });
-//     });
-
-//     // Driver online status
-//     socket.on("driver:status:update", ({ driverId, isOnline, isAvailable }) => {
-//       io.emit("driver:status:changed", { driverId, isOnline, isAvailable });
-//     });
-
-//     // Disconnect
-//     socket.on("disconnect", () => {
-//       if (socket.userId) {
-//         connectedUsers.delete(socket.userId);
-//       }
-//       if (socket.driverId) {
-//         connectedDrivers.delete(socket.driverId);
-//       }
-//       console.log(`❌ Client disconnected: ${socket.id}`);
-//     });
-//   });
-
-//   return io;
-// };
-
-// // Emit functions
-// export const emitToUser = (userId, event, data) => {
-//   if (io) {
-//     io.to(`user:${userId}`).emit(event, data);
-//   }
-// };
-
-// export const emitToDriver = (driverId, event, data) => {
-//   if (io) {
-//     io.to(`driver:${driverId}`).emit(event, data);
-//   }
-// };
-
-// export const emitToAll = (event, data) => {
-//   if (io) {
-//     io.emit(event, data);
-//   }
-// };
-
-// // Ride request events
-// export const broadcastRideRequest = (requestData, eligibleDriverIds) => {
-//   eligibleDriverIds.forEach(driverId => {
-//     emitToDriver(driverId, "ride:request:new", requestData);
-//   });
-// };
-
-// export const notifyBidSubmitted = (riderId, bidData) => {
-//   emitToUser(riderId, "ride:bid:new", bidData);
-// };
-
-// export const notifyBidRejected = (driverId, requestId) => {
-//   emitToDriver(driverId, "ride:bid:rejected", { requestId });
-// };
-
-// export const notifyRideStatusChange = (riderId, driverId, status, rideData) => {
-//   emitToUser(riderId, "ride:status:changed", { status, ...rideData });
-//   if (driverId) {
-//     emitToDriver(driverId, "ride:status:changed", { status, ...rideData });
-//   }
-// };
-
-// export const notifyDriverLocationUpdate = (riderId, location) => {
-//   emitToUser(riderId, "driver:location:update", location);
-// };
-
-// export { io };
-
-
-// import { Server } from "socket.io";
-
-// let io;
-// const connectedUsers = new Map(); // userId -> socketId
-// const connectedDrivers = new Map(); // driverId -> socketId
-
-
-// export const notifyBidAccepted = (driverId, rideData) => {
-//   console.log('');
-//   console.log('🔔🔔🔔 NOTIFY BID ACCEPTED CALLED 🔔🔔🔔');
-//   console.log('Driver ID to notify:', driverId);
-//   console.log('Ride data:', rideData);
-  
-//   // Check if driver is connected
-//   const socketId = connectedDrivers.get(driverId);
-//   console.log('Socket ID from map:', socketId);
-//   console.log('All connected drivers:', Array.from(connectedDrivers.keys()));
-  
-//   if (socketId) {
-//     const socket = io.sockets.sockets.get(socketId);
-//     if (socket) {
-//       console.log('✅ Driver socket found! Emitting event...');
-//       socket.emit('ride:bid:accepted', rideData);
-//       console.log('✅ Event emitted!');
-//     } else {
-//       console.log('❌ Socket ID exists but socket object not found');
-//     }
-//   } else {
-//     console.log('❌ Driver not in connected drivers map');
-//   }
-  
-//   console.log('🔔🔔🔔 NOTIFY BID ACCEPTED END 🔔🔔🔔');
-//   console.log('');
-// };
-
-// export const initSocket = (server) => {
-//   io = new Server(server, {
-//     cors: {
-//       origin: "*",
-//       methods: ["GET", "POST"]
-//     }
-//   });
-
-//   io.on("connection", (socket) => {
-//     console.log(`✅ Client connected: ${socket.id}`);
-
-//     // User authentication
-//     socket.on("authenticate", ({ userId, role, driverId }) => {
-//       socket.userId = userId;
-//       socket.userRole = role;
-//       socket.driverId = driverId;
-
-//       connectedUsers.set(userId, socket.id);
-//       if (driverId) {
-//         connectedDrivers.set(driverId, socket.id);
-//       }
-
-//       socket.join(`user:${userId}`);
-//       if (driverId) {
-//         socket.join(`driver:${driverId}`);
-//       }
-
-//       console.log(`🔐 User authenticated: ${userId} (${role})`);
-//     });
-
-//     // Driver location update
-//     socket.on("driver:location:update", ({ driverId, location }) => {
-//       io.emit("driver:location:changed", { driverId, location });
-//     });
-
-//     // Driver online status
-//     socket.on("driver:status:update", ({ driverId, isOnline, isAvailable }) => {
-//       io.emit("driver:status:changed", { driverId, isOnline, isAvailable });
-//     });
-
-//     // Disconnect
-//     socket.on("disconnect", () => {
-//       if (socket.userId) {
-//         connectedUsers.delete(socket.userId);
-//       }
-//       if (socket.driverId) {
-//         connectedDrivers.delete(socket.driverId);
-//       }
-//       console.log(`❌ Client disconnected: ${socket.id}`);
-//     });
-//   });
-
-//   return io;
-// };
-
-// // Emit functions
-// export const emitToUser = (userId, event, data) => {
-//   if (io) {
-//     io.to(`user:${userId}`).emit(event, data);
-//   }
-// };
-
-// export const emitToDriver = (driverId, event, data) => {
-//   if (io) {
-//     io.to(`driver:${driverId}`).emit(event, data);
-//   }
-// };
-
-// export const emitToAll = (event, data) => {
-//   if (io) {
-//     io.emit(event, data);
-//   }
-// };
-
-// // Ride request events
-// export const broadcastRideRequest = (requestData, eligibleDriverIds) => {
-//   eligibleDriverIds.forEach(driverId => {
-//     emitToDriver(driverId, "ride:request:new", requestData);
-//   });
-// };
-
-// export const notifyBidSubmitted = (riderId, bidData) => {
-//   emitToUser(riderId, "ride:bid:new", bidData);
-// };
-
-// // export const notifyBidAccepted = (driverId, rideData) => {
-//   // emitToDriver(driverId, "ride:bid:accepted", rideData);
-// // };
-
-
-// socket.on("authenticate", ({ userId, role, driverId }) => {
-//   console.log('');
-//   console.log('🔐🔐🔐 SOCKET AUTHENTICATION 🔐🔐🔐');
-//   console.log('Socket ID:', socket.id);
-//   console.log('User ID:', userId);
-//   console.log('Role:', role);
-//   console.log('Driver ID:', driverId);
-  
-//   socket.userId = userId;
-//   socket.userRole = role;
-//   socket.driverId = driverId;
-
-//   connectedUsers.set(userId, socket.id);
-  
-//   if (driverId) {
-//     connectedDrivers.set(driverId, socket.id);
-//     socket.join(`driver:${driverId}`);
-//     console.log('✅ Driver added to map:', driverId, '→', socket.id);
-//     console.log('✅ Driver joined room: driver:' + driverId);
-//     console.log('All connected drivers now:', Array.from(connectedDrivers.keys()));
-//   }
-
-//   socket.join(`user:${userId}`);
-//   console.log('✅ User authenticated:', userId, '(', role, ')');
-//   console.log('🔐🔐🔐 AUTHENTICATION COMPLETE 🔐🔐🔐');
-//   console.log('');
-// });
-
-// export const notifyBidRejected = (driverId, requestId) => {
-//   emitToDriver(driverId, "ride:bid:rejected", { requestId });
-// };
-
-// export const notifyRideStatusChange = (riderId, driverId, status, rideData) => {
-//   emitToUser(riderId, "ride:status:changed", { status, ...rideData });
-//   if (driverId) {
-//     emitToDriver(driverId, "ride:status:changed", { status, ...rideData });
-//   }
-// };
-
-// export const notifyDriverLocationUpdate = (riderId, location) => {
-//   emitToUser(riderId, "driver:location:update", location);
-// };
-
-// export { io };
-
-
 import { Server } from "socket.io";
 
 let io;
-const connectedUsers = new Map(); // userId -> socketId
-const connectedDrivers = new Map(); // driverId -> socketId
-
-export const notifyBidAccepted = (driverId, rideData) => {
-  console.log('');
-  console.log('🔔🔔🔔 NOTIFY BID ACCEPTED CALLED 🔔🔔🔔');
-  console.log('Driver ID to notify:', driverId);
-  console.log('Ride data:', rideData);
-  
-  // Check if driver is connected
-  const socketId = connectedDrivers.get(driverId);
-  console.log('Socket ID from map:', socketId);
-  console.log('All connected drivers:', Array.from(connectedDrivers.keys()));
-  
-  if (socketId) {
-    const socket = io.sockets.sockets.get(socketId);
-    if (socket) {
-      console.log('✅ Driver socket found! Emitting event...');
-      socket.emit('ride:bid:accepted', rideData);
-      console.log('✅ Event emitted!');
-    } else {
-      console.log('❌ Socket ID exists but socket object not found');
-    }
-  } else {
-    console.log('❌ Driver not in connected drivers map');
-  }
-  
-  console.log('🔔🔔🔔 NOTIFY BID ACCEPTED END 🔔🔔🔔');
-  console.log('');
-};
 
 export const initSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: "*",
-      methods: ["GET", "POST"]
-    }
+      origin: process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+        : "*",
+      methods: ["GET", "POST"],
+    },
   });
 
   io.on("connection", (socket) => {
-    console.log(`✅ Client connected: ${socket.id}`);
-
-    // User authentication - WITH DETAILED LOGGING
+    // Client sends { userId, role, driverId } to join their rooms
     socket.on("authenticate", ({ userId, role, driverId }) => {
-      console.log('');
-      console.log('🔐🔐🔐 SOCKET AUTHENTICATION 🔐🔐🔐');
-      console.log('Socket ID:', socket.id);
-      console.log('User ID:', userId);
-      console.log('Role:', role);
-      console.log('Driver ID:', driverId);
-      
       socket.userId = userId;
       socket.userRole = role;
       socket.driverId = driverId;
 
-      connectedUsers.set(userId, socket.id);
-      
-      if (driverId) {
-        connectedDrivers.set(driverId, socket.id);
-        socket.join(`driver:${driverId}`);
-        console.log('✅ Driver added to map:', driverId, '→', socket.id);
-        console.log('✅ Driver joined room: driver:' + driverId);
-        console.log('All connected drivers now:', Array.from(connectedDrivers.keys()));
-      }
+      if (userId) socket.join(`user:${userId}`);
+      if (driverId) socket.join(`driver:${driverId}`);
+      if (role === "admin") socket.join("admin");
 
-      socket.join(`user:${userId}`);
-      console.log('✅ User authenticated:', userId, '(', role, ')');
-      console.log('🔐🔐🔐 AUTHENTICATION COMPLETE 🔐🔐🔐');
-      console.log('');
+      socket.emit("authenticated", { success: true });
     });
 
-    // Driver location update
-    socket.on("driver:location:update", ({ driverId, location }) => {
-      io.emit("driver:location:changed", { driverId, location });
-    });
-
-    // Driver online status
-    socket.on("driver:status:update", ({ driverId, isOnline, isAvailable }) => {
-      io.emit("driver:status:changed", { driverId, isOnline, isAvailable });
-    });
-
-    // Disconnect
     socket.on("disconnect", () => {
-      if (socket.userId) {
-        connectedUsers.delete(socket.userId);
-      }
-      if (socket.driverId) {
-        connectedDrivers.delete(socket.driverId);
-      }
-      console.log(`❌ Client disconnected: ${socket.id}`);
+      // socket.io auto-leaves rooms on disconnect
     });
   });
 
   return io;
 };
 
-// Emit functions
+export const getIo = () => io;
+
+// ─── Low-level emitters ────────────────────────────────────────────────────────
+
 export const emitToUser = (userId, event, data) => {
-  if (io) {
-    io.to(`user:${userId}`).emit(event, data);
-  }
+  if (io) io.to(`user:${userId}`).emit(event, data);
 };
 
 export const emitToDriver = (driverId, event, data) => {
-  if (io) {
-    io.to(`driver:${driverId}`).emit(event, data);
-  }
+  if (io) io.to(`driver:${driverId}`).emit(event, data);
+};
+
+export const emitToRoom = (room, event, data) => {
+  if (io) io.to(room).emit(event, data);
 };
 
 export const emitToAll = (event, data) => {
-  if (io) {
-    io.emit(event, data);
-  }
+  if (io) io.emit(event, data);
 };
 
-// Ride request events
-export const broadcastRideRequest = (requestData, eligibleDriverIds) => {
-  eligibleDriverIds.forEach(driverId => {
-    emitToDriver(driverId, "ride:request:new", requestData);
+// ─── Ride request lifecycle ────────────────────────────────────────────────────
+
+// new_ride_request → nearby online drivers when rider creates request
+export const broadcastRideRequest = (requestData, driverIds) => {
+  driverIds.forEach((driverId) => {
+    emitToDriver(driverId, "new_ride_request", requestData);
   });
 };
 
-export const notifyBidSubmitted = (riderId, bidData) => {
-  emitToUser(riderId, "ride:bid:new", bidData);
+// bid_placed → rider room when driver submits bid
+export const notifyBidPlaced = (riderId, bidData) => {
+  emitToUser(riderId, "bid_placed", bidData);
 };
 
-export const notifyBidRejected = (driverId, requestId) => {
-  emitToDriver(driverId, "ride:bid:rejected", { requestId });
+// bid_accepted → driver room when rider accepts their bid
+export const notifyBidAccepted = (driverId, rideData) => {
+  emitToDriver(driverId, "bid_accepted", rideData);
 };
 
+// ride_request_cancelled → drivers who bid when rider cancels
+export const notifyRequestCancelled = (driverIds, requestId) => {
+  driverIds.forEach((driverId) => {
+    emitToDriver(driverId, "ride_request_cancelled", { requestId });
+  });
+};
+
+// ─── Active ride events ────────────────────────────────────────────────────────
+
+// driver_en_route → rider location updates during active ride
+export const notifyDriverEnRoute = (riderId, locationData) => {
+  emitToUser(riderId, "driver_en_route", locationData);
+};
+
+// Legacy aliases kept for existing callers
+export const notifyDriverLocationUpdate = notifyDriverEnRoute;
+export const notifyBidSubmitted = notifyBidPlaced;
+export const notifyBidRejected = (driverId, requestId) =>
+  emitToDriver(driverId, "bid_rejected", { requestId });
 export const notifyRideStatusChange = (riderId, driverId, status, rideData) => {
   emitToUser(riderId, "ride:status:changed", { status, ...rideData });
-  if (driverId) {
-    emitToDriver(driverId, "ride:status:changed", { status, ...rideData });
-  }
-};
-
-export const notifyDriverLocationUpdate = (riderId, location) => {
-  emitToUser(riderId, "driver:location:update", location);
+  if (driverId) emitToDriver(driverId, "ride:status:changed", { status, ...rideData });
 };
 
 export { io };

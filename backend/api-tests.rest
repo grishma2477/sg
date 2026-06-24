@@ -36,6 +36,13 @@
 @providerId = 1
 @applicationId = 1
 @stopId = 1
+@driverDbId = 1
+@activeRequestId = 1
+
+# ─── SPRINT 8 MOBILE VARS (fill after mobile OTP flow) ───────
+@mobileToken = PASTE_MOBILE_TOKEN_HERE
+@mobileRefresh = PASTE_MOBILE_REFRESH_HERE
+@mobileOtp = 123456
 
 ###############################################################
 # SECTION 1 — HEALTH CHECK
@@ -1024,6 +1031,359 @@ Authorization: {{riderToken}}
 
 ###
 
+# ============================================================
+# SPRINT 2 — Phone OTP Auth, Refresh Tokens, Rate Limiting
+# ============================================================
+
+# ─── Variables for Sprint 2 ───────────────────────────────
+@testPhone = +97798XXXXXXXX
+@otpCode = 123456
+@refreshToken = PASTE_REFRESH_TOKEN_HERE
+
+# ── Section 27: OTP Auth Flow ─────────────────────────────
+
+# ✅ Send OTP (dev: returns otp in response body)
+POST {{baseUrl}}/api/auth/send-otp
+Content-Type: {{contentType}}
+
+{
+  "phone": "+97798XXXXXXXX"
+}
+
+###
+
+# ✅ Verify OTP — new user (creates account, returns accessToken + refreshToken)
+POST {{baseUrl}}/api/auth/verify-otp
+Content-Type: {{contentType}}
+
+{
+  "phone": "+97798XXXXXXXX",
+  "otp": "{{otpCode}}",
+  "role": "rider",
+  "device_id": "test-device-001",
+  "device_name": "Test Android"
+}
+
+###
+
+# ✅ Verify OTP — existing user (login, returns 200)
+POST {{baseUrl}}/api/auth/verify-otp
+Content-Type: {{contentType}}
+
+{
+  "phone": "+97798XXXXXXXX",
+  "otp": "{{otpCode}}"
+}
+
+###
+
+# ✅ Resend OTP
+POST {{baseUrl}}/api/auth/resend-otp
+Content-Type: {{contentType}}
+
+{
+  "phone": "+97798XXXXXXXX"
+}
+
+###
+
+# ✅ Verify OTP — wrong OTP (expect 400 INVALID_OTP)
+POST {{baseUrl}}/api/auth/verify-otp
+Content-Type: {{contentType}}
+
+{
+  "phone": "+97798XXXXXXXX",
+  "otp": "000000"
+}
+
+###
+
+# ✅ Verify OTP — bad phone format (expect 400 VALIDATION_ERROR)
+POST {{baseUrl}}/api/auth/verify-otp
+Content-Type: {{contentType}}
+
+{
+  "phone": "9800000000",
+  "otp": "123456"
+}
+
+###
+
+# ── Section 28: Token Refresh ─────────────────────────────
+
+# ✅ Refresh tokens (rotate refresh token, get new access + refresh)
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refresh_token": "{{refreshToken}}"
+}
+
+###
+
+# ✅ Refresh — missing body (expect 400 VALIDATION_ERROR)
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: {{contentType}}
+
+{}
+
+###
+
+# ── Section 29: Logout ────────────────────────────────────
+
+# ✅ Logout (single device — revokes refresh token)
+POST {{baseUrl}}/api/auth/logout
+Content-Type: {{contentType}}
+
+{
+  "refresh_token": "{{refreshToken}}"
+}
+
+###
+
+# ✅ 🔒 Logout All (revokes all sessions for user)
+POST {{baseUrl}}/api/auth/logout-all
+Authorization: {{riderToken}}
+
+###
+
+# ── Section 30: Device Registration ──────────────────────
+
+# ✅ 🔒 Register FCM Device Token
+PUT {{baseUrl}}/api/auth/device
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "fcm_token": "dGVzdC1mY20tdG9rZW4tMTIzNDU2",
+  "device_type": "android",
+  "device_id": "test-device-001",
+  "device_name": "Test Android Phone"
+}
+
+###
+
+# ✅ 🔒 Register FCM Device — invalid type (expect 400)
+PUT {{baseUrl}}/api/auth/device
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "fcm_token": "some-token",
+  "device_type": "windows"
+}
+
+###
+
+# ── Section 31: Rate Limiting Checks ─────────────────────
+
+# ✅ Login with email+password (now validates schema + rate limited)
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "rider@test.com",
+  "password": "Password123!"
+}
+
+###
+
+# ✅ Login — invalid email format (expect 400 VALIDATION_ERROR)
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "not-an-email",
+  "password": "Password123!"
+}
+
+###
+
+# ============================================================
+# SPRINT 3 — eSewa + Khalti Payments, Promo Codes, Ledger
+# ============================================================
+
+# ─── Variables for Sprint 3 ───────────────────────────────
+@topupId = PASTE_TOPUP_ID_HERE
+@pidx = PASTE_KHALTI_PIDX_HERE
+
+# ── Section 32: Wallet Top-up — Khalti ───────────────────
+
+# ✅ 🔒 Initiate Khalti top-up (returns pidx + payment_url)
+POST {{baseUrl}}/api/wallet/topup/initiate
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "amount": 500,
+  "provider": "khalti",
+  "return_url": "http://localhost:3000/wallet/callback"
+}
+
+###
+
+# ✅ 🔒 Verify Khalti top-up (call after user pays on Khalti)
+POST {{baseUrl}}/api/wallet/topup/verify
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "provider": "khalti",
+  "pidx": "{{pidx}}"
+}
+
+###
+
+# ✅ 🔒 Get top-up status
+GET {{baseUrl}}/api/wallet/topup/status/{{topupId}}
+Authorization: {{riderToken}}
+
+###
+
+# ── Section 33: Wallet Top-up — eSewa ────────────────────
+
+# ✅ 🔒 Initiate eSewa top-up (returns form fields for frontend to POST)
+POST {{baseUrl}}/api/wallet/topup/initiate
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "amount": 500,
+  "provider": "esewa",
+  "return_url": "http://localhost:3000/wallet/callback"
+}
+
+###
+
+# ✅ eSewa webhook (simulates eSewa callback — base64-encoded payload)
+# In sandbox, eSewa POSTs base64(JSON) to this endpoint
+POST {{baseUrl}}/api/payments/webhook/esewa
+Content-Type: {{contentType}}
+
+{
+  "data": "eyJ0cmFuc2FjdGlvbl9jb2RlIjoiMDAwMDEiLCJzdGF0dXMiOiJDT01QTEVURSIsInRvdGFsX2Ftb3VudCI6IjUwMC4wMCIsInRyYW5zYWN0aW9uX3V1aWQiOiJ0ZXN0LXV1aWQtMTIzIiwicHJvZHVjdF9jb2RlIjoiRVBBWVRFU1QiLCJzaWduZWRfZmllbGRfbmFtZXMiOiJ0cmFuc2FjdGlvbl9jb2RlLHN0YXR1cyx0b3RhbF9hbW91bnQsdHJhbnNhY3Rpb25fdXVpZCxwcm9kdWN0X2NvZGUiLCJzaWduYXR1cmUiOiJ0ZXN0In0="
+}
+
+###
+
+# ── Section 34: Wallet Statement ─────────────────────────
+
+# ✅ 🔒 Get wallet statement (all time)
+GET {{baseUrl}}/api/wallet/statement
+Authorization: {{riderToken}}
+
+###
+
+# ✅ 🔒 Get wallet statement with date filter
+GET {{baseUrl}}/api/wallet/statement?from=2026-01-01&to=2026-12-31&page=1&limit=20
+Authorization: {{riderToken}}
+
+###
+
+# ── Section 35: Ride Request with Promo Code ─────────────
+
+# ✅ 🔒 Create ride request with promo code
+POST {{baseUrl}}/api/ride-requests
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+Idempotency-Key: ride-promo-sprint3-001
+
+{
+  "pickupLocation": { "coordinates": [85.3140, 27.7172] },
+  "pickupAddress": "Thamel, Kathmandu",
+  "dropoffLocation": { "coordinates": [85.3183, 27.6788] },
+  "dropoffAddress": "Patan Dhoka, Lalitpur",
+  "vehiclePreference": "car",
+  "pricingMode": "bidding",
+  "passengerCount": 1,
+  "promo_code": "WELCOME10"
+}
+
+###
+
+# ✅ 🔒 Create ride request with invalid promo (expect 400)
+POST {{baseUrl}}/api/ride-requests
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+Idempotency-Key: ride-promo-sprint3-002
+
+{
+  "pickupLocation": { "coordinates": [85.3140, 27.7172] },
+  "pickupAddress": "Thamel, Kathmandu",
+  "dropoffLocation": { "coordinates": [85.3183, 27.6788] },
+  "dropoffAddress": "Patan Dhoka, Lalitpur",
+  "vehiclePreference": "bike",
+  "pricingMode": "bidding",
+  "passengerCount": 1,
+  "promo_code": "INVALIDCODE999"
+}
+
+###
+
+# ── Section 36: Admin Ledger Audit ───────────────────────
+
+# ✅ 🔑 Ledger summary (platform + rider + driver balances)
+GET {{baseUrl}}/api/admin/ledger/summary
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 List all ledger accounts
+GET {{baseUrl}}/api/admin/ledger/accounts
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 List ledger accounts — platform only
+GET {{baseUrl}}/api/admin/ledger/accounts?owner_type=platform
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Ledger entries (paginated)
+GET {{baseUrl}}/api/admin/ledger/entries?page=1&limit=20
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Ledger entries — date filtered
+GET {{baseUrl}}/api/admin/ledger/entries?from=2026-01-01&to=2026-12-31
+Authorization: {{adminToken}}
+
+###
+
+# ✅ 🔑 Verify ledger balance (double-entry check)
+GET {{baseUrl}}/api/admin/ledger/verify
+Authorization: {{adminToken}}
+
+###
+
+# ── Section 37: Top-up edge cases ────────────────────────
+
+# ✅ 🔒 Initiate top-up — amount too low (expect 400)
+POST {{baseUrl}}/api/wallet/topup/initiate
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "amount": 5,
+  "provider": "khalti"
+}
+
+###
+
+# ✅ 🔒 Initiate top-up — unknown provider (expect 400)
+POST {{baseUrl}}/api/wallet/topup/initiate
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "amount": 500,
+  "provider": "paypal"
+}
+
+###
+
 # ✅ 🔑 Get All Gift Cards (admin)
 GET {{baseUrl}}/api/promo-gift/admin/gift-cards/list?page=1&limit=20
 Authorization: {{adminToken}}
@@ -1378,3 +1738,1167 @@ Authorization: {{adminToken}}
 # ✅ 🔑 Get Safety Comment Statistics (admin)
 GET {{baseUrl}}/api/safety-comments/statistics
 Authorization: {{adminToken}}
+
+###
+
+# ══════════════════════════════════════════════════════════════
+# SPRINT 4 — Complete Ride Flow (Stops + Real-Time)
+# ══════════════════════════════════════════════════════════════
+
+# ── 4.1 Stops in All Ride Request Responses ──────────────────
+
+# 38. ✅ 🔑 Get Ride Request Details (includes stops array)
+GET {{baseUrl}}/api/ride-requests/{{rideRequestId}}
+Authorization: {{riderToken}}
+
+###
+
+# 39. ✅ 🔑 Get Rider's Requests (each includes stops array)
+GET {{baseUrl}}/api/ride-requests
+Authorization: {{riderToken}}
+
+###
+
+# 40. ✅ 🔑 Get Nearby Ride Requests for Driver (includes full stops)
+GET {{baseUrl}}/api/ride-requests/nearby
+Authorization: {{driverToken}}
+
+###
+
+# 41. ✅ 🔑 Get Bids for Ride Request
+GET {{baseUrl}}/api/bidding/requests/{{rideRequestId}}/bids
+Authorization: {{riderToken}}
+
+###
+
+# ── 4.2 Real-Time Socket Events ──────────────────────────────
+# (Connect to ws://localhost:5000 with socket.io-client)
+# After connecting, emit:  { event: "authenticate", data: { userId, role, driverId } }
+#
+# Events you will receive:
+#   new_ride_request     → driver socket when rider creates request
+#   bid_placed           → rider socket when driver submits bid
+#   bid_accepted         → driver socket when rider accepts bid
+#   driver_assigned      → rider socket when bid accepted (biddingController)
+#   driver_assigned      → rider socket when fixed-price ride accepted (rideController)
+#   ride_started         → rider socket
+#   stop_arrived         → rider socket
+#   stop_departed        → rider socket
+#   ride_completed       → rider + driver sockets
+#   ride_cancelled       → rider + driver sockets
+#   ride_request_expired → rider socket (from worker, every 60s)
+#   driver_en_route      → rider socket (every location update during active ride)
+
+# 42. ✅ 🔑 Submit Bid (triggers bid_placed → rider socket)
+POST {{baseUrl}}/api/bidding/requests/{{rideRequestId}}/submit
+Authorization: {{driverToken}}
+Content-Type: application/json
+
+{
+  "bidAmount": 350,
+  "estimatedArrivalMinutes": 5,
+  "driverMessage": "On my way!"
+}
+
+###
+
+# 43. ✅ 🔑 Accept Bid (triggers bid_accepted → driver socket, driver_assigned → rider socket)
+POST {{baseUrl}}/api/bidding/bids/{{bidId}}/accept
+Authorization: {{riderToken}}
+
+###
+
+# ── 4.3 Active Ride Lifecycle ─────────────────────────────────
+
+# 44. ✅ 🔑 Start Ride (triggers ride_started → rider socket)
+POST {{baseUrl}}/api/rides/{{rideId}}/start
+Authorization: {{driverToken}}
+
+###
+
+# 45. ✅ 🔑 Arrive at Stop — validates stop is in sequence (400 if out of order)
+POST {{baseUrl}}/api/rides/{{rideId}}/stops/{{stopId}}/arrive
+Authorization: {{driverToken}}
+
+###
+
+# 46. ✅ 🔑 Depart from Stop — validates stop arrived first, prior stops departed
+POST {{baseUrl}}/api/rides/{{rideId}}/stops/{{stopId}}/depart
+Authorization: {{driverToken}}
+
+###
+
+# 47. ✅ 🔑 Complete Ride (triggers ride_completed → rider + driver sockets)
+POST {{baseUrl}}/api/rides/{{rideId}}/complete
+Authorization: {{driverToken}}
+
+###
+
+# 48. ✅ 🔑 Cancel Ride (triggers ride_cancelled → rider + driver sockets)
+POST {{baseUrl}}/api/rides/{{rideId}}/cancel
+Authorization: {{riderToken}}
+
+###
+
+# ── 4.3 Live Driver Location ──────────────────────────────────
+
+# 49. ✅ 🔑 Update Driver Location (Redis cached 30s, emits driver_en_route during active ride)
+POST {{baseUrl}}/api/ride-requests/drivers/location
+Authorization: {{driverToken}}
+Content-Type: application/json
+
+{
+  "lat": 27.7172,
+  "lng": 85.3240
+}
+
+###
+
+# 50. ✅ 🔑 Get Driver Live Location (Redis-first, DB fallback)
+GET {{baseUrl}}/api/ride-requests/drivers/location/{{driverDbId}}
+Authorization: {{riderToken}}
+
+###
+
+# ══════════════════════════════════════════════════════════════
+# SPRINT 5 — Driver System Completion
+# Tests 51-70
+# ══════════════════════════════════════════════════════════════
+
+# ── 5.1 Onboarding State Machine ─────────────────────────────
+
+# 51. ✅ 🔑 Onboarding Status — 6-step state machine
+GET {{baseUrl}}/api/drivers/onboarding-status
+Authorization: {{driverToken}}
+
+###
+
+# ── 5.1 Enhanced Driver Profile ──────────────────────────────
+
+# 52. ✅ 🔑 Get Driver Profile (enhanced: safety_level, badge, vehicle info, member_since)
+GET {{baseUrl}}/api/drivers/profile
+Authorization: {{driverToken}}
+
+###
+
+# 53. ✅ 🔑 Update Driver Profile (vehicle info + photo)
+PUT {{baseUrl}}/api/drivers/profile
+Authorization: {{driverToken}}
+Content-Type: application/json
+
+{
+  "vehicle_model": "Honda CB Shine",
+  "vehicle_color": "Red",
+  "license_plate": "BA 1 PA 1234",
+  "vehicle_year": 2022,
+  "photo_url": "https://cdn.example.com/driver-photo.jpg"
+}
+
+###
+
+# ── 5.1 Driver Stats ─────────────────────────────────────────
+
+# 54. ✅ 🔑 Driver Stats (today earnings, rides today, acceptance rate)
+GET {{baseUrl}}/api/drivers/stats
+Authorization: {{driverToken}}
+
+###
+
+# ── 5.5 Earnings — Summary ───────────────────────────────────
+
+# 55. ✅ 🔑 Earnings Summary — today
+GET {{baseUrl}}/api/drivers/earnings/summary?period=today
+Authorization: {{driverToken}}
+
+###
+
+# 56. ✅ 🔑 Earnings Summary — last 7 days
+GET {{baseUrl}}/api/drivers/earnings/summary?period=week
+Authorization: {{driverToken}}
+
+###
+
+# 57. ✅ 🔑 Earnings Summary — last 30 days
+GET {{baseUrl}}/api/drivers/earnings/summary?period=month
+Authorization: {{driverToken}}
+
+###
+
+# ── 5.5 Earnings — History ───────────────────────────────────
+
+# 58. ✅ 🔑 Earnings History — page 1 (completed rides list)
+GET {{baseUrl}}/api/drivers/earnings/history?page=1&limit=20
+Authorization: {{driverToken}}
+
+###
+
+# ── 5.5 Earnings — Statement ─────────────────────────────────
+
+# 59. ✅ 🔑 Earnings Statement — date range (all ledger entries + summary)
+GET {{baseUrl}}/api/drivers/earnings/statement?from=2026-06-01&to=2026-06-30
+Authorization: {{driverToken}}
+
+###
+
+# 60. ⚠️  Earnings Statement — missing params (should return 400)
+GET {{baseUrl}}/api/drivers/earnings/statement
+Authorization: {{driverToken}}
+
+###
+
+# ── 5.2 Safety Scoring Fixes ─────────────────────────────────
+
+# 61. ✅ 🔑 Submit Driver Review (triggers safetyQueue → badge evaluation)
+POST {{baseUrl}}/api/reviews/driver
+Authorization: {{riderToken}}
+Content-Type: application/json
+
+{
+  "rideId": {{rideId}},
+  "stars": 5,
+  "taps": [
+    { "key": "FELT_SAFE", "category": "positive" },
+    { "key": "RESPECTFUL", "category": "positive" }
+  ]
+}
+
+###
+
+# 62. ✅ 🔑 Submit Low-Star Review — 2 stars should impact -5 pts (was -10)
+POST {{baseUrl}}/api/reviews/driver
+Authorization: {{riderToken}}
+Content-Type: application/json
+
+{
+  "rideId": {{rideId}},
+  "stars": 2,
+  "taps": []
+}
+
+###
+
+# 63. ✅ 🔑 Submit Safety Concern Review — -40 pts + negative star cap at -50
+POST {{baseUrl}}/api/reviews/driver
+Authorization: {{riderToken}}
+Content-Type: application/json
+
+{
+  "rideId": {{rideId}},
+  "stars": 1,
+  "taps": [
+    { "key": "SAFETY_CONCERN", "category": "negative" }
+  ]
+}
+
+###
+
+# ── 5.4 Matching Algorithm ───────────────────────────────────
+
+# 64. ✅ 🔑 Get Nearby Ride Requests for Driver (matching with new score formula, 800+ threshold)
+GET {{baseUrl}}/api/ride-requests/nearby
+Authorization: {{driverToken}}
+
+###
+
+# ── 5.2 Safety Recovery Worker ───────────────────────────────
+
+# 65. ✅ 🔑 Admin — Trigger safety recovery manually (no endpoint; run via Postman/cron)
+# Note: safetyRecoveryWorker runs every Sunday at 3am automatically.
+# To test: import runSafetyRecoveryWorker and call directly in a test script.
+GET {{baseUrl}}/api/admin/drivers/{{driverDbId}}/safety
+Authorization: {{adminToken}}
+
+###
+
+# ── 5.3 Badge Worker ─────────────────────────────────────────
+
+# 66. ✅ 🔑 Admin — Driver Safety Full Profile (safety_level + 50-entry audit log)
+GET {{baseUrl}}/api/admin/drivers/{{driverDbId}}/safety
+Authorization: {{adminToken}}
+
+###
+
+# ── 5.1 Admin Badge Management ───────────────────────────────
+
+# 67. ✅ 🔑 Admin — Get All Drivers with Badges
+GET {{baseUrl}}/api/admin/drivers/badges
+Authorization: {{adminToken}}
+
+###
+
+# 68. ✅ 🔑 Admin — Get Driver Badges
+GET {{baseUrl}}/api/admin/drivers/{{driverDbId}}/badges
+Authorization: {{adminToken}}
+
+###
+
+# 69. ✅ 🔑 Admin — Update Driver Badges
+PUT {{baseUrl}}/api/admin/drivers/{{driverDbId}}/badges
+Authorization: {{adminToken}}
+Content-Type: application/json
+
+{
+  "confirmed_identity": true,
+  "driver_license_verified": true,
+  "vehicle_inspected": true
+}
+
+###
+
+# 70. ✅ 🔑 Dead Letter Queue inspection (call safetyQueue.getDeadLetters() in server code)
+# No HTTP endpoint — access programmatically via:
+#   import { safetyQueue } from './infrastructure/async/safetyQueue.js';
+#   console.log(safetyQueue.getDeadLetters());
+GET {{baseUrl}}/api/admin/drivers/{{driverDbId}}/safety
+Authorization: {{adminToken}}
+
+###
+
+# ══════════════════════════════════════════════════════════════
+# SPRINT 6 — Push Notifications + Notification Centre
+# Tests 71-82
+# ══════════════════════════════════════════════════════════════
+
+# ── 6.1 Device Token Registration ────────────────────────────
+
+# 71. ✅ 🔑 Register FCM device token (prerequisite for all push notifications)
+PUT {{baseUrl}}/api/auth/device
+Authorization: {{riderToken}}
+Content-Type: application/json
+
+{
+  "fcm_token": "PASTE_REAL_FCM_TOKEN_FROM_DEVICE",
+  "device_type": "android",
+  "device_id": "device-uuid-001",
+  "device_name": "Test Android Phone"
+}
+
+###
+
+# 72. ✅ 🔑 Register driver FCM device token
+PUT {{baseUrl}}/api/auth/device
+Authorization: {{driverToken}}
+Content-Type: application/json
+
+{
+  "fcm_token": "PASTE_DRIVER_FCM_TOKEN",
+  "device_type": "android",
+  "device_id": "driver-device-001",
+  "device_name": "Driver Android Phone"
+}
+
+###
+
+# ── 6.5 Notification Centre ───────────────────────────────────
+
+# 73. ✅ 🔑 Get notifications (paginated, newest first)
+GET {{baseUrl}}/api/notifications?page=1&limit=20
+Authorization: {{riderToken}}
+
+###
+
+# 74. ✅ 🔑 Get unread notification count (for bell icon badge)
+GET {{baseUrl}}/api/notifications/unread-count
+Authorization: {{riderToken}}
+
+###
+
+# 75. ✅ 🔑 Mark single notification as read
+PUT {{baseUrl}}/api/notifications/PASTE_NOTIFICATION_UUID/read
+Authorization: {{riderToken}}
+
+###
+
+# 76. ✅ 🔑 Mark all notifications as read
+PUT {{baseUrl}}/api/notifications/read-all
+Authorization: {{riderToken}}
+
+###
+
+# ── 6.4 Ride Notifications (trigger via ride flow, check bell) ─
+
+# 77. ✅ 🔑 Create ride request → nearby drivers get "New Ride Request" push + DB notification
+POST {{baseUrl}}/api/ride-requests
+Authorization: {{riderToken}}
+Content-Type: application/json
+
+{
+  "pickup_address": "Thamel, Kathmandu",
+  "dropoff_address": "Patan Durbar Square",
+  "pickup_lat": 27.7172,
+  "pickup_lng": 85.3140,
+  "dropoff_lat": 27.6727,
+  "dropoff_lng": 85.3222,
+  "vehicle_type": "bike",
+  "pricing_mode": "bidding"
+}
+
+###
+
+# 78. ✅ 🔑 Submit bid → rider gets "New Bid Received" push
+POST {{baseUrl}}/api/bidding/requests/{{rideRequestId}}/submit
+Authorization: {{driverToken}}
+Content-Type: application/json
+
+{
+  "bidAmount": 350,
+  "estimatedArrivalMinutes": 5,
+  "driverMessage": "On my way!"
+}
+
+###
+
+# ── 6.4 KYC Notifications ─────────────────────────────────────
+
+# 79. ✅ 🔑 Admin verify KYC → user gets "KYC Verified ✓" push
+PUT {{baseUrl}}/api/kyc/verify/{{userId}}
+Authorization: {{adminToken}}
+Content-Type: application/json
+
+{
+  "approved": true,
+  "remarks": "All documents verified"
+}
+
+###
+
+# 80. ✅ 🔑 Admin reject KYC → user gets "KYC Needs Attention" push
+PUT {{baseUrl}}/api/kyc/verify/{{userId}}
+Authorization: {{adminToken}}
+Content-Type: application/json
+
+{
+  "approved": false,
+  "remarks": "Photo unclear. Please resubmit with better lighting"
+}
+
+###
+
+# ── 6.4 Driver Approval Notifications ────────────────────────
+
+# 81. ✅ 🔑 Admin approve driver application → driver gets "You're a Driver!" push
+PUT {{baseUrl}}/api/driver-applications/PASTE_APP_ID/review
+Authorization: {{adminToken}}
+Content-Type: application/json
+
+{
+  "approved": true,
+  "remarks": "Welcome to SG!"
+}
+
+###
+
+# ── 6.4 Wallet Notification ──────────────────────────────────
+
+# 82. ✅ 🔑 Top up wallet → user gets "Wallet Topped Up" push
+POST {{baseUrl}}/api/wallet/topup
+Authorization: {{riderToken}}
+Content-Type: application/json
+
+{
+  "amount": 500,
+  "paymentMethod": "esewa",
+  "paymentGateway": "esewa",
+  "gatewayTransactionId": "ESW-TEST-12345"
+}
+
+###
+
+# ══════════════════════════════════════════════════════════════
+# SPRINT 7 — React Web Dashboard (UI validation via API)
+# Tests 83-96  (frontend runs on http://localhost:3000)
+# ══════════════════════════════════════════════════════════════
+
+# ── 7.1 Auth Flow (OTP) ───────────────────────────────────────
+
+# 83. ✅ 🔑 Send OTP (dev: response includes otp field)
+POST {{baseUrl}}/api/auth/send-otp
+Content-Type: application/json
+
+{
+  "phone": "+9779800000001"
+}
+
+###
+
+# 84. ✅ 🔑 Verify OTP → new rider account (isNewUser: true → name entry screen)
+POST {{baseUrl}}/api/auth/verify-otp
+Content-Type: application/json
+
+{
+  "phone": "+9779800000001",
+  "otp": "PASTE_OTP_FROM_83",
+  "role": "rider"
+}
+
+###
+
+# 85. ✅ 🔑 Verify OTP → new driver account
+POST {{baseUrl}}/api/auth/verify-otp
+Content-Type: application/json
+
+{
+  "phone": "+9779800000002",
+  "otp": "PASTE_OTP",
+  "role": "driver"
+}
+
+###
+
+# 86. ✅ 🔑 Resend OTP (resets countdown)
+POST {{baseUrl}}/api/auth/resend-otp
+Content-Type: application/json
+
+{
+  "phone": "+9779800000001"
+}
+
+###
+
+# ── 7.2 Rider Flow ─────────────────────────────────────────────
+
+# 87. ✅ 🔑 Estimate ride (called from vehicle selection screen)
+POST {{baseUrl}}/api/ride-requests/estimate
+Authorization: {{riderToken}}
+Content-Type: application/json
+
+{
+  "pickup_lat": 27.7172,
+  "pickup_lng": 85.3240,
+  "dropoff_lat": 27.6727,
+  "dropoff_lng": 85.3222,
+  "stops": []
+}
+
+###
+
+# 88. ✅ 🔑 Create ride request (called after selecting vehicle)
+POST {{baseUrl}}/api/ride-requests
+Authorization: {{riderToken}}
+Content-Type: application/json
+Idempotency-Key: ride-{{$timestamp}}
+
+{
+  "pickup_address": "Thamel, Kathmandu",
+  "dropoff_address": "Patan Durbar Square",
+  "pickup_lat": 27.7172,
+  "pickup_lng": 85.3240,
+  "dropoff_lat": 27.6727,
+  "dropoff_lng": 85.3222,
+  "stops": [],
+  "vehicle_type": "bike",
+  "pricing_mode": "bidding"
+}
+
+###
+
+# 89. ✅ 🔑 Get bids for request (polling fallback on waiting screen)
+GET {{baseUrl}}/api/bidding/requests/{{rideRequestId}}/bids
+Authorization: {{riderToken}}
+
+###
+
+# 90. ✅ 🔑 Accept bid (navigates rider to ride-in-progress screen)
+POST {{baseUrl}}/api/bidding/bids/{{bidId}}/accept
+Authorization: {{riderToken}}
+
+###
+
+# ── 7.3 Driver Flow ────────────────────────────────────────────
+
+# 91. ✅ 🔑 Driver go online (shows online toggle on driver home)
+PUT {{baseUrl}}/api/drivers/status
+Authorization: {{driverToken}}
+Content-Type: application/json
+
+{
+  "status": "online"
+}
+
+###
+
+# 92. ✅ 🔑 Driver update location (called every 5s while online)
+POST {{baseUrl}}/api/ride-requests/drivers/location
+Authorization: {{driverToken}}
+Content-Type: application/json
+
+{
+  "lat": 27.7172,
+  "lng": 85.3240
+}
+
+###
+
+# 93. ✅ 🔑 Driver submit bid (called from incoming request card)
+POST {{baseUrl}}/api/bidding/requests/{{rideRequestId}}/submit
+Authorization: {{driverToken}}
+Content-Type: application/json
+
+{
+  "bidAmount": 320,
+  "estimatedArrivalMinutes": 4,
+  "driverMessage": "On my way!"
+}
+
+###
+
+# ── 7.4 Wallet Screen ──────────────────────────────────────────
+
+# 94. ✅ 🔑 Get wallet balance (shown on wallet home screen)
+GET {{baseUrl}}/api/wallet
+Authorization: {{riderToken}}
+
+###
+
+# 95. ✅ 🔑 Get transaction history (wallet history tab)
+GET {{baseUrl}}/api/wallet/transactions?page=1&limit=20
+Authorization: {{riderToken}}
+
+###
+
+# ── 7.5 Admin Screens ──────────────────────────────────────────
+
+# 96. ✅ 🔑 Admin login with email+password (admin login page)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@sg.com",
+  "password": "Admin@1234"
+}
+
+###
+
+# ════════════════════════════════════════════════════════════════
+# SPRINT 8 — React Native Mobile App (Expo)
+# ════════════════════════════════════════════════════════════════
+# Variables used in this section:
+#   @mobilePhone   = +9779800000001
+#   @mobileOtp     = (from send-otp response devOtp field)
+#   @mobileToken   = (from verify-otp response accessToken)
+#   @mobileRefresh = (from verify-otp response refreshToken)
+#   @expoPushToken = ExponentPushToken[xxxx-yyyy-zzzz]
+
+# ── 8.1 Auth Flow (same backend, mobile client) ────────────────
+
+# 97. ✅ Mobile: Send OTP (rider)
+POST {{baseUrl}}/api/auth/send-otp
+Content-Type: application/json
+
+{
+  "phone": "+9779800000001",
+  "role": "rider"
+}
+
+###
+
+# 98. ✅ Mobile: Verify OTP + get tokens
+POST {{baseUrl}}/api/auth/verify-otp
+Content-Type: application/json
+
+{
+  "phone": "+9779800000001",
+  "otp": "{{mobileOtp}}"
+}
+
+###
+
+# 99. ✅ Mobile: Register Expo push token after login
+PUT {{baseUrl}}/api/auth/device
+Authorization: Bearer {{mobileToken}}
+Content-Type: application/json
+
+{
+  "fcm_token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
+  "device_type": "ios",
+  "device_id": "simulator-iphone-15",
+  "device_name": "iPhone 15 Simulator"
+}
+
+###
+
+# ── 8.2 Background Location (Driver mobile) ────────────────────
+
+# 100. ✅ 🔒 Driver goes online from mobile app
+PUT {{baseUrl}}/api/drivers/status
+Authorization: Bearer {{driverToken}}
+Content-Type: application/json
+
+{
+  "status": "online"
+}
+
+###
+
+# 101. ✅ 🔒 Background location task sends driver position (every 5–15s)
+POST {{baseUrl}}/api/ride-requests/drivers/location
+Authorization: Bearer {{driverToken}}
+Content-Type: application/json
+
+{
+  "lat": 27.7095,
+  "lng": 85.3130
+}
+
+###
+
+# ── 8.3 Full Mobile Ride Flow ──────────────────────────────────
+
+# 102. ✅ 🔒 Mobile rider creates ride request (idempotency key required)
+POST {{baseUrl}}/api/ride-requests
+Authorization: Bearer {{mobileToken}}
+Content-Type: application/json
+Idempotency-Key: mobile-{{$timestamp}}
+
+{
+  "pickup_lat": 27.7172,
+  "pickup_lng": 85.3240,
+  "pickup_address": "Kathmandu Durbar Square",
+  "dropoff_lat": 27.6933,
+  "dropoff_lng": 85.3424,
+  "dropoff_address": "Tribhuvan International Airport",
+  "vehicle_type": "bike",
+  "stops": []
+}
+
+###
+
+# 103. ✅ 🔒 Mobile driver submits bid (from IncomingCard component)
+POST {{baseUrl}}/api/bidding/requests/{{activeRequestId}}/submit
+Authorization: Bearer {{driverToken}}
+Content-Type: application/json
+
+{
+  "amount": 280,
+  "eta_minutes": 4
+}
+
+###
+
+# 104. ✅ 🔒 Mobile rider accepts bid (from WaitingForBids screen)
+POST {{baseUrl}}/api/bidding/bids/{{bidId}}/accept
+Authorization: Bearer {{mobileToken}}
+
+###
+
+# 105. ✅ 🔒 Mobile driver marks arrived at pickup (DriverActiveRide step 1)
+POST {{baseUrl}}/api/rides/{{rideId}}/arrive
+Authorization: Bearer {{driverToken}}
+
+###
+
+# 106. ✅ 🔒 Mobile: Token refresh (auto-refresh interceptor in api/client.js)
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "{{mobileRefresh}}"
+}
+
+###
+
+# ════════════════════════════════════════════════════════════════
+# SPRINT 9 — Production Hardening
+# ════════════════════════════════════════════════════════════════
+
+# ── 9.1 Health Check ───────────────────────────────────────────
+
+# 107. ✅ Health check — no auth (used by nginx + uptime monitors)
+GET {{baseUrl}}/health
+
+###
+
+# 108. ✅ Root ping
+GET {{baseUrl}}/
+
+###
+
+# ── 9.2 Request ID propagation ─────────────────────────────────
+
+# 109. ✅ Request with X-Request-ID header (response echoes it back)
+GET {{baseUrl}}/health
+X-Request-ID: test-req-abc-123
+
+###
+
+# ── 9.3 Winston structured log output ──────────────────────────
+# These aren't API tests — run the backend and check logs/ directory:
+#   logs/combined-<DATE>.log  → all requests in JSON
+#   logs/error-<DATE>.log     → errors only
+#
+# To trigger a sample error log:
+# 110. ✅ 404 route (generates warn-level request log)
+GET {{baseUrl}}/api/nonexistent-route-for-log-test
+
+###
+
+# ── 9.4 Performance check (pool + indexes) ─────────────────────
+
+# 111. ✅ 🔒 Nearby drivers spatial query (uses PostGIS GIST index)
+GET {{baseUrl}}/api/ride-requests/drivers/nearby?lat=27.7172&lng=85.3240&vehicle_type=bike
+Authorization: {{riderToken}}
+
+###
+
+# 112. ✅ 🔒 Ride list by status (uses idx_rides_status)
+GET {{baseUrl}}/api/rides?status=completed&limit=20
+Authorization: {{riderToken}}
+
+###
+
+# ── 9.5 Error tracking (Sentry) ────────────────────────────────
+# 113. ✅ 🔒 Intentional 500 (verify Sentry captures it)
+# POST {{baseUrl}}/api/debug/sentry-test
+# Authorization: {{adminToken}}
+# (Disabled — only enable during Sentry setup verification)
+
+###
+
+# ── 9.6 DB Backup ─────────────────────────────────────────────
+# 114. Not an HTTP test — run manually on the server:
+#   DATABASE_URL=<url> BACKUP_DIR=/backups ./backend/scripts/backup-db.sh
+# Verify: ls -lh /backups/*.sql.gz
+
+###
+
+# ── 9.7 Docker production stack ───────────────────────────────
+# 115. Not an HTTP test — bring up production stack:
+#   docker compose -f docker-compose.production.yml up -d
+# Then verify health:
+GET {{baseUrl}}/health
+
+###
+
+# ── 9.8 Notifications with X-Request-ID trace ─────────────────
+
+# 116. ✅ 🔒 Get notifications — verify X-Request-ID in response header
+GET {{baseUrl}}/api/notifications
+Authorization: {{riderToken}}
+
+###
+
+# ════════════════════════════════════════════════════════════════
+# SPRINT 10 — App Store + Play Store Submission
+# ════════════════════════════════════════════════════════════════
+
+# ── 10.1 Legal redirects ───────────────────────────────────────
+
+# 117. ✅ GET /privacy — redirects 301 to frontend /privacy
+GET {{baseUrl}}/privacy
+
+###
+
+# 118. ✅ GET /terms — redirects 301 to frontend /terms
+GET {{baseUrl}}/terms
+
+###
+
+# ── 10.2 Account deletion ──────────────────────────────────────
+
+# 119. ✅ 🔒 Delete own account (rider)
+POST {{baseUrl}}/api/auth/delete-account
+Authorization: {{riderToken}}
+
+###
+
+# 120. ✅ 🔒 Delete own account (driver)
+POST {{baseUrl}}/api/auth/delete-account
+Authorization: {{driverToken}}
+
+###
+
+# ── 10.3 KYC submission (mobile upload) ────────────────────────
+
+# 121. ✅ 🔒 Submit KYC documents (multipart/form-data)
+# In production use the mobile KYC screen; test via curl:
+# curl -X POST http://localhost:5000/api/kyc/submit \
+#   -H "Authorization: Bearer TOKEN" \
+#   -F "citizenship_front=@/path/to/front.jpg" \
+#   -F "citizenship_back=@/path/to/back.jpg"   \
+#   -F "selfie=@/path/to/selfie.jpg"
+GET {{baseUrl}}/api/kyc/status
+Authorization: {{riderToken}}
+
+###
+
+# ── 10.4 FCM device token registration ────────────────────────
+
+# 122. ✅ 🔒 Register Expo push token for iOS
+PUT {{baseUrl}}/api/auth/device
+Authorization: {{riderToken}}
+Content-Type: {{contentType}}
+
+{
+  "fcm_token": "ExponentPushToken[PASTE_EXPO_PUSH_TOKEN]",
+  "device_type": "ios",
+  "device_id": "test-device-ios-001",
+  "device_name": "iPhone 16 Pro (Review)"
+}
+
+###
+
+# 123. ✅ 🔒 Register Expo push token for Android
+PUT {{baseUrl}}/api/auth/device
+Authorization: {{driverToken}}
+Content-Type: {{contentType}}
+
+{
+  "fcm_token": "ExponentPushToken[PASTE_EXPO_PUSH_TOKEN_ANDROID]",
+  "device_type": "android",
+  "device_id": "test-device-android-001",
+  "device_name": "Pixel 9 (Review)"
+}
+
+###
+
+# ── 10.5 Network resilience — check health after reconnect ────
+
+# 124. ✅ Health check from mobile perspective (offline recovery test)
+GET {{baseUrl}}/health
+Accept: application/json
+
+###
+
+# ── 10.6 Full rider journey (store review flow) ────────────────
+
+# 125. ✅ 🔒 Send OTP to test rider number
+POST {{baseUrl}}/api/auth/send-otp
+Content-Type: {{contentType}}
+
+{
+  "phone_number": "+9779800000001"
+}
+
+###
+
+# 126. ✅ Verify OTP for test rider (dev bypass)
+POST {{baseUrl}}/api/auth/verify-otp
+Content-Type: {{contentType}}
+
+{
+  "phone_number": "+9779800000001",
+  "otp": "123456",
+  "role": "rider"
+}
+
+###
+
+# ════════════════════════════════════════════════════════════════
+# SPRINT 11 — Analytics, Operations & Surge Pricing
+# ════════════════════════════════════════════════════════════════
+
+# ── 11.1 Analytics — Overview ──────────────────────────────────
+
+# 127. ✅ 🔑 Overview — today
+GET {{baseUrl}}/api/admin/analytics/overview?period=today
+Authorization: {{adminToken}}
+
+###
+
+# 128. ✅ 🔑 Overview — last 7 days
+GET {{baseUrl}}/api/admin/analytics/overview?period=week
+Authorization: {{adminToken}}
+
+###
+
+# 129. ✅ 🔑 Overview — last 30 days
+GET {{baseUrl}}/api/admin/analytics/overview?period=month
+Authorization: {{adminToken}}
+
+###
+
+# ── 11.2 Analytics — Rides ────────────────────────────────────
+
+# 130. ✅ 🔑 Rides analytics — date range
+GET {{baseUrl}}/api/admin/analytics/rides?from=2026-06-01&to=2026-06-24
+Authorization: {{adminToken}}
+
+###
+
+# 131. ✅ 🔑 Drivers analytics — date range
+GET {{baseUrl}}/api/admin/analytics/drivers?from=2026-06-01&to=2026-06-24
+Authorization: {{adminToken}}
+
+###
+
+# 132. ✅ 🔑 Finance analytics — date range
+GET {{baseUrl}}/api/admin/analytics/finance?from=2026-06-01&to=2026-06-24
+Authorization: {{adminToken}}
+
+###
+
+# 133. ✅ 🔑 Geography heatmap (PostGIS — ride request origins)
+GET {{baseUrl}}/api/admin/analytics/geography
+Authorization: {{adminToken}}
+
+###
+
+# ── 11.3 Surge Pricing ─────────────────────────────────────────
+
+# 134. ✅ Check surge at Thamel (public — no auth)
+GET {{baseUrl}}/api/admin/surge/check?lat=27.7154&lng=85.3123
+
+###
+
+# 135. ✅ 🔑 List all active surges
+GET {{baseUrl}}/api/admin/surge
+Authorization: {{adminToken}}
+
+###
+
+# 136. ✅ 🔑 Create surge zone — Thamel 1.5× for 2 hours
+POST {{baseUrl}}/api/admin/surge
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "area_name":  "Thamel",
+  "lat":        27.7154,
+  "lng":        85.3123,
+  "radius_km":  2,
+  "multiplier": 1.5,
+  "reason":     "Concert at Tundikhel",
+  "ends_at":    "2026-06-24T23:59:00Z"
+}
+
+###
+
+# 137. ✅ 🔑 End surge early
+DELETE {{baseUrl}}/api/admin/surge/1
+Authorization: {{adminToken}}
+
+###
+
+# ── 11.4 Surge applied to fare estimation ─────────────────────
+
+# 138. ✅ 🔒 Estimate fare (surge multiplier applied when active)
+GET {{baseUrl}}/api/ride-requests/estimate?pickup_lat=27.7154&pickup_lng=85.3123&dropoff_lat=27.7006&dropoff_lng=85.3139
+Authorization: {{riderToken}}
+
+###
+
+# ── 11.5 Admin email trigger ───────────────────────────────────
+
+# 139. ✅ 🔒 Submit driver application (triggers admin email in prod)
+# (Use the full driver application flow from Sprint 4 — POST /api/driver-applications/submit)
+# This is a reference only — full multipart form documented in sprint-4-complete.json
+
+# 140. ✅ 🔑 Admin views analytics + surge together (smoke test)
+GET {{baseUrl}}/api/admin/analytics/overview?period=today
+Authorization: {{adminToken}}
+
+###
+
+# ════════════════════════════════════════════════════════════════
+# SPRINT 12 — Final QA, Performance & Launch Prep
+# ════════════════════════════════════════════════════════════════
+
+# ── 12.1 Performance endpoints ─────────────────────────────────
+
+# 141. ✅ 🔑 DB stats (table sizes, connections)
+GET {{baseUrl}}/api/admin/performance/db-stats
+Authorization: {{adminToken}}
+
+###
+
+# 142. ✅ 🔑 Slow queries (min avg 50ms, requires pg_stat_statements)
+GET {{baseUrl}}/api/admin/performance/slow-queries?min_ms=50&limit=20
+Authorization: {{adminToken}}
+
+###
+
+# 143. ✅ 🔑 Slow queries — lower threshold for dev
+GET {{baseUrl}}/api/admin/performance/slow-queries?min_ms=10
+Authorization: {{adminToken}}
+
+###
+
+# 144. ✅ 🔑 Cache stats (Redis info)
+GET {{baseUrl}}/api/admin/performance/cache-stats
+Authorization: {{adminToken}}
+
+###
+
+# 145. ✅ 🔑 Flush route cache
+POST {{baseUrl}}/api/admin/performance/cache-flush
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "pattern": "route:*"
+}
+
+###
+
+# 146. ✅ 🔑 Flush all cache
+POST {{baseUrl}}/api/admin/performance/cache-flush
+Authorization: {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "pattern": "*"
+}
+
+###
+
+# ── 12.2 Route caching verification ───────────────────────────
+
+# 147. ✅ 🔒 Estimate fare — first call (cache MISS, hits Google Maps)
+GET {{baseUrl}}/api/ride-requests/estimate?pickup_lat=27.7154&pickup_lng=85.3123&dropoff_lat=27.6588&dropoff_lng=85.3247
+Authorization: {{riderToken}}
+
+###
+
+# 148. ✅ 🔒 Estimate fare — second call same route (cache HIT, ~10x faster)
+GET {{baseUrl}}/api/ride-requests/estimate?pickup_lat=27.7154&pickup_lng=85.3123&dropoff_lat=27.6588&dropoff_lng=85.3247
+Authorization: {{riderToken}}
+
+###
+
+# ── 12.3 Health check — full production smoke test ─────────────
+
+# 149. ✅ Health — all services up
+GET {{baseUrl}}/health
+
+###
+
+# 150. ✅ Root ping
+GET {{baseUrl}}/
+
+###
+
+# ── 12.4 E2E flow — rider full journey ────────────────────────
+
+# 151. ✅ 🔒 Rider: get wallet balance (production smoke)
+GET {{baseUrl}}/api/wallet/balance
+Authorization: {{riderToken}}
+
+###
+
+# 152. ✅ 🔒 Rider: get notifications (smoke)
+GET {{baseUrl}}/api/notifications
+Authorization: {{riderToken}}
+
+###
+
+# 153. ✅ 🔒 Driver: check earnings summary (smoke)
+GET {{baseUrl}}/api/drivers/earnings/summary
+Authorization: {{driverToken}}
+
+###
+
+# ── 12.5 Security headers check ───────────────────────────────
+
+# 154. ✅ OPTIONS preflight — CORS headers present
+OPTIONS {{baseUrl}}/api/auth/send-otp
+Origin: https://sawagaadi.com
+Access-Control-Request-Method: POST
+
+###
+
+# 155. ✅ 🔑 Admin performance dashboard load — all 4 widgets
+# (Composite test: slow-queries + db-stats + cache-stats in sequence)
+GET {{baseUrl}}/api/admin/performance/db-stats
+Authorization: {{adminToken}}
+
+###

@@ -892,4 +892,129 @@
 
 // export default App;
 
+// ─────────────────────────────────────────────────────────────
+// SPRINT 7 — new App (all old code above is commented out)
+// ─────────────────────────────────────────────────────────────
 
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { useAuthStore } from './store/authStore';
+import PhoneFrame from './components/PhoneFrame';
+
+// Auth
+import SplashPage      from './pages/auth/SplashPage';
+import LoginPage       from './pages/auth/LoginPage';
+import NameEntryPage   from './pages/auth/NameEntryPage';
+import AdminLoginPage  from './pages/auth/AdminLoginPage';
+
+// Rider
+import RiderHome         from './pages/rider/RiderHome';
+import DestinationPicker from './pages/rider/DestinationPicker';
+import VehicleSelect     from './pages/rider/VehicleSelect';
+import WaitingForBids    from './pages/rider/WaitingForBids';
+import RideInProgress    from './pages/rider/RideInProgress';
+import RideReview        from './pages/rider/RideReview';
+
+// Driver
+import DriverHome       from './pages/driver/DriverHome';
+import DriverActiveRide from './pages/driver/DriverActiveRide';
+import DriverEarnings   from './pages/driver/DriverEarnings';
+
+// Shared
+import WalletPage        from './pages/shared/WalletPage';
+import NotificationsPage from './pages/shared/NotificationsPage';
+import ProfilePage       from './pages/shared/ProfilePage';
+
+// Legal
+import PrivacyPolicy  from './pages/legal/PrivacyPolicy';
+import TermsOfService from './pages/legal/TermsOfService';
+
+// Admin
+import AdminLayout     from './pages/admin/AdminLayout';
+import AdminDashboard  from './pages/admin/AdminDashboard';
+import AdminKYC        from './pages/admin/AdminKYC';
+import AdminDriverApps from './pages/admin/AdminDriverApps';
+import AdminLiveMap    from './pages/admin/AdminLiveMap';
+import AdminPayouts    from './pages/admin/AdminPayouts';
+import AdminUsers      from './pages/admin/AdminUsers';
+import AdminAnalytics    from './pages/admin/AdminAnalytics';
+import AdminSurge        from './pages/admin/AdminSurge';
+import AdminPerformance  from './pages/admin/AdminPerformance';
+
+function RequireAuth({ children, role: requiredRole }) {
+  const { token, role } = useAuthStore();
+  if (!token) return <Navigate to="/login" replace />;
+  if (requiredRole && role !== requiredRole) return <Navigate to="/" replace />;
+  return children;
+}
+
+function RequireGuest({ children }) {
+  const { token, role } = useAuthStore();
+  if (token) return <Navigate to={role === 'driver' ? '/driver' : role === 'admin' ? '/admin' : '/rider'} replace />;
+  return children;
+}
+
+function PhonePage({ children, hideNav }) {
+  return <PhoneFrame hideNav={hideNav}>{children}</PhoneFrame>;
+}
+
+export default function App() {
+  return (
+    <>
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: { borderRadius: '12px', fontSize: '13px', maxWidth: '340px' },
+          duration: 3000,
+        }}
+      />
+
+      <Routes>
+        {/* Splash */}
+        <Route path="/" element={<PhonePage hideNav><SplashPage /></PhonePage>} />
+
+        {/* Auth */}
+        <Route path="/login" element={<RequireGuest><PhonePage hideNav><LoginPage /></PhonePage></RequireGuest>} />
+        <Route path="/name"  element={<RequireAuth><PhonePage hideNav><NameEntryPage /></PhonePage></RequireAuth>} />
+        <Route path="/admin/login" element={<AdminLoginPage />} />
+
+        {/* Rider */}
+        <Route path="/rider"                    element={<RequireAuth role="rider"><PhonePage><RiderHome /></PhonePage></RequireAuth>} />
+        <Route path="/rider/destination"         element={<RequireAuth role="rider"><PhonePage hideNav><DestinationPicker /></PhonePage></RequireAuth>} />
+        <Route path="/rider/vehicles"            element={<RequireAuth role="rider"><PhonePage hideNav><VehicleSelect /></PhonePage></RequireAuth>} />
+        <Route path="/rider/waiting/:requestId"  element={<RequireAuth role="rider"><PhonePage hideNav><WaitingForBids /></PhonePage></RequireAuth>} />
+        <Route path="/rider/ride/:rideId"        element={<RequireAuth role="rider"><PhonePage hideNav><RideInProgress /></PhonePage></RequireAuth>} />
+        <Route path="/rider/review/:rideId"      element={<RequireAuth role="rider"><PhonePage hideNav><RideReview /></PhonePage></RequireAuth>} />
+        <Route path="/rider/wallet"              element={<RequireAuth role="rider"><PhonePage><WalletPage /></PhonePage></RequireAuth>} />
+        <Route path="/rider/notifications"       element={<RequireAuth role="rider"><PhonePage><NotificationsPage /></PhonePage></RequireAuth>} />
+        <Route path="/rider/profile"             element={<RequireAuth role="rider"><PhonePage><ProfilePage /></PhonePage></RequireAuth>} />
+
+        {/* Driver */}
+        <Route path="/driver"              element={<RequireAuth role="driver"><PhonePage><DriverHome /></PhonePage></RequireAuth>} />
+        <Route path="/driver/ride/:rideId" element={<RequireAuth role="driver"><PhonePage hideNav><DriverActiveRide /></PhonePage></RequireAuth>} />
+        <Route path="/driver/earnings"     element={<RequireAuth role="driver"><PhonePage><DriverEarnings /></PhonePage></RequireAuth>} />
+        <Route path="/driver/wallet"       element={<RequireAuth role="driver"><PhonePage><WalletPage /></PhonePage></RequireAuth>} />
+        <Route path="/driver/notifications"element={<RequireAuth role="driver"><PhonePage><NotificationsPage /></PhonePage></RequireAuth>} />
+        <Route path="/driver/profile"      element={<RequireAuth role="driver"><PhonePage><ProfilePage /></PhonePage></RequireAuth>} />
+
+        {/* Admin */}
+        <Route path="/admin"         element={<RequireAuth role="admin"><AdminLayout><AdminDashboard /></AdminLayout></RequireAuth>} />
+        <Route path="/admin/kyc"     element={<RequireAuth role="admin"><AdminLayout><AdminKYC /></AdminLayout></RequireAuth>} />
+        <Route path="/admin/drivers" element={<RequireAuth role="admin"><AdminLayout><AdminDriverApps /></AdminLayout></RequireAuth>} />
+        <Route path="/admin/map"     element={<RequireAuth role="admin"><AdminLayout><AdminLiveMap /></AdminLayout></RequireAuth>} />
+        <Route path="/admin/payouts" element={<RequireAuth role="admin"><AdminLayout><AdminPayouts /></AdminLayout></RequireAuth>} />
+        <Route path="/admin/users"      element={<RequireAuth role="admin"><AdminLayout><AdminUsers /></AdminLayout></RequireAuth>} />
+        <Route path="/admin/analytics"   element={<RequireAuth role="admin"><AdminLayout><AdminAnalytics /></AdminLayout></RequireAuth>} />
+        <Route path="/admin/surge"       element={<RequireAuth role="admin"><AdminLayout><AdminSurge /></AdminLayout></RequireAuth>} />
+        <Route path="/admin/performance" element={<RequireAuth role="admin"><AdminLayout><AdminPerformance /></AdminLayout></RequireAuth>} />
+
+        {/* Legal — public, no auth, no phone frame */}
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms"   element={<TermsOfService />} />
+
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
+  );
+}

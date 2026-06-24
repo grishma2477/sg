@@ -11,7 +11,9 @@ export default defineConfig({
       usePolling: true   // REQUIRED in Docker
     },
     proxy: {
-      '/api': 'http://localhost:9000',
+      // In Docker: backend service is reachable at http://backend:5000
+      // Locally:   backend runs on http://localhost:5000
+      '/api': process.env.VITE_PROXY_TARGET || 'http://localhost:5000',
     }
   }
 })

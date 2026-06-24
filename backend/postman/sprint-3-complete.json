@@ -1,0 +1,246 @@
+{
+  "info": {
+    "name": "SG Backend — Sprint 3 Complete",
+    "description": "Sprint 3: eSewa + Khalti Payments, Promo Codes on Rides, Admin Ledger Audit\n\nNew in this sprint:\n- POST /api/wallet/topup/initiate  — unified gateway top-up (esewa|khalti)\n- POST /api/wallet/topup/verify    — Khalti pidx verification + wallet credit\n- GET  /api/wallet/topup/status/:id — pending top-up status\n- GET  /api/wallet/statement        — paginated transaction history with date filter\n- POST /api/payments/webhook/esewa  — HMAC-verified eSewa callback (no auth)\n- GET  /api/admin/ledger/summary    — platform + rider + driver balance summary\n- GET  /api/admin/ledger/accounts   — all ledger accounts with live balances\n- GET  /api/admin/ledger/entries    — paginated ledger entries with filters\n- GET  /api/admin/ledger/verify     — double-entry balance check\n- POST /api/ride-requests accepts promo_code + gift_card_code\n\nDB migrations to run:\n  backend/migrations/sprint3_wallet_topups.up.sql\n  backend/migrations/sprint3_ride_request_promo.up.sql\n\nNew infrastructure:\n  src/infrastructure/payment-providers/esewaClient.js  — HMAC-SHA256 initiate + webhook verify\n  src/infrastructure/payment-providers/khaltiClient.js — initiate + lookup via Khalti v2 API\n\neSewa sandbox credentials (pre-filled in .env defaults):\n  Merchant code: EPAYTEST\n  Secret key:    8gBm/:&EnhH.1/q\n  Base URL:      https://rc-epay.esewa.com.np\n\nKhalti sandbox: use test credentials from khalti.com/api/docs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "sg-sprint-3-2026-06-24"
+  },
+  "variable": [
+    { "key": "baseUrl",      "value": "http://localhost:5000", "type": "string" },
+    { "key": "riderToken",   "value": "", "type": "string" },
+    { "key": "adminToken",   "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "topupId",      "value": "", "type": "string" },
+    { "key": "pidx",         "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Sprint 3 — Khalti Top-up Flow",
+      "item": [
+        {
+          "name": "Initiate Khalti Top-up",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const r = pm.response.json();",
+            "pm.test('Has pidx', () => pm.expect(r.data).to.have.property('pidx'));",
+            "pm.test('Has paymentUrl', () => pm.expect(r.data).to.have.property('paymentUrl'));",
+            "if (r.data?.pidx) pm.collectionVariables.set('pidx', r.data.pidx);"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500,\n  \"provider\": \"khalti\",\n  \"return_url\": \"http://localhost:3000/wallet/callback\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/wallet/topup/initiate", "host": ["{{baseUrl}}"], "path": ["api","wallet","topup","initiate"] }
+          }
+        },
+        {
+          "name": "Verify Khalti Top-up (after payment)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200 or 400', () => pm.expect(pm.response.code).to.be.oneOf([200, 400]));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"provider\": \"khalti\",\n  \"pidx\": \"{{pidx}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/wallet/topup/verify", "host": ["{{baseUrl}}"], "path": ["api","wallet","topup","verify"] }
+          }
+        },
+        {
+          "name": "Get Top-up Status",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200 or 404', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/wallet/topup/status/{{topupId}}", "host": ["{{baseUrl}}"], "path": ["api","wallet","topup","status","{{topupId}}"] }
+          }
+        },
+        {
+          "name": "Initiate — amount too low (expect 400)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 400', () => pm.response.to.have.status(400));"], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 5,\n  \"provider\": \"khalti\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/wallet/topup/initiate", "host": ["{{baseUrl}}"], "path": ["api","wallet","topup","initiate"] }
+          }
+        },
+        {
+          "name": "Initiate — unknown provider (expect 400)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 400', () => pm.response.to.have.status(400));"], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500,\n  \"provider\": \"paypal\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/wallet/topup/initiate", "host": ["{{baseUrl}}"], "path": ["api","wallet","topup","initiate"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sprint 3 — eSewa Top-up Flow",
+      "item": [
+        {
+          "name": "Initiate eSewa Top-up",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const r = pm.response.json();",
+            "pm.test('Has paymentUrl', () => pm.expect(r.data).to.have.property('paymentUrl'));",
+            "pm.test('Has formFields', () => pm.expect(r.data).to.have.property('formFields'));",
+            "pm.test('Has signature', () => pm.expect(r.data.formFields).to.have.property('signature'));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500,\n  \"provider\": \"esewa\",\n  \"return_url\": \"http://localhost:3000/wallet/callback\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/wallet/topup/initiate", "host": ["{{baseUrl}}"], "path": ["api","wallet","topup","initiate"] }
+          }
+        },
+        {
+          "name": "eSewa Webhook — bad payload (expect 400)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 400', () => pm.response.to.have.status(400));"], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": { "raw": "{{baseUrl}}/api/payments/webhook/esewa", "host": ["{{baseUrl}}"], "path": ["api","payments","webhook","esewa"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sprint 3 — Wallet Statement",
+      "item": [
+        {
+          "name": "Get Wallet Statement (all)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const r = pm.response.json();",
+            "pm.test('Has transactions array', () => pm.expect(r.data.transactions).to.be.an('array'));",
+            "pm.test('Has pagination', () => pm.expect(r.data.pagination).to.have.property('total'));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/wallet/statement", "host": ["{{baseUrl}}"], "path": ["api","wallet","statement"] }
+          }
+        },
+        {
+          "name": "Get Wallet Statement — date filtered",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/wallet/statement?from=2026-01-01&to=2026-12-31&limit=20",
+              "host": ["{{baseUrl}}"], "path": ["api","wallet","statement"],
+              "query": [{ "key": "from", "value": "2026-01-01" }, { "key": "to", "value": "2026-12-31" }, { "key": "limit", "value": "20" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sprint 3 — Ride Request with Promo",
+      "item": [
+        {
+          "name": "Create Ride — with promo code WELCOME10",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201 or 400', () => pm.expect(pm.response.code).to.be.oneOf([201, 400]));",
+            "const r = pm.response.json();",
+            "if (r.data?.id) pm.collectionVariables.set('rideRequestId', r.data.id);"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{riderToken}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "ride-promo-sprint3-001" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"pickupLocation\": { \"coordinates\": [85.3140, 27.7172] },\n  \"pickupAddress\": \"Thamel, Kathmandu\",\n  \"dropoffLocation\": { \"coordinates\": [85.3183, 27.6788] },\n  \"dropoffAddress\": \"Patan Dhoka, Lalitpur\",\n  \"vehiclePreference\": \"car\",\n  \"pricingMode\": \"bidding\",\n  \"passengerCount\": 1,\n  \"promo_code\": \"WELCOME10\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/ride-requests", "host": ["{{baseUrl}}"], "path": ["api","ride-requests"] }
+          }
+        },
+        {
+          "name": "Create Ride — invalid promo (expect 400)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 400', () => pm.response.to.have.status(400));"], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{riderToken}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "ride-promo-sprint3-002" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"pickupLocation\": { \"coordinates\": [85.3140, 27.7172] },\n  \"pickupAddress\": \"Thamel, Kathmandu\",\n  \"dropoffLocation\": { \"coordinates\": [85.3183, 27.6788] },\n  \"dropoffAddress\": \"Patan Dhoka, Lalitpur\",\n  \"vehiclePreference\": \"bike\",\n  \"pricingMode\": \"bidding\",\n  \"passengerCount\": 1,\n  \"promo_code\": \"INVALIDCODE999\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/ride-requests", "host": ["{{baseUrl}}"], "path": ["api","ride-requests"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sprint 3 — Admin Ledger Audit",
+      "item": [
+        {
+          "name": "Ledger Summary",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const r = pm.response.json();",
+            "pm.test('Has platform_balances', () => pm.expect(r.data).to.have.property('platform_balances'));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/ledger/summary", "host": ["{{baseUrl}}"], "path": ["api","admin","ledger","summary"] }
+          }
+        },
+        {
+          "name": "Ledger Accounts",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Is array', () => pm.expect(pm.response.json().data).to.be.an('array'));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/ledger/accounts?owner_type=platform", "host": ["{{baseUrl}}"], "path": ["api","admin","ledger","accounts"], "query": [{ "key": "owner_type", "value": "platform" }] }
+          }
+        },
+        {
+          "name": "Ledger Entries (paginated)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Is array', () => pm.expect(pm.response.json().data).to.be.an('array'));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/ledger/entries?page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["api","admin","ledger","entries"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }] }
+          }
+        },
+        {
+          "name": "Verify Ledger (double-entry check)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const r = pm.response.json();",
+            "pm.test('Has balanced field', () => pm.expect(r.data).to.have.property('balanced'));",
+            "pm.test('Has discrepancy', () => pm.expect(r.data).to.have.property('discrepancy'));"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/ledger/verify", "host": ["{{baseUrl}}"], "path": ["api","admin","ledger","verify"] }
+          }
+        },
+        {
+          "name": "Admin Ledger — non-admin (expect 403)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 403', () => pm.response.to.have.status(403));"], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "{{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/ledger/summary", "host": ["{{baseUrl}}"], "path": ["api","admin","ledger","summary"] }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,157 @@
+{
+  "info": {
+    "name": "SG Sprint 4 — Complete Ride Flow (Stops + Real-Time)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "riderToken", "value": "PASTE_RIDER_TOKEN" },
+    { "key": "driverToken", "value": "PASTE_DRIVER_TOKEN" },
+    { "key": "adminToken", "value": "PASTE_ADMIN_TOKEN" },
+    { "key": "rideRequestId", "value": "1" },
+    { "key": "rideId", "value": "1" },
+    { "key": "bidId", "value": "1" },
+    { "key": "stopId", "value": "1" },
+    { "key": "driverDbId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "4.1 — Stops in Responses",
+      "item": [
+        {
+          "name": "38. Get Ride Request Details (with stops)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/ride-requests/{{rideRequestId}}"
+          }
+        },
+        {
+          "name": "39. Get Rider's Requests (each with stops)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/ride-requests"
+          }
+        },
+        {
+          "name": "40. Get Nearby Requests for Driver (with full stops)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/ride-requests/nearby"
+          }
+        },
+        {
+          "name": "41. Get Bids for Request",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/bidding/requests/{{rideRequestId}}/bids"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4.2 — Bid Events",
+      "item": [
+        {
+          "name": "42. Submit Bid (→ bid_placed socket event to rider)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bidAmount\": 350,\n  \"estimatedArrivalMinutes\": 5,\n  \"driverMessage\": \"On my way!\"\n}"
+            },
+            "url": "{{baseUrl}}/api/bidding/requests/{{rideRequestId}}/submit"
+          }
+        },
+        {
+          "name": "43. Accept Bid (→ bid_accepted to driver, driver_assigned to rider)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/bidding/bids/{{bidId}}/accept"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4.3 — Active Ride Lifecycle",
+      "item": [
+        {
+          "name": "44. Start Ride (→ ride_started to rider)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/rides/{{rideId}}/start"
+          }
+        },
+        {
+          "name": "45. Arrive at Stop (sequence validated, → stop_arrived to rider)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/rides/{{rideId}}/stops/{{stopId}}/arrive"
+          }
+        },
+        {
+          "name": "46. Depart from Stop (→ stop_departed to rider)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/rides/{{rideId}}/stops/{{stopId}}/depart"
+          }
+        },
+        {
+          "name": "47. Complete Ride (→ ride_completed to rider + driver)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/rides/{{rideId}}/complete"
+          }
+        },
+        {
+          "name": "48. Cancel Ride (→ ride_cancelled to rider + driver)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/rides/{{rideId}}/cancel"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4.3 — Live Driver Location",
+      "item": [
+        {
+          "name": "49. Update Driver Location (Redis 30s cache + driver_en_route during active ride)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": 27.7172,\n  \"lng\": 85.3240\n}"
+            },
+            "url": "{{baseUrl}}/api/ride-requests/drivers/location"
+          }
+        },
+        {
+          "name": "50. Get Driver Live Location (Redis-first, DB fallback)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/ride-requests/drivers/location/{{driverDbId}}"
+          }
+        }
+      ]
+    }
+  ]
+}

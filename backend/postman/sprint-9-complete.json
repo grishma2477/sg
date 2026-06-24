@@ -1,0 +1,124 @@
+{
+  "info": {
+    "name": "SG — Sprint 9: Production Hardening",
+    "description": "Health check, structured logging verification, Sentry, DB index perf checks, production stack validation. Tests 107–116.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",     "value": "http://localhost:5000" },
+    { "key": "riderToken",  "value": "" },
+    { "key": "driverToken", "value": "" },
+    { "key": "adminToken",  "value": "" }
+  ],
+  "item": [
+    {
+      "name": "9.1 Health & Observability",
+      "item": [
+        {
+          "name": "107 — GET /health (JSON status)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const b = pm.response.json();",
+            "pm.test('status ok',      () => pm.expect(b.status).to.equal('ok'));",
+            "pm.test('database field', () => pm.expect(b.database).to.equal('connected'));",
+            "pm.test('uptime present', () => pm.expect(b.uptime_seconds).to.be.above(0));",
+            "pm.test('version field',  () => pm.expect(b.version).to.be.a('string'));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health"
+          }
+        },
+        {
+          "name": "108 — GET / (root ping)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/" }
+        },
+        {
+          "name": "109 — X-Request-ID header echoed back",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('X-Request-ID returned', () => {",
+            "  pm.expect(pm.response.headers.get('X-Request-ID')).to.include('test-req');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Request-ID", "value": "test-req-abc-123" }],
+            "url": "{{baseUrl}}/health"
+          }
+        },
+        {
+          "name": "110 — 404 generates warn-level request log",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('404 returned', () => pm.response.to.have.status(404));"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/nonexistent-route-for-log-test" }
+        }
+      ]
+    },
+    {
+      "name": "9.2 DB Index Performance",
+      "item": [
+        {
+          "name": "111 — Nearby drivers (PostGIS GIST index)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('fast response', () => pm.expect(pm.response.responseTime).to.be.below(500));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/ride-requests/drivers/nearby?lat=27.7172&lng=85.3240&vehicle_type=bike",
+              "query": [
+                { "key": "lat",          "value": "27.7172" },
+                { "key": "lng",          "value": "85.3240" },
+                { "key": "vehicle_type", "value": "bike" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "112 — Ride list by status (idx_rides_status)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('fast response', () => pm.expect(pm.response.responseTime).to.be.below(300));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/rides?status=completed&limit=20",
+              "query": [
+                { "key": "status", "value": "completed" },
+                { "key": "limit",  "value": "20" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "9.3 Notifications with tracing",
+      "item": [
+        {
+          "name": "116 — Notifications — X-Request-ID in response",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('X-Request-ID present', () => {",
+            "  pm.expect(pm.response.headers.get('X-Request-ID')).to.be.a('string').and.not.empty;",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/notifications"
+          }
+        }
+      ]
+    }
+  ]
+}

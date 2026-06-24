@@ -3,6 +3,7 @@ import { notifyDriverLocationUpdate } from "../realtime/socketServer.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import RideModel from "../models/ride/Ride.js";
 import { pool } from "../database/DBConnection.js";
+import redis from "../infrastructure/redisClient.js";
 
 export const updateDriverLocation = async (req, res, next) => {
   try {
@@ -34,8 +35,26 @@ export const updateDriverLocation = async (req, res, next) => {
 
 export const getDriverLocation = async (req, res, next) => {
   try {
-    const location = await DriverLocationModel.findById(req.params.driverId);
-    res.json(ApiResponse.success(location));
+    const { driverId } = req.params;
+
+    // Redis first (30s TTL cache set by updateDriverLocation)
+    const cached = await redis.get(`driver:location:${driverId}`);
+    if (cached) {
+      return res.json(ApiResponse.success({ ...JSON.parse(cached), source: "cache" }));
+    }
+
+    // DB fallback
+    const result = await pool.query(
+      `SELECT ST_Y(location::geometry) as lat, ST_X(location::geometry) as lng, updated_at
+       FROM driver_locations WHERE driver_id = $1`,
+      [driverId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json(ApiResponse.error("Driver location not found", 404));
+    }
+
+    res.json(ApiResponse.success({ ...result.rows[0], source: "db" }));
   } catch (err) {
     next(err);
   }

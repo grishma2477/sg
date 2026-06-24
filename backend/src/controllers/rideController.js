@@ -1251,7 +1251,8 @@
 import { RidePaymentService } from '../application/services/RidePaymentService.js';
 import { pool } from '../database/DBConnection.js';
 import { withTransaction } from '../infrastructure/transactions/withTransaction.js';
-import { emitToUser } from '../realtime/socketServer.js';
+import { emitToUser, emitToDriver } from '../realtime/socketServer.js';
+import { NotificationService } from '../application/services/NotificationService.js';
 import PaymentMethod from "../models/finance/payment_method/PaymentMethod.js";
 import PaymentProvider from "../models/finance/payment_method/payment_provider/PaymentProvider.js";
 import Ride from "../models/ride/Ride.js";
@@ -1362,9 +1363,16 @@ export const acceptRideRequest = async (req, res) => {
 
     await client.query("COMMIT");
 
-    emitToUser(request.rider_id,"ride:accepted",{
+    emitToUser(request.rider_id, "driver_assigned", {
       rideId: ride.id,
-      status:"accepted"
+      driverId,
+      status: "accepted",
+    });
+    NotificationService.notify(request.rider_id, {
+      title: 'Driver Assigned',
+      body: 'Your driver is on the way',
+      data: { rideId: String(ride.id) },
+      type: 'ride'
     });
 
     res.status(201).json({
@@ -1570,6 +1578,12 @@ export const startRide = async (req, res) => {
       message: '🚗 Your ride has started!',
       timestamp: new Date().toISOString()
     });
+    NotificationService.notify(ride.rider_id, {
+      title: 'Ride Started',
+      body: `Enjoy your ride`,
+      data: { rideId: String(ride.id) },
+      type: 'ride'
+    });
 
     console.log('✅ Socket notification sent!');
 
@@ -1596,39 +1610,59 @@ export const arriveAtStop = async (req, res) => {
   try {
     const { rideId, stopId } = req.params;
 
-    console.log('🚩 Arriving at stop:', stopId);
+    // Fetch stop info and validate it belongs to this ride
+    const stopCheck = await pool.query(
+      `SELECT rs.ride_request_id, rs.stop_order
+       FROM ride_stops rs
+       INNER JOIN ride_requests rr ON rr.id = rs.ride_request_id
+       WHERE rs.id = $1 AND rr.created_ride_id = $2`,
+      [stopId, rideId]
+    );
+
+    if (stopCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Stop not found for this ride' });
+    }
+
+    const { ride_request_id, stop_order } = stopCheck.rows[0];
+
+    // Validate sequence: all previous stops must have arrived first
+    const prevUnfinished = await pool.query(
+      `SELECT id FROM ride_stops
+       WHERE ride_request_id = $1 AND stop_order < $2 AND actual_arrival_time IS NULL`,
+      [ride_request_id, stop_order]
+    );
+    if (prevUnfinished.rows.length > 0) {
+      return res.status(400).json({ success: false, message: 'STOPS_OUT_OF_SEQUENCE' });
+    }
 
     const result = await pool.query(
-      `UPDATE ride_stops 
-       SET actual_arrival_time = NOW(),
-           status = 'arrived'
+      `UPDATE ride_stops
+       SET actual_arrival_time = NOW(), status = 'arrived'
        WHERE id = $1
        RETURNING *`,
       [stopId]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Stop not found'
+    // Notify rider
+    const rideRow = await pool.query(
+      'SELECT rider_id, driver_id FROM rides WHERE id = $1',
+      [rideId]
+    );
+    if (rideRow.rows.length > 0) {
+      const riderId = rideRow.rows[0].rider_id;
+      emitToUser(riderId, 'stop_arrived', { rideId, stopId, stop_order });
+      NotificationService.notify(riderId, {
+        title: `Arrived at stop`,
+        body: 'Driver has arrived at your stop',
+        data: { rideId: String(rideId), stopId: String(stopId) },
+        type: 'ride'
       });
     }
 
-    console.log('✅ Arrived at stop');
-
-    res.status(200).json({
-      success: true,
-      message: 'ARRIVED_AT_STOP',
-      data: result.rows[0]
-    });
+    res.status(200).json({ success: true, message: 'ARRIVED_AT_STOP', data: result.rows[0] });
 
   } catch (error) {
-    console.error('❌ Error arriving at stop:', error);
-    res.status(500).json({
-      success: false,
-      message: 'INTERNAL_SERVER_ERROR',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'INTERNAL_SERVER_ERROR', error: error.message });
   }
 };
 
@@ -1639,39 +1673,63 @@ export const departFromStop = async (req, res) => {
   try {
     const { rideId, stopId } = req.params;
 
-    console.log('🚀 Departing from stop:', stopId);
+    // Fetch stop info and validate it belongs to this ride
+    const stopCheck = await pool.query(
+      `SELECT rs.ride_request_id, rs.stop_order
+       FROM ride_stops rs
+       INNER JOIN ride_requests rr ON rr.id = rs.ride_request_id
+       WHERE rs.id = $1 AND rr.created_ride_id = $2`,
+      [stopId, rideId]
+    );
+
+    if (stopCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Stop not found for this ride' });
+    }
+
+    const { ride_request_id, stop_order } = stopCheck.rows[0];
+
+    // Validate sequence: this stop must have arrived first
+    const thisStop = await pool.query(
+      'SELECT actual_arrival_time FROM ride_stops WHERE id = $1',
+      [stopId]
+    );
+    if (!thisStop.rows[0]?.actual_arrival_time) {
+      return res.status(400).json({ success: false, message: 'MUST_ARRIVE_BEFORE_DEPARTING' });
+    }
+
+    // All previous stops must have departed first
+    const prevUnfinished = await pool.query(
+      `SELECT id FROM ride_stops
+       WHERE ride_request_id = $1 AND stop_order < $2 AND actual_departure_time IS NULL`,
+      [ride_request_id, stop_order]
+    );
+    if (prevUnfinished.rows.length > 0) {
+      return res.status(400).json({ success: false, message: 'STOPS_OUT_OF_SEQUENCE' });
+    }
 
     const result = await pool.query(
-      `UPDATE ride_stops 
-       SET actual_departure_time = NOW(),
-           status = 'completed'
+      `UPDATE ride_stops
+       SET actual_departure_time = NOW(), status = 'completed'
        WHERE id = $1
        RETURNING *`,
       [stopId]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Stop not found'
+    // Notify rider
+    const rideRow = await pool.query(
+      'SELECT rider_id FROM rides WHERE id = $1',
+      [rideId]
+    );
+    if (rideRow.rows.length > 0) {
+      emitToUser(rideRow.rows[0].rider_id, 'stop_departed', {
+        rideId, stopId, stop_order,
       });
     }
 
-    console.log('✅ Departed from stop');
-
-    res.status(200).json({
-      success: true,
-      message: 'DEPARTED_FROM_STOP',
-      data: result.rows[0]
-    });
+    res.status(200).json({ success: true, message: 'DEPARTED_FROM_STOP', data: result.rows[0] });
 
   } catch (error) {
-    console.error('❌ Error departing from stop:', error);
-    res.status(500).json({
-      success: false,
-      message: 'INTERNAL_SERVER_ERROR',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'INTERNAL_SERVER_ERROR', error: error.message });
   }
 };
 
@@ -1792,10 +1850,26 @@ export const completeRide = async (req, res) => {
     // 🔹 settle escrow → driver + platform
     await RidePaymentService.completeRidePayment(ride.id);
 
-    emitToUser(ride.rider_id,"ride:completed",{
+    emitToUser(ride.rider_id, "ride_completed", {
       rideId: ride.id,
-      status:"completed",
-      redirectTo:`/rating/${ride.id}`
+      status: "completed",
+      redirectTo: `/rating/${ride.id}`,
+    });
+    emitToDriver(ride.driver_id, "ride_completed", {
+      rideId: ride.id,
+      status: "completed",
+    });
+    NotificationService.notify(ride.rider_id, {
+      title: 'Ride Completed',
+      body: `NPR ${ride.fare_amount} charged. Rate your ride`,
+      data: { rideId: String(ride.id) },
+      type: 'ride'
+    });
+    NotificationService.notify(driverId, {
+      title: 'Ride Completed',
+      body: `You earned NPR ${ride.fare_amount}`,
+      data: { rideId: String(ride.id) },
+      type: 'ride'
     });
 
     res.status(200).json({
@@ -1911,6 +1985,41 @@ export const cancelRide = async (req, res) => {
 
     // 🔹 refund escrow to rider
     await RidePaymentService.cancelRidePayment(ride.id);
+
+    // Notify both parties
+    emitToUser(ride.rider_id, "ride_cancelled", { rideId: ride.id });
+    if (ride.driver_id) {
+      emitToDriver(ride.driver_id, "ride_cancelled", { rideId: ride.id });
+    }
+
+    // Push notifications — determine who cancelled to tailor message
+    const cancelledByRider = ride.rider_id === userId;
+    if (cancelledByRider) {
+      NotificationService.notify(ride.rider_id, {
+        title: 'Ride Cancelled',
+        body: 'Your ride has been cancelled',
+        data: { rideId: String(ride.id) },
+        type: 'ride'
+      });
+      if (ride.driver_id) {
+        const driverUserRow = await pool.query(`SELECT user_id FROM drivers WHERE id=$1`, [ride.driver_id]);
+        if (driverUserRow.rows.length > 0) {
+          NotificationService.notify(driverUserRow.rows[0].user_id, {
+            title: 'Ride Cancelled',
+            body: 'Rider cancelled the ride',
+            data: { rideId: String(ride.id) },
+            type: 'ride'
+          });
+        }
+      }
+    } else {
+      NotificationService.notify(ride.rider_id, {
+        title: 'Ride Cancelled',
+        body: 'Your driver cancelled. Looking for a new driver...',
+        data: { rideId: String(ride.id) },
+        type: 'ride'
+      });
+    }
 
     res.status(200).json({
       success:true,

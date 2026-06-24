@@ -1,0 +1,154 @@
+{
+  "info": {
+    "name": "SG API — Sprint 12: Final QA, Performance & Launch Prep",
+    "description": "Performance monitoring, Redis cache, slow query analysis, E2E smoke tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",    "value": "http://localhost:5000" },
+    { "key": "adminToken", "value": "PASTE_ADMIN_TOKEN_HERE" },
+    { "key": "riderToken", "value": "PASTE_RIDER_TOKEN_HERE" },
+    { "key": "driverToken","value": "PASTE_DRIVER_TOKEN_HERE" }
+  ],
+  "item": [
+    {
+      "name": "12.1 Performance Endpoints",
+      "item": [
+        {
+          "name": "141 - DB stats",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/performance/db-stats", "host": ["{{baseUrl}}"], "path": ["api","admin","performance","db-stats"] }
+          }
+        },
+        {
+          "name": "142 - Slow queries (min 50ms)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/performance/slow-queries?min_ms=50&limit=20", "host": ["{{baseUrl}}"], "path": ["api","admin","performance","slow-queries"], "query": [{"key":"min_ms","value":"50"},{"key":"limit","value":"20"}] }
+          }
+        },
+        {
+          "name": "144 - Cache stats",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/performance/cache-stats", "host": ["{{baseUrl}}"], "path": ["api","admin","performance","cache-stats"] }
+          }
+        },
+        {
+          "name": "145 - Flush route cache",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"pattern\":\"route:*\"}" },
+            "url": { "raw": "{{baseUrl}}/api/admin/performance/cache-flush", "host": ["{{baseUrl}}"], "path": ["api","admin","performance","cache-flush"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "12.2 Route Cache Verification",
+      "item": [
+        {
+          "name": "147 - Estimate (cache MISS — first call)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));", "pm.globals.set('firstCallMs', pm.response.responseTime);"] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/ride-requests/estimate?pickup_lat=27.7154&pickup_lng=85.3123&dropoff_lat=27.6588&dropoff_lng=85.3247", "host": ["{{baseUrl}}"], "path": ["api","ride-requests","estimate"], "query": [{"key":"pickup_lat","value":"27.7154"},{"key":"pickup_lng","value":"85.3123"},{"key":"dropoff_lat","value":"27.6588"},{"key":"dropoff_lng","value":"85.3247"}] }
+          }
+        },
+        {
+          "name": "148 - Estimate (cache HIT — should be much faster)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));", "const first = pm.globals.get('firstCallMs');", "console.log(`First: ${first}ms, Cached: ${pm.response.responseTime}ms`);"] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/ride-requests/estimate?pickup_lat=27.7154&pickup_lng=85.3123&dropoff_lat=27.6588&dropoff_lng=85.3247", "host": ["{{baseUrl}}"], "path": ["api","ride-requests","estimate"], "query": [{"key":"pickup_lat","value":"27.7154"},{"key":"pickup_lng","value":"85.3123"},{"key":"dropoff_lat","value":"27.6588"},{"key":"dropoff_lng","value":"85.3247"}] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "12.3 Health Smoke Tests",
+      "item": [
+        {
+          "name": "149 - Health check",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));", "pm.test('database connected', () => { const b = pm.response.json(); pm.expect(b.data.database).to.eql('connected'); });"] } }],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "150 - Root ping",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/", "host": ["{{baseUrl}}"], "path": [""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "12.4 E2E Smoke Tests",
+      "item": [
+        {
+          "name": "151 - Wallet balance (rider)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/wallet/balance", "host": ["{{baseUrl}}"], "path": ["api","wallet","balance"] }
+          }
+        },
+        {
+          "name": "152 - Notifications (rider)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notifications", "host": ["{{baseUrl}}"], "path": ["api","notifications"] }
+          }
+        },
+        {
+          "name": "153 - Driver earnings summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/drivers/earnings/summary", "host": ["{{baseUrl}}"], "path": ["api","drivers","earnings","summary"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "12.5 Security + Final",
+      "item": [
+        {
+          "name": "154 - CORS preflight",
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              { "key": "Origin", "value": "https://sawagaadi.com" },
+              { "key": "Access-Control-Request-Method", "value": "POST" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/auth/send-otp", "host": ["{{baseUrl}}"], "path": ["api","auth","send-otp"] }
+          }
+        },
+        {
+          "name": "155 - Performance dashboard composite (db-stats)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/performance/db-stats", "host": ["{{baseUrl}}"], "path": ["api","admin","performance","db-stats"] }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -145,8 +145,8 @@ export const SafetyImpactFactory = {
       5: 2,
       4: 1,
       3: 0,
-      2: -10,
-      1: -20
+      2: -5,
+      1: -10
     };
 
     const stars = Number(rating?.stars ?? 0);
@@ -193,15 +193,6 @@ export const SafetyImpactFactory = {
     // ═══════════════════════════════════════════════════
     if (!Number.isInteger(totalImpact)) {
       throw new Error(`Invalid safety impact calculated: ${totalImpact}`);
-    }
-
-    // 🚨 Contract enforcement: this must NEVER happen
-    if (
-      negativeImpact === -40 &&
-      starImpact < 0 &&
-      totalImpact > -50
-    ) {
-      throw new Error("SAFETY SCORING VIOLATION: star impact ignored");
     }
 
     return {

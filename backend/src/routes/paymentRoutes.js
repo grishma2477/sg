@@ -6,8 +6,8 @@ import {
   handleGatewayWebhook,
   getAccountHistory,
   createPaymentProvider,
-
 } from '../controllers/paymentController.js';
+import { handleEsewaWebhook } from '../controllers/walletTopupController.js';
 
 import {
     addPaymentMethod,
@@ -47,8 +47,11 @@ router.get('/:paymentId', auth, getPaymentDetails);
 // GATEWAY WEBHOOK (NO AUTH - verified by gateway signature)
 // ═══════════════════════════════════════════════════════════
 
-// Gateway webhook (eSewa/Khalti callback)
+// Gateway webhook (eSewa/Khalti callback) — legacy
 router.post('/webhook/gateway', handleGatewayWebhook);
+
+// eSewa webhook — HMAC-verified, no auth token required
+router.post('/webhook/esewa', handleEsewaWebhook);
 
 
 // ═══════════════════════════════════════════════════════════

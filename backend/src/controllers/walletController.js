@@ -1,5 +1,6 @@
 import { WalletService } from "../application/services/WalletService.js";
 import { PaymentHoldService } from "../application/services/PaymentHoldService.js";
+import { NotificationService } from "../application/services/NotificationService.js";
 
 // ═══════════════════════════════════════════════════════════
 // GET WALLET BALANCE
@@ -72,6 +73,13 @@ export const topUpWallet = async (req, res) => {
       paymentGateway,
       gatewayTransactionId,
       metadata
+    });
+
+    NotificationService.notify(userId, {
+      title: 'Wallet Topped Up',
+      body: `NPR ${amount} added to your wallet`,
+      data: { amount: String(amount) },
+      type: 'payment'
     });
 
     res.status(200).json({

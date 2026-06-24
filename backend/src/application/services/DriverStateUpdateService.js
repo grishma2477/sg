@@ -81,15 +81,13 @@ export class DriverStateUpdateService {
     newPoints = Math.min(newPoints, MAX_SAFETY);
     newPoints = Math.max(newPoints, MIN_SAFETY);
 
-    // Determine driver status based on points
+    // Determine driver status based on points (spec thresholds)
     let status = "active";
-    
-    if (newPoints <= 200) {
-      status = "suspended";  // Very low points - account suspended
-    } else if (newPoints <= 500) {
-      status = "restricted"; // Low points - limited visibility
+
+    if (newPoints < 800) {
+      status = "risk_flagged"; // Excluded from matching
     } else if (newPoints >= 1200) {
-      status = "priority";   // High points - priority matching
+      status = "priority";     // Priority matching
     }
 
     // Update safety stats

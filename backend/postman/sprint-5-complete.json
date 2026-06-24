@@ -1,0 +1,212 @@
+{
+  "info": {
+    "name": "SG Sprint 5 — Driver System Completion",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",       "value": "http://localhost:5000" },
+    { "key": "driverToken",   "value": "PASTE_DRIVER_TOKEN" },
+    { "key": "riderToken",    "value": "PASTE_RIDER_TOKEN" },
+    { "key": "adminToken",    "value": "PASTE_ADMIN_TOKEN" },
+    { "key": "rideId",        "value": "1" },
+    { "key": "driverDbId",    "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "5.1 — Onboarding & Profile",
+      "item": [
+        {
+          "name": "51. Onboarding Status (6-step state machine)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/drivers/onboarding-status"
+          }
+        },
+        {
+          "name": "52. Get Driver Profile (enhanced with safety_level, vehicle, badge)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/drivers/profile"
+          }
+        },
+        {
+          "name": "53. Update Driver Profile (vehicle info + photo)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicle_model\": \"Honda CB Shine\",\n  \"vehicle_color\": \"Red\",\n  \"license_plate\": \"BA 1 PA 1234\",\n  \"vehicle_year\": 2022,\n  \"photo_url\": \"https://cdn.example.com/driver-photo.jpg\"\n}"
+            },
+            "url": "{{baseUrl}}/api/drivers/profile"
+          }
+        },
+        {
+          "name": "54. Driver Stats (today earnings, rides today, acceptance rate)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/drivers/stats"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5.5 — Earnings",
+      "item": [
+        {
+          "name": "55. Earnings Summary — today",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/drivers/earnings/summary?period=today"
+          }
+        },
+        {
+          "name": "56. Earnings Summary — week",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/drivers/earnings/summary?period=week"
+          }
+        },
+        {
+          "name": "57. Earnings Summary — month",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/drivers/earnings/summary?period=month"
+          }
+        },
+        {
+          "name": "58. Earnings History (paginated completed rides)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/drivers/earnings/history?page=1&limit=20"
+          }
+        },
+        {
+          "name": "59. Earnings Statement — date range",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/drivers/earnings/statement?from=2026-06-01&to=2026-06-30"
+          }
+        },
+        {
+          "name": "60. Earnings Statement — missing params (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/drivers/earnings/statement"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5.2 — Safety Scoring Fixes",
+      "item": [
+        {
+          "name": "61. 5-star review → +2 pts star + top-2 pos taps (capped +6 total)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rideId\": 1,\n  \"stars\": 5,\n  \"taps\": [\n    { \"key\": \"FELT_SAFE\", \"category\": \"positive\" },\n    { \"key\": \"RESPECTFUL\", \"category\": \"positive\" }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/reviews/driver"
+          }
+        },
+        {
+          "name": "62. 2-star review → -5 pts (spec fix, was -10)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rideId\": 1,\n  \"stars\": 2,\n  \"taps\": []\n}"
+            },
+            "url": "{{baseUrl}}/api/reviews/driver"
+          }
+        },
+        {
+          "name": "63. Safety concern + 1-star → -50 pts floor (SAFETY_CONCERN -40 + star -10)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rideId\": 1,\n  \"stars\": 1,\n  \"taps\": [\n    { \"key\": \"SAFETY_CONCERN\", \"category\": \"negative\" }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/reviews/driver"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5.4 — Matching Algorithm Fix",
+      "item": [
+        {
+          "name": "64. Nearby Requests for Driver (spec formula + 800pt threshold)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/ride-requests/nearby"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5.3 — Admin Safety & Badges",
+      "item": [
+        {
+          "name": "65. Admin — Driver Safety Profile (safety_level + audit log)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/admin/drivers/{{driverDbId}}/safety"
+          }
+        },
+        {
+          "name": "66. Admin — All Drivers with Badges",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/admin/drivers/badges"
+          }
+        },
+        {
+          "name": "67. Admin — Update Driver Badges",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"confirmed_identity\": true,\n  \"driver_license_verified\": true,\n  \"vehicle_inspected\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/drivers/{{driverDbId}}/badges"
+          }
+        }
+      ]
+    }
+  ]
+}

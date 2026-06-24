@@ -1,0 +1,19 @@
+// Place this file at android/app/signing.gradle
+// Add `apply from: 'signing.gradle'` in android/app/build.gradle inside the `android {}` block.
+// Set these env vars in your CI or export them before running `eas build`.
+
+android {
+    signingConfigs {
+        release {
+            storeFile     file(System.getenv("ANDROID_KEYSTORE_PATH") ?: "keystore.jks")
+            storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
+            keyAlias      System.getenv("ANDROID_KEY_ALIAS")         ?: "sg-release"
+            keyPassword   System.getenv("ANDROID_KEY_PASSWORD")      ?: ""
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+        }
+    }
+}

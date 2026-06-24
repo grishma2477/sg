@@ -1,0 +1,168 @@
+{
+  "info": {
+    "name": "SG API — Sprint 11: Analytics, Operations & Surge Pricing",
+    "description": "Admin analytics endpoints, surge pricing CRUD, fare estimation with surge applied",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",    "value": "http://localhost:5000" },
+    { "key": "adminToken", "value": "PASTE_ADMIN_TOKEN_HERE" },
+    { "key": "riderToken", "value": "PASTE_RIDER_TOKEN_HERE" }
+  ],
+  "item": [
+    {
+      "name": "11.1 Analytics Overview",
+      "item": [
+        {
+          "name": "127 - Overview today",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/analytics/overview?period=today", "host": ["{{baseUrl}}"], "path": ["api","admin","analytics","overview"], "query": [{ "key": "period", "value": "today" }] }
+          }
+        },
+        {
+          "name": "128 - Overview week",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/analytics/overview?period=week", "host": ["{{baseUrl}}"], "path": ["api","admin","analytics","overview"], "query": [{ "key": "period", "value": "week" }] }
+          }
+        },
+        {
+          "name": "129 - Overview month",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/analytics/overview?period=month", "host": ["{{baseUrl}}"], "path": ["api","admin","analytics","overview"], "query": [{ "key": "period", "value": "month" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11.2 Analytics Breakdown",
+      "item": [
+        {
+          "name": "130 - Rides analytics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/analytics/rides?from=2026-06-01&to=2026-06-24", "host": ["{{baseUrl}}"], "path": ["api","admin","analytics","rides"], "query": [{"key":"from","value":"2026-06-01"},{"key":"to","value":"2026-06-24"}] }
+          }
+        },
+        {
+          "name": "131 - Drivers analytics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/analytics/drivers?from=2026-06-01&to=2026-06-24", "host": ["{{baseUrl}}"], "path": ["api","admin","analytics","drivers"], "query": [{"key":"from","value":"2026-06-01"},{"key":"to","value":"2026-06-24"}] }
+          }
+        },
+        {
+          "name": "132 - Finance analytics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/analytics/finance?from=2026-06-01&to=2026-06-24", "host": ["{{baseUrl}}"], "path": ["api","admin","analytics","finance"], "query": [{"key":"from","value":"2026-06-01"},{"key":"to","value":"2026-06-24"}] }
+          }
+        },
+        {
+          "name": "133 - Geography heatmap",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/analytics/geography", "host": ["{{baseUrl}}"], "path": ["api","admin","analytics","geography"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11.3 Surge Pricing",
+      "item": [
+        {
+          "name": "134 - Check surge at Thamel (public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/admin/surge/check?lat=27.7154&lng=85.3123", "host": ["{{baseUrl}}"], "path": ["api","admin","surge","check"], "query": [{"key":"lat","value":"27.7154"},{"key":"lng","value":"85.3123"}] }
+          }
+        },
+        {
+          "name": "135 - List active surges",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/surge", "host": ["{{baseUrl}}"], "path": ["api","admin","surge"] }
+          }
+        },
+        {
+          "name": "136 - Create surge zone (Thamel 1.5x)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"area_name\":\"Thamel\",\"lat\":27.7154,\"lng\":85.3123,\"radius_km\":2,\"multiplier\":1.5,\"reason\":\"Concert at Tundikhel\",\"ends_at\":\"2026-06-24T23:59:00Z\"}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/admin/surge", "host": ["{{baseUrl}}"], "path": ["api","admin","surge"] }
+          }
+        },
+        {
+          "name": "137 - End surge early",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/surge/1", "host": ["{{baseUrl}}"], "path": ["api","admin","surge","1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11.4 Fare Estimation with Surge",
+      "item": [
+        {
+          "name": "138 - Estimate fare (surge applied if active)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/ride-requests/estimate?pickup_lat=27.7154&pickup_lng=85.3123&dropoff_lat=27.7006&dropoff_lng=85.3139",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","ride-requests","estimate"],
+              "query": [
+                {"key":"pickup_lat","value":"27.7154"},
+                {"key":"pickup_lng","value":"85.3123"},
+                {"key":"dropoff_lat","value":"27.7006"},
+                {"key":"dropoff_lng","value":"85.3139"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11.5 Operations Smoke Tests",
+      "item": [
+        {
+          "name": "139 - Analytics + surge loaded together",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/analytics/overview?period=today", "host": ["{{baseUrl}}"], "path": ["api","admin","analytics","overview"], "query": [{"key":"period","value":"today"}] }
+          }
+        },
+        {
+          "name": "140 - Surge check at Kathmandu center",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/admin/surge/check?lat=27.7172&lng=85.3240", "host": ["{{baseUrl}}"], "path": ["api","admin","surge","check"], "query": [{"key":"lat","value":"27.7172"},{"key":"lng","value":"85.3240"}] }
+          }
+        }
+      ]
+    }
+  ]
+}

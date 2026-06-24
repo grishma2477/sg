@@ -1,5 +1,7 @@
 import { PayoutService } from "../application/services/PayoutService.js";
 import { LedgerService } from "../application/services/LedgerService.js";
+import { NotificationService } from "../application/services/NotificationService.js";
+import { pool } from "../database/DBConnection.js";
 
 // ═══════════════════════════════════════════════════════════
 // DRIVER: REQUEST PAYOUT
@@ -143,6 +145,20 @@ export const approvePayout = async (req, res) => {
     const { notes } = req.body;
 
     const request = await PayoutService.approvePayoutRequest(requestId, adminId, notes);
+
+    // Notify the driver's user account
+    const userRow = await pool.query(
+      `SELECT user_id FROM drivers WHERE id = $1`,
+      [request.driver_id]
+    );
+    if (userRow.rows.length > 0) {
+      NotificationService.notify(userRow.rows[0].user_id, {
+        title: 'Payout Approved',
+        body: `NPR ${request.amount} will be transferred in 1-2 days`,
+        data: { requestId: String(requestId) },
+        type: 'payment'
+      });
+    }
 
     res.status(200).json({
       success: true,

@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: sg_postgres_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB}
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:     ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+
+  redis:
+    image: redis:7-alpine
+    container_name: sg_redis_prod
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test:     ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout:  3s
+      retries:  5
+
+  backend:
+    build:
+      context:    ./backend
+      dockerfile: Dockerfile
+    container_name: sg_backend_prod
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:     ["CMD", "wget", "-qO-", "http://localhost:5000/health"]
+      interval: 30s
+      timeout:  5s
+      retries:  3
+
+  nginx:
+    image: nginx:alpine
+    container_name: sg_nginx_prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  pgdata:

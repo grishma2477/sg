@@ -59,6 +59,12 @@ services:
     restart: always
     env_file:
       - .env
+      - frontend/.env
+    environment:
+      # Inside Docker the frontend container reaches the backend via the service name
+      - VITE_PROXY_TARGET=http://backend:5000
+      - VITE_API_URL=http://localhost:5000
+      - VITE_SOCKET_URL=http://localhost:5000
     ports:
       - "3000:3000"
     depends_on:

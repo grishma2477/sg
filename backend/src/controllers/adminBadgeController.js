@@ -275,9 +275,65 @@ export const resetDriverBadges = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/admin/drivers/:driverId/safety
+ */
+export const getDriverSafetyProfile = async (req, res, next) => {
+  try {
+    const { driverId } = req.params;
+
+    const [statsResult, auditResult] = await Promise.all([
+      pool.query(`
+        SELECT
+          dss.driver_id,
+          dss.current_points,
+          dss.average_rating,
+          dss.completed_rides,
+          dss.total_safety_concerns,
+          dss.verified_safe_badge,
+          dss.updated_at,
+          dv.visibility_multiplier,
+          dv.performance_tier
+        FROM driver_safety_stats dss
+        LEFT JOIN driver_visibility dv ON dss.driver_id = dv.driver_id
+        WHERE dss.driver_id = $1
+      `, [driverId]),
+
+      pool.query(`
+        SELECT event_type, points_before, points_after, note, created_at
+        FROM driver_safety_audit_log
+        WHERE driver_id = $1
+        ORDER BY created_at DESC
+        LIMIT 50
+      `, [driverId])
+    ]);
+
+    if (statsResult.rows.length === 0) {
+      return res.status(404).json(ApiResponse.error('Driver safety stats not found', 404));
+    }
+
+    const stats = statsResult.rows[0];
+    const pts = stats.current_points ?? 1000;
+    const safetyLevel =
+      pts >= 950 ? 'Trusted' :
+      pts >= 900 ? 'Very Good' :
+      pts >= 850 ? 'Average' :
+      pts >= 800 ? 'Low Trust' : 'Risk Flagged';
+
+    res.json(ApiResponse.success({
+      safety: { ...stats, safety_level: safetyLevel },
+      audit_log: auditResult.rows
+    }));
+  } catch (error) {
+    console.error('❌ Get driver safety profile error:', error);
+    next(error);
+  }
+};
+
 export default {
   getAllDriversWithBadges,
   getDriverBadges,
   updateDriverBadges,
-  resetDriverBadges
+  resetDriverBadges,
+  getDriverSafetyProfile
 };

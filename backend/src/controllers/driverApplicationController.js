@@ -625,6 +625,8 @@ import { pool } from '../database/DBConnection.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUpload.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { LedgerService } from '../application/services/LedgerService.js';
+import { NotificationService } from '../application/services/NotificationService.js';
+import { EmailService } from '../infrastructure/emailService.js';
 
 /**
  * GET /api/driver-applications/check
@@ -1075,6 +1077,8 @@ export const submitApplication = async (req, res, next) => {
       });
     }
 
+    EmailService.driverApplicationSubmitted(req.user.phone_number ?? req.user.email ?? 'unknown', userId).catch(() => {});
+
     res.status(200).json(
       ApiResponse.success({
         applicationId: applicationId,
@@ -1212,6 +1216,13 @@ export const reviewApplication = async (req, res, next) => {
         });
       }
 
+      NotificationService.notify(userId, {
+        title: 'Application Not Approved',
+        body: remarks || 'Your driver application was not approved. Please review and resubmit.',
+        data: {},
+        type: 'driver'
+      });
+
       return res.json(ApiResponse.success({ message: 'Application rejected' }));
     }
 
@@ -1302,6 +1313,13 @@ export const reviewApplication = async (req, res, next) => {
         timestamp: new Date()
       });
     }
+
+    NotificationService.notify(userId, {
+      title: "You're a Driver!",
+      body: 'Start accepting rides now',
+      data: { driverId: String(driverId) },
+      type: 'driver'
+    });
 
     res.json(ApiResponse.success({
       message: 'Application approved. Driver created with initial badges!',

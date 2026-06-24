@@ -16,6 +16,12 @@ import {
   getPaymentStats,
   cancelRidePayment
 } from '../controllers/ridePaymentController.js';
+import {
+  initiateTopup,
+  verifyTopup,
+  getTopupStatus,
+  getWalletStatement,
+} from '../controllers/walletTopupController.js';
 import { idempotency } from '../middleware/idempotency.js';
 
 const router = express.Router();
@@ -23,7 +29,15 @@ const router = express.Router();
 // Get wallet balance
 router.get('/balance', auth, getWalletBalance);
 
-// Top-up wallet
+// ── Gateway top-up (Sprint 3) ────────────────────────────────────────────────
+router.post('/topup/initiate', auth, initiateTopup);
+router.post('/topup/verify',   auth, verifyTopup);
+router.get('/topup/status/:topupId', auth, getTopupStatus);
+
+// Wallet statement (Sprint 3)
+router.get('/statement', auth, getWalletStatement);
+
+// Legacy direct top-up (admin/test use)
 router.post('/topup', auth, idempotency, topUpWallet);
 
 // Withdraw from wallet

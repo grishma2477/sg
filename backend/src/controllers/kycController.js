@@ -5,6 +5,7 @@ import { uploadToCloudinary } from '../utils/cloudinaryUpload.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import KYC from "../models/user/kyc/KYC.js"
 import { String } from '../utils/Constant.js';
+import { NotificationService } from '../application/services/NotificationService.js';
 
 /**
  * GET /api/kyc/status
@@ -405,6 +406,13 @@ export const verifyKYC = async (req, res, next) => {
         });
       }
 
+      NotificationService.notify(Number(userId), {
+        title: 'KYC Needs Attention',
+        body: `${remarks || 'Please resubmit your identity documents'}`,
+        data: {},
+        type: 'kyc'
+      });
+
       return res.json(ApiResponse.success({
         message: `KYC rejected. ${remarks || ''}`
       }, 'KYC_REJECTED'));
@@ -459,8 +467,15 @@ export const verifyKYC = async (req, res, next) => {
       });
     }
 
+    NotificationService.notify(Number(userId), {
+      title: 'KYC Verified ✓',
+      body: 'Your identity has been verified',
+      data: {},
+      type: 'kyc'
+    });
+
     res.json(ApiResponse.success({
-      message: 'KYC verified successfully' + 
+      message: 'KYC verified successfully' +
         (userRole === 'driver' ? '. Driver profile created.' : ''),
       userRole: userRole
     }, 'KYC_VERIFIED'));

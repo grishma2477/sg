@@ -1,0 +1,173 @@
+{
+  "info": {
+    "name": "SG Sprint 6 — Push Notifications + Notification Centre",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",    "value": "http://localhost:5000" },
+    { "key": "riderToken", "value": "PASTE_RIDER_TOKEN" },
+    { "key": "driverToken","value": "PASTE_DRIVER_TOKEN" },
+    { "key": "adminToken", "value": "PASTE_ADMIN_TOKEN" },
+    { "key": "userId",     "value": "1" },
+    { "key": "rideRequestId", "value": "1" },
+    { "key": "rideId",     "value": "1" },
+    { "key": "notifId",    "value": "PASTE_NOTIFICATION_UUID" }
+  ],
+  "item": [
+    {
+      "name": "6.1 — Firebase Device Token Registration",
+      "item": [
+        {
+          "name": "71. Register rider FCM token",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fcm_token\": \"PASTE_REAL_FCM_TOKEN\",\n  \"device_type\": \"android\",\n  \"device_id\": \"device-001\",\n  \"device_name\": \"Test Phone\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/device"
+          }
+        },
+        {
+          "name": "72. Register driver FCM token",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fcm_token\": \"PASTE_DRIVER_FCM_TOKEN\",\n  \"device_type\": \"android\",\n  \"device_id\": \"driver-device-001\",\n  \"device_name\": \"Driver Phone\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/device"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6.5 — Notification Centre",
+      "item": [
+        {
+          "name": "73. Get notifications (paginated)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/notifications?page=1&limit=20"
+          }
+        },
+        {
+          "name": "74. Unread count (bell badge)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/notifications/unread-count"
+          }
+        },
+        {
+          "name": "75. Mark single notification as read",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/notifications/{{notifId}}/read"
+          }
+        },
+        {
+          "name": "76. Mark all as read",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/notifications/read-all"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6.4 — Ride Notification Triggers",
+      "item": [
+        {
+          "name": "77. Create ride request → drivers get 'New Ride Request' push",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup_address\": \"Thamel, Kathmandu\",\n  \"dropoff_address\": \"Patan Durbar Square\",\n  \"pickup_lat\": 27.7172,\n  \"pickup_lng\": 85.3140,\n  \"dropoff_lat\": 27.6727,\n  \"dropoff_lng\": 85.3222,\n  \"vehicle_type\": \"bike\",\n  \"pricing_mode\": \"bidding\"\n}"
+            },
+            "url": "{{baseUrl}}/api/ride-requests"
+          }
+        },
+        {
+          "name": "78. Submit bid → rider gets 'New Bid Received' push",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bidAmount\": 350,\n  \"estimatedArrivalMinutes\": 5,\n  \"driverMessage\": \"On my way!\"\n}"
+            },
+            "url": "{{baseUrl}}/api/bidding/requests/{{rideRequestId}}/submit"
+          }
+        },
+        {
+          "name": "79. Accept bid → driver gets 'Bid Accepted!', rider gets 'Driver Assigned'",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/bidding/bids/1/accept"
+          }
+        },
+        {
+          "name": "80. Complete ride → rider gets 'Ride Completed', driver gets earnings push",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/rides/{{rideId}}/complete"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6.4 — Admin Notification Triggers",
+      "item": [
+        {
+          "name": "81. KYC approve → user gets 'KYC Verified ✓' push",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"approved\": true,\n  \"remarks\": \"All documents verified\"\n}" },
+            "url": "{{baseUrl}}/api/kyc/verify/{{userId}}"
+          }
+        },
+        {
+          "name": "82. Wallet top-up → user gets 'Wallet Topped Up' push",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500,\n  \"paymentMethod\": \"esewa\",\n  \"paymentGateway\": \"esewa\",\n  \"gatewayTransactionId\": \"ESW-TEST-12345\"\n}"
+            },
+            "url": "{{baseUrl}}/api/wallet/topup"
+          }
+        }
+      ]
+    }
+  ]
+}

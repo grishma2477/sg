@@ -1,0 +1,344 @@
+{
+  "info": {
+    "name": "SG Sprint 7 — React Web Dashboard (UI validation via API)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",      "value": "http://localhost:5000" },
+    { "key": "frontendUrl",  "value": "http://localhost:3000" },
+    { "key": "riderToken",   "value": "PASTE_RIDER_TOKEN" },
+    { "key": "driverToken",  "value": "PASTE_DRIVER_TOKEN" },
+    { "key": "adminToken",   "value": "PASTE_ADMIN_TOKEN" },
+    { "key": "rideRequestId","value": "1" },
+    { "key": "bidId",        "value": "1" },
+    { "key": "rideId",       "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "7.1 — Auth Flow (OTP)",
+      "item": [
+        {
+          "name": "83. Send OTP (dev returns otp in response)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+9779800000001\"\n}" },
+            "url": "{{baseUrl}}/api/auth/send-otp"
+          }
+        },
+        {
+          "name": "84. Verify OTP → rider (isNewUser → name entry screen)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+9779800000001\",\n  \"otp\": \"PASTE_OTP\",\n  \"role\": \"rider\"\n}" },
+            "url": "{{baseUrl}}/api/auth/verify-otp"
+          }
+        },
+        {
+          "name": "85. Verify OTP → driver",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+9779800000002\",\n  \"otp\": \"PASTE_OTP\",\n  \"role\": \"driver\"\n}" },
+            "url": "{{baseUrl}}/api/auth/verify-otp"
+          }
+        },
+        {
+          "name": "86. Resend OTP (resets 60s countdown)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+9779800000001\"\n}" },
+            "url": "{{baseUrl}}/api/auth/resend-otp"
+          }
+        },
+        {
+          "name": "96. Admin login (email + password → admin dashboard)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@sg.com\",\n  \"password\": \"Admin@1234\"\n}" },
+            "url": "{{baseUrl}}/api/auth/login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7.2 — Rider Screens",
+      "item": [
+        {
+          "name": "87. Estimate ride (vehicle selection screen)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup_lat\": 27.7172,\n  \"pickup_lng\": 85.3240,\n  \"dropoff_lat\": 27.6727,\n  \"dropoff_lng\": 85.3222,\n  \"stops\": []\n}"
+            },
+            "url": "{{baseUrl}}/api/ride-requests/estimate"
+          }
+        },
+        {
+          "name": "88. Create ride request (after vehicle selection → waiting screen)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization",   "value": "Bearer {{riderToken}}" },
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "ride-test-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup_address\": \"Thamel, Kathmandu\",\n  \"dropoff_address\": \"Patan Durbar Square\",\n  \"pickup_lat\": 27.7172,\n  \"pickup_lng\": 85.3240,\n  \"dropoff_lat\": 27.6727,\n  \"dropoff_lng\": 85.3222,\n  \"stops\": [],\n  \"vehicle_type\": \"bike\",\n  \"pricing_mode\": \"bidding\"\n}"
+            },
+            "url": "{{baseUrl}}/api/ride-requests"
+          }
+        },
+        {
+          "name": "89. Get bids for request (polling fallback on waiting screen)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/bidding/requests/{{rideRequestId}}/bids"
+          }
+        },
+        {
+          "name": "90. Accept bid (→ ride-in-progress screen)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/bidding/bids/{{bidId}}/accept"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7.3 — Driver Screens",
+      "item": [
+        {
+          "name": "91. Driver go online (online toggle on driver home)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"online\"\n}" },
+            "url": "{{baseUrl}}/api/drivers/status"
+          }
+        },
+        {
+          "name": "92. Driver update location (called every 5s while online)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"lat\": 27.7172,\n  \"lng\": 85.3240\n}" },
+            "url": "{{baseUrl}}/api/ride-requests/drivers/location"
+          }
+        },
+        {
+          "name": "93. Driver submit bid (from incoming request card)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"bidAmount\": 320,\n  \"estimatedArrivalMinutes\": 4,\n  \"driverMessage\": \"On my way!\"\n}" },
+            "url": "{{baseUrl}}/api/bidding/requests/{{rideRequestId}}/submit"
+          }
+        },
+        {
+          "name": "Driver: Get earnings summary (today)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/drivers/earnings/summary?period=today"
+          }
+        },
+        {
+          "name": "Driver: Get earnings history (list view)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/api/drivers/earnings/history?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Driver: Request payout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1000,\n  \"bank_name\": \"Laxmi Bank\",\n  \"account_number\": \"1234567890\"\n}" },
+            "url": "{{baseUrl}}/api/payouts"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7.4 — Wallet Screen",
+      "item": [
+        {
+          "name": "94. Get wallet balance (wallet home screen)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/wallet"
+          }
+        },
+        {
+          "name": "95. Get transaction history (wallet history tab)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/api/wallet/transactions?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Wallet top-up via eSewa (top-up bottom sheet)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 500,\n  \"paymentMethod\": \"esewa\",\n  \"paymentGateway\": \"esewa\",\n  \"gatewayTransactionId\": \"ESW-MANUAL-001\"\n}" },
+            "url": "{{baseUrl}}/api/wallet/topup"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7.5 — Admin Screens",
+      "item": [
+        {
+          "name": "Admin: List pending KYC (KYC review screen)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/kyc/list?status=pending&page=1&limit=20"
+          }
+        },
+        {
+          "name": "Admin: List pending driver applications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/driver-applications?status=pending&page=1"
+          }
+        },
+        {
+          "name": "Admin: Get active rides (live map screen)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/admin/rides/active"
+          }
+        },
+        {
+          "name": "Admin: List pending payouts",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/payouts?status=pending&page=1"
+          }
+        },
+        {
+          "name": "Admin: List users with search",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/admin/manage/users?search=&page=1&limit=20"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7.0 — Frontend Pages Reference",
+      "item": [
+        {
+          "name": "Splash screen (→ /login or role home)",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/" }
+        },
+        {
+          "name": "OTP Login page",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/login" }
+        },
+        {
+          "name": "Rider Home (map + where to card)",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/rider" }
+        },
+        {
+          "name": "Rider Destination Picker",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/rider/destination" }
+        },
+        {
+          "name": "Rider Vehicle Selection",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/rider/vehicles" }
+        },
+        {
+          "name": "Rider Waiting for Bids",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/rider/waiting/1" }
+        },
+        {
+          "name": "Rider Ride In Progress",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/rider/ride/1" }
+        },
+        {
+          "name": "Rider Review screen",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/rider/review/1" }
+        },
+        {
+          "name": "Driver Home (map + online toggle)",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/driver" }
+        },
+        {
+          "name": "Driver Active Ride",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/driver/ride/1" }
+        },
+        {
+          "name": "Driver Earnings",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/driver/earnings" }
+        },
+        {
+          "name": "Wallet page (shared)",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/rider/wallet" }
+        },
+        {
+          "name": "Admin Dashboard",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/admin" }
+        },
+        {
+          "name": "Admin KYC Review",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/admin/kyc" }
+        },
+        {
+          "name": "Admin Driver Applications",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/admin/drivers" }
+        },
+        {
+          "name": "Admin Live Rides Map",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/admin/map" }
+        },
+        {
+          "name": "Admin Payouts",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/admin/payouts" }
+        },
+        {
+          "name": "Admin Users",
+          "request": { "method": "GET", "url": "{{frontendUrl}}/admin/users" }
+        }
+      ]
+    }
+  ]
+}

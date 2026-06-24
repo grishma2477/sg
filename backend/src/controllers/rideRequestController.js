@@ -710,10 +710,15 @@
 
 import { RideRequestService } from "../application/services/RideRequestService.js";
 import { DriverMatchingService } from "../application/services/DriverMatchingService.js";
-import { broadcastRideRequest } from "../realtime/socketServer.js";
+import { broadcastRideRequest, emitToUser } from "../realtime/socketServer.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { pool } from '../database/DBConnection.js';
+import redis from "../infrastructure/redisClient.js";
 import { PricingCalculationService } from "../application/services/PricingCalculationService.js";
+import { PromoCodeService } from "../application/services/PromoCodeService.js";
+import { GiftCardService } from "../application/services/GiftCardService.js";
+import { NotificationService } from "../application/services/NotificationService.js";
+import { SurgeService } from "../application/services/SurgeService.js";
 const requestService = new RideRequestService();
 const matchingService = new DriverMatchingService();
 
@@ -738,6 +743,20 @@ export const estimateFare = async (req, res, next) => {
       stops: waypointList,
     });
 
+    const surge = await SurgeService.getMultiplier(pickup.lat, pickup.lng);
+
+    if (surge.multiplier > 1.0) {
+      result.estimates = result.estimates.map(e => ({
+        ...e,
+        fareMin:       Math.round(e.fareMin * surge.multiplier),
+        fareMax:       Math.round(e.fareMax * surge.multiplier),
+        surgeMultiplier: surge.multiplier,
+        surgeArea:       surge.surgeArea,
+        surgeReason:     surge.reason,
+      }));
+    }
+    result.surge = surge;
+
     res.json(ApiResponse.success(result));
   } catch (err) {
     next(err);
@@ -756,7 +775,9 @@ export const createRideRequest = async (req, res, next) => {
       pricingMode,
       vehiclePreference,
       passengerCount,
-      luggageCount
+      luggageCount,
+      promo_code,
+      gift_card_code,
     } = req.body;
 
     const userId = req.user?.id;
@@ -785,11 +806,38 @@ export const createRideRequest = async (req, res, next) => {
     const vehicleEstimate = routeData.estimates.find((e) => e.vehicleType === vehicleType)
       ?? routeData.estimates.find((e) => e.vehicleType === "car");
 
-    const estimatedTotal = vehicleEstimate.fareMin;
+    const surge = await SurgeService.getMultiplier(lat1, lon1);
+    const estimatedTotal = Math.round(vehicleEstimate.fareMin * surge.multiplier);
 
-    console.log(`📏 Distance: ${routeData.distanceKm} km | Duration: ${routeData.durationMinutes} min | Fare: NPR ${estimatedTotal}`);
+    // ── Promo code validation ──────────────────────────────────────────────
+    let discountAmount  = 0;
+    let appliedPromo    = null;
+    if (promo_code) {
+      try {
+        const promoResult = await PromoCodeService.validatePromoCode(promo_code, userId, estimatedTotal);
+        discountAmount = promoResult.discountAmount;
+        appliedPromo   = promo_code.toUpperCase().trim();
+      } catch (promoErr) {
+        return res.status(400).json(ApiResponse.error(promoErr.code || "INVALID_PROMO_CODE", 400));
+      }
+    }
 
-    const pickupCoords = `POINT(${lon1} ${lat1})`;
+    // ── Gift card validation ───────────────────────────────────────────────
+    let giftCardAmount  = 0;
+    let appliedGiftCard = null;
+    if (gift_card_code) {
+      try {
+        const gcResult = await GiftCardService.validateGiftCard(gift_card_code, userId);
+        giftCardAmount  = Math.min(gcResult.balance, estimatedTotal - discountAmount);
+        appliedGiftCard = gift_card_code.toUpperCase().trim();
+      } catch (gcErr) {
+        return res.status(400).json(ApiResponse.error(gcErr.code || "INVALID_GIFT_CARD", 400));
+      }
+    }
+
+    console.log(`📏 Distance: ${routeData.distanceKm} km | Duration: ${routeData.durationMinutes} min | Fare: NPR ${estimatedTotal} | Discount: NPR ${discountAmount + giftCardAmount}`);
+
+    const pickupCoords  = `POINT(${lon1} ${lat1})`;
     const dropoffCoords = `POINT(${lon2} ${lat2})`;
 
     const query = `
@@ -806,6 +854,10 @@ export const createRideRequest = async (req, res, next) => {
         estimated_distance_km,
         estimated_duration_minutes,
         estimated_total,
+        promo_code,
+        discount_amount,
+        gift_card_code,
+        gift_card_amount,
         status,
         created_at
       )
@@ -823,6 +875,10 @@ export const createRideRequest = async (req, res, next) => {
         $11,
         $12,
         $13,
+        $14,
+        $15,
+        $16,
+        $17,
         NOW()
       )
       RETURNING *
@@ -841,7 +897,11 @@ export const createRideRequest = async (req, res, next) => {
       routeData.distanceKm,
       routeData.durationMinutes,
       estimatedTotal,
-      "pending"
+      appliedPromo    ?? null,
+      discountAmount,
+      appliedGiftCard ?? null,
+      giftCardAmount,
+      "pending",
     ];
 
     const result = await pool.query(query, values);
@@ -880,6 +940,56 @@ export const createRideRequest = async (req, res, next) => {
           ]
         );
       }
+    }
+
+    // Broadcast new_ride_request to nearby online drivers (5 km radius)
+    try {
+      const nearbyResult = await pool.query(
+        `SELECT d.id FROM drivers d
+         INNER JOIN driver_locations dl ON d.id = dl.driver_id
+         WHERE d.is_online = true AND d.is_available = true
+         AND ST_DWithin(
+           dl.location::geography,
+           ST_MakePoint($1,$2)::geography,
+           5000
+         )`,
+        [lon1, lat1]
+      );
+      if (nearbyResult.rows.length > 0) {
+        const driverIds = nearbyResult.rows.map((r) => r.id);
+        broadcastRideRequest(
+          {
+            id: rideRequest.id,
+            pickup_address: pickupAddress,
+            dropoff_address: dropoffAddress,
+            pickup_lat: lat1,
+            pickup_lng: lon1,
+            vehicle_preference: vehicleType,
+            estimated_total: estimatedTotal,
+            estimated_distance_km: routeData.distanceKm,
+            estimated_duration_minutes: routeData.durationMinutes,
+            pricing_mode: pricingMode || "bidding",
+          },
+          driverIds
+        );
+
+        // Notify each nearby driver's user account
+        const driverUserResult = await pool.query(
+          `SELECT user_id FROM drivers WHERE id = ANY($1::int[])`,
+          [driverIds]
+        );
+        NotificationService.notifyMany(
+          driverUserResult.rows.map((r) => r.user_id),
+          {
+            title: "New Ride Request",
+            body: `NPR ${estimatedTotal} — ${pickupAddress} to ${dropoffAddress}`,
+            data: { requestId: String(rideRequest.id) },
+            type: "ride"
+          }
+        );
+      }
+    } catch (_) {
+      // Non-critical — ride request was already created
     }
 
     res.status(201).json(ApiResponse.success(rideRequest, "RIDE_REQUEST_CREATED"));
@@ -1130,7 +1240,7 @@ export const getRideRequestDetails = async (req, res) => {
     console.log('📋 Fetching ride request details:', id);
 
     const query = `
-      SELECT 
+      SELECT
         rr.id,
         rr.rider_id,
         rr.pickup_address,
@@ -1144,9 +1254,26 @@ export const getRideRequestDetails = async (req, res) => {
         rr.created_at,
         rr.estimated_distance_km,
         rr.estimated_duration_minutes,
-        rr.estimated_total     
+        rr.estimated_total,
+        (
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'id', rs.id,
+                'name', rs.address,
+                'latitude', ST_Y(rs.location::geometry),
+                'longitude', ST_X(rs.location::geometry),
+                'order', rs.stop_order,
+                'arrived_at', rs.actual_arrival_time,
+                'departed_at', rs.actual_departure_time
+              ) ORDER BY rs.stop_order
+            ) FILTER (WHERE rs.id IS NOT NULL),
+            '[]'::json
+          )
+          FROM ride_stops rs WHERE rs.ride_request_id = rr.id
+        ) as stops
       FROM ride_requests rr
-    WHERE rr.id = $1
+      WHERE rr.id = $1
     `;
 
     const result = await pool.query(query, [id]);
@@ -1183,7 +1310,7 @@ export const getRiderRequests = async (req, res) => {
     console.log('📋 Fetching ride requests for rider:', riderId);
 
     let query = `
-      SELECT 
+      SELECT
         rr.id,
         rr.rider_id,
         rr.pickup_address,
@@ -1197,7 +1324,24 @@ export const getRiderRequests = async (req, res) => {
         rr.created_at,
         rr.estimated_distance_km,
         rr.estimated_duration_minutes,
-        rr.estimated_total
+        rr.estimated_total,
+        (
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'id', rs.id,
+                'name', rs.address,
+                'latitude', ST_Y(rs.location::geometry),
+                'longitude', ST_X(rs.location::geometry),
+                'order', rs.stop_order,
+                'arrived_at', rs.actual_arrival_time,
+                'departed_at', rs.actual_departure_time
+              ) ORDER BY rs.stop_order
+            ) FILTER (WHERE rs.id IS NOT NULL),
+            '[]'::json
+          )
+          FROM ride_stops rs WHERE rs.ride_request_id = rr.id
+        ) as stops
       FROM ride_requests rr
       WHERE rr.rider_id = $1
     `;
@@ -1265,11 +1409,19 @@ export const getNearbyRideRequests = async (req, res) => {
     rr.estimated_total,
     CONCAT(k.first_name, ' ', k.last_name) as rider_name,
     (
-      SELECT json_agg(
-        json_build_object(
-          'address', rs.address,
-          'stop_order', rs.stop_order
-        ) ORDER BY rs.stop_order
+      SELECT COALESCE(
+        json_agg(
+          json_build_object(
+            'id', rs.id,
+            'name', rs.address,
+            'latitude', ST_Y(rs.location::geometry),
+            'longitude', ST_X(rs.location::geometry),
+            'order', rs.stop_order,
+            'arrived_at', rs.actual_arrival_time,
+            'departed_at', rs.actual_departure_time
+          ) ORDER BY rs.stop_order
+        ) FILTER (WHERE rs.id IS NOT NULL),
+        '[]'::json
       )
       FROM ride_stops rs
       WHERE rs.ride_request_id = rr.id
@@ -1492,7 +1644,26 @@ export const updateDriverLocation = async (req, res) => {
       );
     }
 
-    console.log('✅ Location updated');
+    // Cache last known position in Redis (30s TTL)
+    try {
+      await redis.set(
+        `driver:location:${driverDbId}`,
+        JSON.stringify({ lat, lng, updatedAt: Date.now() }),
+        "EX",
+        30
+      );
+    } catch (_) { /* non-critical */ }
+
+    // Emit driver_en_route to rider if driver has an active ride
+    const activeRide = await pool.query(
+      `SELECT rider_id FROM rides WHERE driver_id = $1 AND status IN ('accepted','started') LIMIT 1`,
+      [driverDbId]
+    );
+    if (activeRide.rows.length > 0) {
+      emitToUser(activeRide.rows[0].rider_id, "driver_en_route", {
+        lat, lng, driverId: driverDbId,
+      });
+    }
 
     res.status(200).json({
       success: true,

@@ -143,6 +143,8 @@ import DriverSafetyStats from "../../models/driver/driver_safety_stats/DriverSaf
 import SafetyAuditLog from "../../models/safety/SafetyAuditLog.js";
 import ReviewModel from "../../models/review/Review.js";
 import { SafetyCalculationService } from "../services/SafetyCalculationService.js";
+import { NotificationService } from "../services/NotificationService.js";
+import { pool } from "../../database/DBConnection.js";
 
 /**
  * Safety Worker
@@ -233,6 +235,25 @@ export async function runSafetyWorker({ review, reviewerRole }) {
   console.log(
     `✅ Safety updated for driver ${driverId}: ${beforePoints} → ${afterPoints}`
   );
+
+  // Notify driver if a safety concern was filed
+  const hasSafetyConcern = review.taps?.some?.(
+    (t) => String(t.key).toUpperCase() === "SAFETY_CONCERN"
+  );
+  if (hasSafetyConcern) {
+    const userRow = await pool.query(
+      `SELECT user_id FROM drivers WHERE id = $1`,
+      [driverId]
+    );
+    if (userRow.rows.length > 0) {
+      NotificationService.notify(userRow.rows[0].user_id, {
+        title: 'Safety Review',
+        body: 'A safety concern was filed. Our team will review.',
+        data: { reviewId: String(review.id) },
+        type: 'safety'
+      });
+    }
+  }
 
   return {
     driverId,

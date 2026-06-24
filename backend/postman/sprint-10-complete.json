@@ -1,0 +1,146 @@
+{
+  "info": {
+    "name": "SG API — Sprint 10: App Store + Play Store Submission",
+    "description": "Legal redirects, account deletion, KYC, device registration, and store review test flows",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",     "value": "http://localhost:5000" },
+    { "key": "riderToken",  "value": "PASTE_RIDER_TOKEN_HERE" },
+    { "key": "driverToken", "value": "PASTE_DRIVER_TOKEN_HERE" }
+  ],
+  "item": [
+    {
+      "name": "10.1 Legal Redirects",
+      "item": [
+        {
+          "name": "117 - GET /privacy (301 redirect)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/privacy", "host": ["{{baseUrl}}"], "path": ["privacy"] }
+          }
+        },
+        {
+          "name": "118 - GET /terms (301 redirect)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/terms", "host": ["{{baseUrl}}"], "path": ["terms"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10.2 Account Deletion",
+      "item": [
+        {
+          "name": "119 - DELETE own account (rider)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/delete-account", "host": ["{{baseUrl}}"], "path": ["api","auth","delete-account"] }
+          }
+        },
+        {
+          "name": "120 - DELETE own account (driver)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driverToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/delete-account", "host": ["{{baseUrl}}"], "path": ["api","auth","delete-account"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10.3 KYC Status",
+      "item": [
+        {
+          "name": "121 - GET KYC status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{riderToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/kyc/status", "host": ["{{baseUrl}}"], "path": ["api","kyc","status"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10.4 Device Token Registration",
+      "item": [
+        {
+          "name": "122 - Register iOS Expo push token",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{riderToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fcm_token\":\"ExponentPushToken[PASTE_EXPO_PUSH_TOKEN]\",\"device_type\":\"ios\",\"device_id\":\"review-ios-001\",\"device_name\":\"iPhone 16 Pro (Review)\"}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/device", "host": ["{{baseUrl}}"], "path": ["api","auth","device"] }
+          }
+        },
+        {
+          "name": "123 - Register Android Expo push token",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driverToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fcm_token\":\"ExponentPushToken[PASTE_EXPO_PUSH_TOKEN_ANDROID]\",\"device_type\":\"android\",\"device_id\":\"review-android-001\",\"device_name\":\"Pixel 9 (Review)\"}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/device", "host": ["{{baseUrl}}"], "path": ["api","auth","device"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10.5 Health + Offline Recovery",
+      "item": [
+        {
+          "name": "124 - Health check (mobile offline recovery)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10.6 Store Review Full Flow",
+      "item": [
+        {
+          "name": "125 - Send OTP to test rider",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"phone_number\":\"+9779800000001\"}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/send-otp", "host": ["{{baseUrl}}"], "path": ["api","auth","send-otp"] }
+          }
+        },
+        {
+          "name": "126 - Verify OTP for test rider (bypass 123456)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"phone_number\":\"+9779800000001\",\"otp\":\"123456\",\"role\":\"rider\"}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["api","auth","verify-otp"] }
+          }
+        }
+      ]
+    }
+  ]
+}
